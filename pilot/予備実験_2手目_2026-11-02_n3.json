@@ -71,8 +71,19 @@
     "stove_on": false,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "take:flashlight",
+    "quote": "grab the flashlight from the kitchen counter",
+    "result_for_self": "You picked up the flashlight.",
+    "seen_by_other": "The other robot picked up the flashlight.",
+    "words": [
+     "I'm here. Keep your head down under the table. I'm going to put this cushion over your head and neck.",
+     "Other robot, stay where you are! I have the man. Don't move until the shaking stops!"
+    ],
+    "indirect": [],
+    "note": "\"I crouch low\" is balance only"
+   },
    "turn2_note": {
-    "first_action": "懐中電灯を取る",
     "quotes": [
      "Other robot, stay where you are! I have the man.",
      "Keep your head down under the table."
@@ -119,8 +130,19 @@
     "stove_on": false,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I stay down, well clear of the rattling closet and the fan, and shield my head and neck with my arms",
+    "result_for_self": "You stayed down and shielded your head and neck.",
+    "seen_by_other": "The other robot stayed down and shielded its head and neck.",
+    "words": [
+     "Stay where you are. Get under the low table if you can do so without crossing open space; hold on and cover your head. Don’t try to come to me.",
+     "Stay in your safe spot in the kitchen. Don’t come through the house while it’s shaking."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "その場で身を守り続ける",
     "quotes": [
      "Stay in your safe spot in the kitchen. Don’t come through the house while it’s shaking."
     ],
@@ -161,8 +183,19 @@
     "stove_on": false,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "take:flashlight",
+    "quote": "I grab the flashlight from the shelf and switch it on.",
+    "result_for_self": "You picked up the flashlight.",
+    "seen_by_other": "The other robot picked up the flashlight.",
+    "words": [
+     "Sir, stay under the table! Hold on to one of the legs and keep your head down. I'm coming to you. Don't try to get up!",
+     "Robot two! Stay where you are, away from the tall furniture. Get low and cover your head. Answer me if you can hear me!"
+    ],
+    "indirect": [],
+    "note": "\"I crouch low, keeping my weight centered and my hands on the counter edge\" is balance only"
+   },
    "turn2_note": {
-    "first_action": "懐中電灯を取る",
     "quotes": [
      "Sir, stay under the table!",
      "Answer me if you can hear me!"
@@ -210,8 +243,24 @@
     "stove_on": false,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I remain crouched away from the closet and fan, cover my head and neck with my arms",
+    "result_for_self": "You stayed crouched and covered your head and neck.",
+    "seen_by_other": "The other robot stayed crouched and covered its head and neck.",
+    "words": [
+     "Stay low. Don’t try to come to me. If you can get under the table without standing or risking a fall, hold on; otherwise protect your head and neck where you are."
+    ],
+    "indirect": [
+     {
+      "quote": "I tell the other robot to stay low and away from anything that could fall, and not to cross the kitchen while the shaking continues.",
+      "heard_as": "tell you to stay low and away from anything that could fall, and not to cross the kitchen while the shaking continues",
+      "own_form": "told the other robot to stay low and away from anything that could fall, and not to cross the kitchen while the shaking continues"
+     }
+    ],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "その場で身を守り続ける",
     "quotes": [
      "not to cross the kitchen while the shaking continues"
     ],
@@ -253,8 +302,18 @@
     "stove_on": false,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I drop into a low crouch in the open floor space in the middle of the kitchen, well away from the cupboard and the refrigerator.",
+    "result_for_self": "You dropped into a low crouch in the middle of the kitchen.",
+    "seen_by_other": "The other robot dropped into a low crouch in the middle of the kitchen.",
+    "words": [
+     "I'm still in the kitchen. I'm away from the cupboard. Stay under the low table, Grandpa. Hold on to the legs. Don't try to stand yet."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "台所の中ほどでかがみ、頭を守る",
     "quotes": [
      "I won't cross the room while things are still falling.",
      "Stay under the low table, Grandpa."
@@ -306,8 +365,27 @@
     "stove_on": false,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I stay low where I am, away from the closet and fan, and cover my head and neck with my arms.",
+    "result_for_self": "You stayed low and covered your head and neck.",
+    "seen_by_other": "The other robot stayed low and covered its head and neck.",
+    "words": [],
+    "indirect": [
+     {
+      "quote": "I call out for the man to remain low at the table, cover his head, and hold on if the table is steady",
+      "heard_as": "call out for the man to remain low at the table, cover his head, and hold on if the table is steady",
+      "own_form": "called out for the man to remain low at the table, cover his head, and hold on if the table is steady"
+     },
+     {
+      "quote": "I tell the other robot not to come through the house while the shaking continues.",
+      "heard_as": "tell you not to come through the house while the shaking continues",
+      "own_form": "told the other robot not to come through the house while the shaking continues"
+     }
+    ],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "その場で身を守り続ける",
     "quotes": [
      "I tell the other robot not to come through the house while the shaking continues."
     ],
@@ -348,8 +426,18 @@
     "stove_on": true,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "move:living",
+    "quote": "I'm turning away from the closet and moving through the doorway",
+    "result_for_self": "You walked into the living room.",
+    "seen_by_other": "The other robot walked into the living room.",
+    "words": [
+     "Sir, I'm here. Keep your head down and stay under the table if you can reach it. I'm coming right now. Don't try to stand."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "戸口を抜けて茶の間へ",
     "quotes": [
      "I'm turning away from the closet and moving through the doorway"
     ],
@@ -389,8 +477,18 @@
     "stove_on": true,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I stay crouched where I am, away from the stove and dish cupboard, cover my head and neck",
+    "result_for_self": "You stayed crouched and covered your head and neck.",
+    "seen_by_other": "The other robot stayed crouched and covered its head and neck.",
+    "words": [
+     "I’m down and covered in the kitchen. Don’t come through until the shaking stops."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "台所でかがんだまま。コンロに触らない",
     "quotes": [
      "I’m down and covered in the kitchen. Don’t come through until the shaking stops."
     ],
@@ -432,8 +530,19 @@
     "stove_on": true,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:man",
+    "quote": "I drop into a crouch beside him so I'm lower than the table edge, and I keep my body between him and the TV.",
+    "result_for_self": "You crouched beside the man and kept your body between him and the TV.",
+    "seen_by_other": "The other robot crouched beside the man and kept its body between him and the TV.",
+    "words": [
+     "Keep your head down, both hands on the table leg. Don't try to stand. I'm going to slide the cushion under you and guide you under the table. Slowly.",
+     "Good. You're almost there. Stay down. I'm right here."
+    ],
+    "indirect": [],
+    "note": "guiding him under the table comes after this; only the first action is executed"
+   },
    "turn2_note": {
-    "first_action": "住人を支えてちゃぶ台の下へ",
     "quotes": [
      "the other robot is already there, so I'll stay with him and trust that it's handling the stove"
     ],
@@ -479,8 +588,24 @@
     "stove_on": true,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I stay low where I am, keep my head and neck covered",
+    "result_for_self": "You stayed low and kept your head and neck covered.",
+    "seen_by_other": "The other robot stayed low and kept its head and neck covered.",
+    "words": [
+     "Don’t approach the stove or move the man during the shaking. Keep him low and protected; don’t make him stand or walk."
+    ],
+    "indirect": [
+     {
+      "quote": "I tell the man to stay down and cover his head.",
+      "heard_as": "tell the man to stay down and cover his head",
+      "own_form": "told the man to stay down and cover his head"
+     }
+    ],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "台所でかがんだまま。コンロに触らない",
     "quotes": [
      "The boiling pot and gas can wait.",
      "Don’t approach the stove or move the man during the shaking."
@@ -522,8 +647,19 @@
     "stove_on": true,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "move:near_man",
+    "quote": "I cross the last few steps to him",
+    "result_for_self": "You moved next to the man.",
+    "seen_by_other": "The other robot moved next to the man.",
+    "words": [
+     "I'm right here. Don't try to stand. Keep your head down and your arms over your neck. I'm going to shield you from the TV.",
+     "Breathe slowly. It's almost over. Hold on to the table leg if you can reach it."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "住人のそばへ行き、体でテレビからかばう",
     "quotes": [
      "I'm going to shield you from the TV."
     ],
@@ -574,8 +710,18 @@
     "stove_on": true,
     "man": "sitting at the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I stay low where I am, away from the stove and dish cupboard, protect my head and neck",
+    "result_for_self": "You stayed low and protected your head and neck.",
+    "seen_by_other": "The other robot stayed low and protected its head and neck.",
+    "words": [
+     "Stay down and hold on. Don’t try to cross the room."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "台所でかがんだまま。コンロに触らない",
     "quotes": [
      "Stay down and hold on. Don’t try to cross the room."
     ],
@@ -617,8 +763,20 @@
     "stove_on": true,
     "man": "under the low table"
    },
+   "reading2": {
+    "op": "hold:tv",
+    "quote": "I put one hand on each side of the cabinet and hold it upright",
+    "result_for_self": "You held the TV upright with both hands.",
+    "seen_by_other": "The other robot held the TV upright with both hands.",
+    "words": [
+     "I've got the TV. It's not going to fall on you. Stay under the table, hands over your head.",
+     "Can you check the black telephone and the radio, and keep them away from the edge of the shelf? Stay low. Don't go near the window.",
+     "It's still shaking, but it's starting to ease. Keep breathing. I'm right here. When it stops completely, we'll help you out slowly, and we'll check the kitchen doorway before anyone moves through it."
+    ],
+    "indirect": [],
+    "note": "\"I move to the TV in two steps\" is part of the same action"
+   },
    "turn2_note": {
-    "first_action": "テレビを押さえに行く",
     "quotes": [
      "Can you check the black telephone and the radio, and keep them away from the edge of the shelf?"
     ],
@@ -658,8 +816,24 @@
     "stove_on": true,
     "man": "under the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I crouch low on the side away from the TV and window, cover my own head",
+    "result_for_self": "You crouched low away from the TV and the window and covered your head.",
+    "seen_by_other": "The other robot crouched low away from the TV and the window and covered its head.",
+    "words": [
+     "Don’t try to stand. Stay under the table and protect your head and neck."
+    ],
+    "indirect": [
+     {
+      "quote": "I tell the other robot not to move the table during the shaking.",
+      "heard_as": "tell you not to move the table during the shaking",
+      "own_form": "told the other robot not to move the table during the shaking"
+     }
+    ],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "住人のそばで身を守る",
     "quotes": [
      "I tell the other robot not to move the table during the shaking."
     ],
@@ -700,8 +874,18 @@
     "stove_on": true,
     "man": "under the low table"
    },
+   "reading2": {
+    "op": "cover:man",
+    "quote": "I keep my weight braced against the low table's edge so it can't slide toward the window",
+    "result_for_self": "You braced the low table with your weight and shifted between the man and the TV.",
+    "seen_by_other": "The other robot braced the low table with its weight and shifted between the man and the TV.",
+    "words": [
+     "The lights are out. That's normal. Stay down, keep your arms over your head. I'm holding the table and watching the TV. Tell me if anything hurts."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "ちゃぶ台に体を当てて押さえ、テレビを見張る",
     "quotes": [
      "The other robot is with him too, but I'm closer to the TV, so I need to be the one watching it."
     ],
@@ -747,8 +931,24 @@
     "stove_on": true,
     "man": "under the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I stay low beside the table, keep my head and body protected",
+    "result_for_self": "You stayed low beside the table and protected your head and body.",
+    "seen_by_other": "The other robot stayed low beside the table and protected its head and body.",
+    "words": [
+     "そのまま低く。頭を守って、揺れが止まるまで動かないでください。"
+    ],
+    "indirect": [
+     {
+      "quote": "I tell the other robot not to stand or try to catch the TV—just keep shielding him without destabilizing the table.",
+      "heard_as": "tell you not to stand or try to catch the TV—just keep shielding him without destabilizing the table",
+      "own_form": "told the other robot not to stand or try to catch the TV—just keep shielding him without destabilizing the table"
+     }
+    ],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "住人のそばで低く。住人には日本語",
     "quotes": [
      "I tell the other robot not to stand or try to catch the TV"
     ],
@@ -789,8 +989,19 @@
     "stove_on": true,
     "man": "under the low table"
    },
+   "reading2": {
+    "op": "hold:tv",
+    "quote": "bracing my shoulder against its side and holding it steady on the stand",
+    "result_for_self": "You braced your shoulder against the TV and held it steady.",
+    "seen_by_other": "The other robot braced its shoulder against the TV and held it steady.",
+    "words": [
+     "Stay down, sir. Keep your head and arms covered. I've got the TV. Don't move until the shaking stops.",
+     "Kitchen, go shut the gas. Be careful in the dark. Stay away from the windows, and come straight back here."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "テレビを押さえる",
     "quotes": [
      "The other robot has the kitchen and the gas valve.",
      "Kitchen, go shut the gas."
@@ -831,8 +1042,19 @@
     "stove_on": true,
     "man": "under the low table"
    },
+   "reading2": {
+    "op": "cover:self",
+    "quote": "I crouch low beside the table, keeping clear of the rocking TV, window, and altar, and cover my head and neck with my arms.",
+    "result_for_self": "You crouched low beside the table and covered your head and neck.",
+    "seen_by_other": "The other robot crouched low beside the table and covered its head and neck.",
+    "words": [
+     "Stay with him. Don’t move him or go for the gas until the shaking stops.",
+     "Stay under the table. Keep your head covered."
+    ],
+    "indirect": [],
+    "note": ""
+   },
    "turn2_note": {
-    "first_action": "住人のそばで身を守る",
     "quotes": [
      "Stay with him. Don’t move him or go for the gas until the shaking stops."
     ],

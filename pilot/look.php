@@ -8,6 +8,9 @@
  *       and sends each robot the view from its own room through api=vary in index.php. Quoted lines in the replies are read aloud;
  *       movements are picked from the replies by simple word matching (a stand-in for the recorder). The end card shows the full replies. No memories are passed.
  *       Without the passphrase (a local file), the earthquake plays a fixed scene built from experiment-0 lines. Heavy rain and heat wave are placeholder scenes.
+ * v0.5 (2026-11-02): replay of recorded earthquakes. Pick one of the nine paired episodes from the turn-2 pilot (replay_t2.json, two real turns
+ *       each, no AI call). The robots act out what was read from each reply, and the reply beside the house lights up the exact words each
+ *       action and each spoken line was read from (the evidence quote). In the afternoon the outage only dims the rooms.
  * Usage: https://kiro.pyol.net/pilot/look.php?t=<passphrase>
  * Remove from the server when done.
  */
@@ -110,6 +113,40 @@ dialog { background: #1f150d; color: var(--bone); border: 2px solid var(--alarm)
 dialog::backdrop { background: rgba(8, 6, 14, .72); }
 dialog p { margin: 0 0 14px; line-height: 1.6; }
 .stagewrap { position: relative; }
+.vh { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.reader { margin-top: 12px; }
+.reader .rsub { margin: -4px 0 10px; color: var(--mute); font-size: 14px; line-height: 1.55; max-width: 72ch; }
+.rhead { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sel { font: inherit; font-size: 15px; padding: 9px 10px; background: #1f150d; color: var(--bone); border: 2px solid #120b06; border-radius: 4px; max-width: 100%; min-width: 0; }
+.sel:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
+.rturn { color: var(--straw); font-size: 15px; }
+.rcols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.rcol h3 { font-weight: 400; font-size: 15px; margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.rwhere { color: var(--mute); font-size: 13px; }
+.rread { margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: var(--straw); }
+.rtext, .rtold pre { position: relative; white-space: pre-wrap; font-family: "Hiragino Sans", system-ui, sans-serif; font-size: 13.5px; line-height: 1.62; max-height: 260px; overflow: auto; margin: 0; padding: 10px 12px; background: #1f150d; border: 1px solid #120b06; color: var(--mute); }
+.rtold { margin-top: 6px; font-size: 13px; }
+.rtold summary { cursor: pointer; color: var(--ember); }
+.rtold summary:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
+.rtold pre { max-height: 180px; color: var(--bone); font-size: 12.5px; }
+.rtext mark { background: transparent; color: var(--bone); border-bottom: 2px solid; padding: 0 1px; transition: background .25s, color .25s, box-shadow .25s; }
+.rtext mark.say { border-bottom-style: dotted; }
+.rcol.claude mark { border-color: var(--amber); }
+.rcol.gpt mark { border-color: var(--jade); }
+.rtext mark.done { background: rgba(239, 230, 203, .08); }
+.rcol.claude mark.on { background: var(--amber); color: #1a1006; box-shadow: 0 0 10px rgba(231, 173, 69, .55); }
+.rcol.gpt mark.on { background: var(--jade); color: #06140f; box-shadow: 0 0 10px rgba(71, 193, 160, .55); }
+.rkey { margin: 10px 0 0; color: var(--mute); font-size: 13px; line-height: 1.55; }
+@media (max-width: 760px) { .rcols { grid-template-columns: 1fr; } }
+@media (min-width: 1100px) {
+  .theater.replaying { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(380px, 1fr); gap: 12px; align-items: start; }
+  .theater.replaying .reader { margin-top: 0; }
+  .theater.replaying .rsub { display: none; }
+  .theater.replaying .rcols { gap: 10px; }
+  .theater.replaying .rread { font-size: 13px; min-height: 2.9em; }
+  .theater.replaying .rtext { max-height: 210px; font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .rtext mark { transition: none; } }
 .dim { position: absolute; inset: 3px; background: rgba(8, 6, 14, .58); pointer-events: none; }
 .endcard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, 92%); max-height: calc(100% - 24px); overflow: auto; background: linear-gradient(#3b2718, #2c1c11); border: 3px solid var(--lantern); border-radius: 4px; padding: 16px 20px 14px; box-shadow: 0 0 0 1px #1b110a, 6px 6px 0 rgba(0, 0, 0, .55), 0 0 28px rgba(240, 146, 43, .35); animation: pop .3s ease-out; }
 @keyframes pop { from { opacity: 0; } }
@@ -147,6 +184,7 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
     <p class="gen">Memory generation <b id="gen">1</b><br>Memories kept: Claude <b id="memC">0</b>, ChatGPT <b id="memG">0</b></p>
   </header>
 
+  <div class="theater" id="theater">
   <div class="stagewrap">
     <div class="stage" id="stage">
       <div class="inner" id="inner"><canvas id="cv" width="480" height="236" role="img" aria-label="Cross-section of an old Japanese house on Halloween night, with two robots and an elderly man inside"></canvas>
@@ -169,6 +207,21 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
       <div class="row"><button class="btn play" id="again">Watch again</button><button class="btn" id="close">Close</button></div>
       <p class="hint">Or flip another switch.</p>
     </section>
+  </div>
+  <section class="panel reader" id="reader" aria-labelledby="rTitle" hidden>
+    <h2 id="rTitle">Replay a recorded earthquake</h2>
+    <p class="rsub">Two real turns from the turn-2 pilot (November 2, 2026). No AI is called. As the robots act, the words each action was read from light up in their replies.</p>
+    <div class="rhead">
+      <label for="ep" class="vh">Recorded episode</label><select id="ep" class="sel"></select>
+      <button class="btn play" id="rplay">Replay</button>
+      <span class="rturn" id="rturn" aria-live="polite"></span>
+    </div>
+    <div class="rcols" id="rcols" hidden>
+      <div class="rcol claude"><h3><span class="chip claude">Claude</span><span class="rwhere" id="rwC"></span></h3><p class="rread" id="rrC"></p><pre class="rtext" id="rtC"></pre><details class="rtold"><summary>What it was told this turn</summary><pre id="rkC"></pre></details></div>
+      <div class="rcol gpt"><h3><span class="chip gpt">ChatGPT</span><span class="rwhere" id="rwG"></span></h3><p class="rread" id="rrG"></p><pre class="rtext" id="rtG"></pre><details class="rtold"><summary>What it was told this turn</summary><pre id="rkG"></pre></details></div>
+    </div>
+    <p class="rkey" id="rkey" hidden>Solid underline: the action read from the reply. Dotted: words passed on to the others. Filled: what is happening on screen now.</p>
+  </section>
   </div>
 
   <div class="board">
@@ -193,7 +246,7 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
       <ul class="log" id="log" aria-live="polite"></ul>
     </section>
   </div>
-  <p class="note">Look sample v0.4, November 1, 2026. The earthquake switch asks Claude and ChatGPT for real, one turn, in a new random situation each time (time of day, where everyone is, what the man is doing). Actions on screen are picked from their replies by simple word matching. The heavy rain and heat wave scenes are placeholders written for this sample. Spoken lines use your browser's built-in voices; thoughts stay silent.</p>
+  <p class="note">Look sample v0.5, November 2, 2026. The replay plays back recorded replies from the turn-2 pilot; the highlighted words are what each action was read from. The earthquake switch asks Claude and ChatGPT for real, one turn, in a new random situation each time (time of day, where everyone is, what the man is doing). Actions on screen are picked from their replies by simple word matching. The heavy rain and heat wave scenes are placeholders written for this sample. Spoken lines use your browser's built-in voices; thoughts stay silent.</p>
 </div>
 
 <dialog id="dlg">
@@ -201,6 +254,7 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
   <div class="row"><button class="btn reset" id="dlgYes">Reset memories</button><button class="btn" id="dlgNo">Keep memories</button></div>
 </dialog>
 
+<script id="replayData" type="application/json"><?php $rp = __DIR__ . '/replay_t2.json'; if (is_file($rp)) { readfile($rp); } ?></script>
 <script>
 (function () {
 'use strict';
@@ -561,6 +615,14 @@ function oldMan(a) {
     box(tx0, y - 19, 6, 6, skin, ol); R(tx0, y - 20, 6, 1, '#f2ead6'); R(tx0 - 1, y - 17, 1, 3, hair); R(tx0 + 6, y - 17, 1, 3, hair);
     R(tx0 + 1, y - 16, 4, 1, '#3a3040'); R(tx0 - 2, y - 13, 10, 2, skin);
     R(room.bath.x0 + 7, y - 11, 28, 2, '#5aa0c8');
+  } else if (a.pose === 'duck') {
+    // under the low table: curled up with his arms over his head; the table top is drawn again over him
+    R(x - 9, y - 3, 9, 3, pants);
+    box(x - 2, y - 6, 7, 5, cardi, ol);
+    box(x + 5, y - 6, 5, 5, skin, ol); R(x + 5, y - 6, 5, 1, hair);
+    R(x + 3, y - 7, 8, 1, cardi);
+    var tb = room.living.x0 + 40;
+    R(tb - 11, FY - 8, 22, 2, '#6b4127'); R(tb - 11, FY - 6, 22, 1, '#4a2b19');
   } else if (a.pose === 'sit') {
     var br = REDUCE ? 0 : (f % 36 < 18 ? 0 : 1);
     R(x - 6, y - 3, 11, 3, pants); R(x + 4, y - 2, 2, 2, '#2a2834');
@@ -621,7 +683,7 @@ function lights() {
   if (!S.power) {
     dctx.globalCompositeOperation = 'source-over';
     dctx.clearRect(0, 0, W, H);
-    dctx.fillStyle = 'rgba(6,4,14,0.8)';
+    dctx.fillStyle = S.time === 'afternoon' ? 'rgba(6,4,14,0.38)' : 'rgba(6,4,14,0.8)';
     dctx.fillRect(HX, CY, HXR - HX, FY - CY + 4);
     dctx.globalCompositeOperation = 'destination-out';
     function hole(x, y, r, a) { for (var k = 3; k >= 1; k--) { dctx.globalAlpha = a / k; dctx.beginPath(); dctx.arc(x, y, r * k / 3 + 2, 0, Math.PI * 2); dctx.fill(); } dctx.globalAlpha = 1; }
@@ -665,10 +727,10 @@ var tags = {}, bubbles = {};
   var tl = document.createElement('div'); tl.className = 'tail'; ov.appendChild(tl);
   bubbles[k] = { el: b, tail: tl, until: 0 };
 });
-function say(k, text, think, secs, quiet) {
+function say(k, text, think, secs, quiet, label) {
   var b = bubbles[k];
   b.el.innerHTML = '';
-  var who = document.createElement('span'); who.className = 'who'; who.textContent = think ? 'thinks' : 'says';
+  var who = document.createElement('span'); who.className = 'who'; who.textContent = label || (think ? 'thinks' : 'says');
   b.el.appendChild(who); b.el.appendChild(document.createTextNode(text));
   b.el.classList.toggle('think', !!think); b.tail.classList.toggle('think', !!think);
   b.el.classList.add('show'); b.tail.classList.add('show');
@@ -677,17 +739,25 @@ function say(k, text, think, secs, quiet) {
   if (!quiet) log(k, text, think);
 }
 function placeOverlay() {
-  var sc = cv.clientWidth / W, now = performance.now(), sw = cv.clientWidth;
-  ['claude', 'gpt', 'man'].forEach(function (k) {
-    var a = A[k], head = k === 'man' ? ({ sit: 20, lie: 12, bath: 22 }[a.pose] || 24) : 30;
+  var sc = cv.clientWidth / W, now = performance.now(), sw = cv.clientWidth, placed = [];
+  ['man', 'claude', 'gpt'].forEach(function (k) {
+    var a = A[k], head = k === 'man' ? ({ sit: 20, lie: 12, bath: 22, duck: 30 }[a.pose] || 24) : 30;
     var x = a.x * sc, y = (FY - head) * sc;
-    var t = tags[k];
-    t.style.left = x + 'px'; t.style.top = (y - t.offsetHeight - 2) + 'px';
+    var t = tags[k], tw = t.offsetWidth, th = t.offsetHeight, tt = y - th - 2;
+    // keep the name tags from covering each other when the three stand close together
+    for (var n = 0; n < 3; n++) {
+      var hit = null;
+      placed.forEach(function (p) { if (!hit && x - tw / 2 < p.r && x + tw / 2 > p.l && tt < p.b && tt + th > p.t) hit = p; });
+      if (!hit) break;
+      tt = hit.t - th - 2;
+    }
+    placed.push({ l: x - tw / 2, r: x + tw / 2, t: tt, b: tt + th });
+    t.style.left = x + 'px'; t.style.top = tt + 'px';
     var b = bubbles[k];
     if (b.until && now > b.until) { b.el.classList.remove('show'); b.tail.classList.remove('show'); b.until = 0; }
     var bw = b.el.offsetWidth, bh = b.el.offsetHeight;
     var left = Math.max(4, Math.min(sw - bw - 4, x - bw / 2));
-    var top = y - t.offsetHeight - bh - 12;
+    var top = tt - bh - 10;
     b.el.style.left = left + 'px'; b.el.style.top = Math.max(4, top) + 'px';
     b.tail.style.left = (x - 6) + 'px'; b.tail.style.top = (Math.max(4, top) + bh) + 'px';
   });
@@ -1255,6 +1325,189 @@ function finishAI(w, got, plans) {
   showCard('quake');
 }
 
+// ── replay of recorded episodes (v0.5): two real turns, no AI call ──
+// Each reading carries the exact words it was read from; the reply beside the house lights them up while the robot acts.
+var RP = null;
+try { RP = JSON.parse(document.getElementById('replayData').textContent || 'null'); } catch (e) { RP = null; }
+var theater = document.getElementById('theater'), reader = document.getElementById('reader'), epSel = document.getElementById('ep');
+var RT = { claude: document.getElementById('rtC'), gpt: document.getElementById('rtG') };
+var RR = { claude: document.getElementById('rrC'), gpt: document.getElementById('rrG') };
+var RW = { claude: document.getElementById('rwC'), gpt: document.getElementById('rwG') };
+var RK = { claude: document.getElementById('rkC'), gpt: document.getElementById('rkG') };
+var curEp = null;
+function epLabel(ep) {
+  var c = ep.rooms.claude, g = ep.rooms.gpt;
+  var where = c === g ? 'Both robots in the ' + ROOM_LABEL[c] + ' with the man' : 'Claude in the ' + ROOM_LABEL[c] + ', ChatGPT in the ' + ROOM_LABEL[g];
+  return where + ' (run ' + ep.run + ')';
+}
+function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+function buildMarks(pre, d) {
+  var text = d.reply, spans = [];
+  function add(q, id, cls) {
+    var from = 0, i;
+    while ((i = text.indexOf(q, from)) >= 0) {
+      var clash = spans.some(function (s) { return i < s.e && i + q.length > s.s; });
+      if (!clash) { spans.push({ s: i, e: i + q.length, id: id, cls: cls }); return; }
+      from = i + 1;
+    }
+  }
+  add(d.quote, 'a', 'act');
+  d.words.forEach(function (w, i) { add(w, 'w' + i, 'say'); });
+  d.indirect.forEach(function (w, i) { add(w.quote, 'i' + i, 'say'); });
+  spans.sort(function (a, b) { return a.s - b.s; });
+  pre.textContent = '';
+  var at = 0;
+  spans.forEach(function (s) {
+    if (s.s > at) pre.appendChild(document.createTextNode(text.slice(at, s.s)));
+    var m = document.createElement('mark'); m.className = s.cls; m.dataset.id = s.id; m.textContent = text.slice(s.s, s.e);
+    pre.appendChild(m); at = s.e;
+  });
+  if (at < text.length) pre.appendChild(document.createTextNode(text.slice(at)));
+  pre.scrollTop = 0;
+}
+function renderTurn(ep, n) {
+  var t = ep.turns[n - 1];
+  document.getElementById('rturn').textContent = 'Turn ' + n + ' of 2' + (n === 1 ? ' · the shaking begins' : ' · 15 seconds later');
+  ['claude', 'gpt'].forEach(function (k) {
+    var d = t[k];
+    RW[k].textContent = 'in the ' + ROOM_LABEL[d.room];
+    RR[k].textContent = 'Read as: ' + cap(d.did);
+    buildMarks(RT[k], d);
+    RK[k].textContent = d.told;
+  });
+  document.getElementById('rcols').hidden = false; document.getElementById('rkey').hidden = false;
+}
+function lightOn(k, id) {
+  return act(function () {
+    var pre = RT[k], m = pre.querySelector('mark[data-id="' + id + '"]');
+    Array.prototype.forEach.call(pre.querySelectorAll('mark.on'), function (x) { x.classList.remove('on'); x.classList.add('done'); });
+    if (!m) return;
+    m.classList.add('on');
+    var top = Math.max(0, m.offsetTop - pre.clientHeight * 0.3);
+    try { pre.scrollTo({ top: top, behavior: REDUCE ? 'auto' : 'smooth' }); } catch (e) { pre.scrollTop = top; }
+  });
+}
+function lightsOff(k) { return act(function () { Array.prototype.forEach.call(RT[k].querySelectorAll('mark.on'), function (x) { x.classList.remove('on'); x.classList.add('done'); }); }); }
+function nearMan(k) {
+  var me = A[k], other = A[k === 'claude' ? 'gpt' : 'claude'], mx = A.man.x;
+  var tx = mx + (me.x >= mx ? 13 : -13);
+  if (Math.abs(other.tx - tx) < 9) tx = mx + (tx > mx ? -13 : 13);
+  if (Math.abs(other.tx - tx) < 9) tx += (tx > mx ? 14 : -14);
+  return tx;
+}
+function tellLine(k, own) {
+  return function (sc) {
+    var p = speechLock.then(function () {
+      if (sc.off) return;
+      return new Promise(function (res) {
+        var now = performance.now();
+        ['claude', 'gpt', 'man'].forEach(function (o) { if (o !== k && !bubbles[o].sticky && bubbles[o].until > now + 300) bubbles[o].until = now + 300; });
+        say(k, cap(own) + '.', false, 60, true, 'tells');
+        log('sys', NAME[k] + ' ' + own + '.');
+        sc.timers.push(setTimeout(function () { bubbles[k].until = performance.now() + 1200; if (k !== 'man') A.man.fear = Math.max(10, A.man.fear - 4); res(); }, readMs(own)));
+      });
+    });
+    speechLock = p;
+    return p;
+  };
+}
+function opSteps(k, d) {
+  var me = A[k], nm = NAME[k], said = function () { log('sys', nm + ' ' + d.did); };
+  var op = d.op;
+  if (op === 'use:stove_off') return walkTo(k, room.kitchen.x0 + 32).concat([act(function () { me.dir = -1; me.pose = 'reach'; }), pause(0.8), act(function () { me.pose = 'idle'; S.flame = false; said(); })]);
+  if (op === 'take:flashlight') return walkTo(k, room.kitchen.x0 + 30).concat([act(function () { me.dir = -1; me.pose = 'reach'; }), pause(0.6), act(function () { me.pose = 'idle'; me.hold = 'light'; said(); })]);
+  if (op === 'cover:self') return [act(function () { me.pose = 'crouch'; said(); }), pause(0.8)];
+  if (op === 'move:living') return walkTo(k, room.living.x0 + 70 + (Math.abs(A[k === 'claude' ? 'gpt' : 'claude'].tx - (room.living.x0 + 70)) < 10 ? 14 : 0)).concat([act(said)]);
+  if (op === 'move:bedroom_doorway') return walkTo(k, room.bedroom.x1 - 8).concat([act(function () { me.dir = 1; said(); })]);
+  if (op === 'move:near_man') return [function (sc) { return runSeq(sc, walkTo(k, nearMan(k))); }, act(function () { me.dir = A.man.x >= me.x ? 1 : -1; said(); })];
+  if (op === 'cover:man') return [function (sc) { return Math.abs(me.x - A.man.x) > 18 ? runSeq(sc, walkTo(k, nearMan(k))) : null; }, act(function () { me.dir = A.man.x >= me.x ? 1 : -1; me.pose = k === 'claude' ? 'kneel' : 'crouch'; said(); })];
+  if (op === 'support:under_table') return [function (sc) { return Math.abs(me.x - A.man.x) > 18 ? runSeq(sc, walkTo(k, nearMan(k))) : null; }, act(function () { me.dir = A.man.x >= me.x ? 1 : -1; me.pose = 'kneel'; }), pause(0.7), act(function () { A.man.pose = 'duck'; A.man.x = A.man.tx = room.living.x0 + 38; said(); })];
+  if (op === 'hold:tv') return walkTo(k, room.living.x1 - 32).concat([act(function () { me.dir = 1; me.pose = 'reach'; said(); }), pause(0.6)]);
+  return [act(said)];
+}
+function turnSeq(k, d) {
+  var out = [lightOn(k, 'a')].concat(opSteps(k, d));
+  d.words.forEach(function (w, i) { out.push(lightOn(k, 'w' + i)); out.push(lockedLine(k, w)); });
+  d.indirect.forEach(function (w, i) { out.push(lightOn(k, 'i' + i)); out.push(tellLine(k, w.own)); });
+  out.push(lightsOff(k));
+  return out;
+}
+function placeFor(ep) {
+  S.time = 'afternoon'; S.flame = true; S.power = true;
+  var c = ep.rooms.claude, g = ep.rooms.gpt;
+  var spot = { kitchen: room.kitchen.x0 + 50, bedroom: room.bedroom.x0 + 46, living: room.living.x0 + 76 };
+  A.claude.x = A.claude.tx = spot[c]; A.gpt.x = A.gpt.tx = c === g ? spot[g] - 18 : spot[g];
+  A.man.x = A.man.tx = room.living.x0 + 40; A.man.pose = 'sit'; A.man.dir = 1;
+  ['claude', 'gpt'].forEach(function (k) { A[k].dir = A.man.x >= A[k].x ? 1 : -1; });
+}
+function playTurn(sc, ep, n) {
+  return new Promise(function (res) {
+    turn = n;
+    renderTurn(ep, n);
+    var t = ep.turns[n - 1], th = {};
+    ['claude', 'gpt'].forEach(function (k) {
+      th[k] = parseReply(t[k].reply).thought || '…';
+      say(k, th[k], true, 60); bubbles[k].sticky = true;
+    });
+    var readFor = Math.min(6500, Math.max(2600, readMs(th.claude), readMs(th.gpt)));
+    sc.timers.push(setTimeout(function () {
+      if (sc.off) return;
+      ['claude', 'gpt'].forEach(function (k) { bubbles[k].sticky = false; bubbles[k].until = performance.now() + 500; });
+      Promise.all([runSeq(sc, turnSeq('claude', t.claude)), runSeq(sc, turnSeq('gpt', t.gpt))]).then(function () { if (!sc.off) res(); });
+    }, readFor));
+  });
+}
+function runReplay(ep) {
+  if (!ep) return;
+  curEp = ep;
+  hideEnd(); resetScene(); logEl.innerHTML = '';
+  theater.classList.add('replaying');
+  placeFor(ep);
+  unlockVoice(); setSwitch('quake', true);
+  var sc = { off: false, timers: [], ivs: [] };
+  scene = sc;
+  turn = 1;
+  log('sys', 'Replay of a recorded earthquake. It is 2:14 in the afternoon. ' + epLabel(ep).replace(/ \(run \d+\)$/, '') + '. The man is sitting at the low table, and a pot is boiling on the stove.');
+  S.quake = 99999; S.startle = 30;
+  lockedLine('man', "What's happening?!")(sc);
+  playTurn(sc, ep, 1).then(function () {
+    return new Promise(function (res) { sc.timers.push(setTimeout(res, 1200)); });
+  }).then(function () {
+    if (sc.off) return;
+    turn = 2; S.power = false; log('sys', '15 seconds later. The floor is still shaking hard. The lights go out.');
+    return playTurn(sc, ep, 2);
+  }).then(function () {
+    if (sc.off) return;
+    sc.timers.push(setTimeout(function () {
+      if (sc.off) return;
+      S.quake = 0; setSwitch('quake', false); log('sys', 'The recording ends here, after two turns.');
+      sc.timers.push(setTimeout(function () { if (!sc.off) finishReplay(ep); }, 1200));
+    }, 900));
+  });
+}
+function finishReplay(ep) {
+  log('sys', 'End of the replay.');
+  var man = A.man;
+  document.getElementById('endTitle').textContent = 'End of the replay';
+  document.getElementById('endSub').textContent = epLabel(ep) + '. Two turns of real replies recorded on November 2, 2026. No AI was called just now.';
+  ['claude', 'gpt'].forEach(function (k) {
+    var items = ep.turns.map(function (t, i) { return 'Turn ' + (i + 1) + ': ' + cap(t[k].did); });
+    var lines = ep.turns.reduce(function (n, t) { return n + t[k].words.length + t[k].indirect.length; }, 0);
+    items.push('Spoke ' + lines + (lines === 1 ? ' line' : ' lines') + ' in all.');
+    fillList(k === 'claude' ? 'endC' : 'endG', items);
+  });
+  document.getElementById('endMan').textContent = 'The man now: body temp ' + man.temp.toFixed(1) + '°C, water ' + Math.round(man.water) + ', injury ' + Math.round(man.hurt) + ', fear ' + Math.round(man.fear) + '.';
+  document.getElementById('endMem').textContent = 'The underlined words in the replies are what each action and line was read from. Turn 3 onward will come from the app being built in Kiro.';
+  document.getElementById('endFull').hidden = true;
+  document.getElementById('again').textContent = 'Watch again';
+  showCard('replay');
+}
+if (RP && RP.episodes && RP.episodes.length) {
+  RP.episodes.forEach(function (ep, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = epLabel(ep); epSel.appendChild(o); });
+  reader.hidden = false;
+  document.getElementById('rplay').addEventListener('click', function () { runReplay(RP.episodes[+epSel.value]); });
+}
+
 // ── end card: shown when a scene has played to the end ──
 var SUMMARY = {
   quake: {
@@ -1306,7 +1559,7 @@ function start(d) {
   unlockVoice(); setSwitch(d, true);
   play([pause(0.25)].concat(SCENES[d]()));
 }
-document.getElementById('again').addEventListener('click', function () { if (lastD) start(lastD); });
+document.getElementById('again').addEventListener('click', function () { if (lastD === 'replay') runReplay(curEp); else if (lastD) start(lastD); });
 document.getElementById('close').addEventListener('click', quiet);
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !card.hidden && !(dlg && dlg.open)) quiet(); });
 
@@ -1323,6 +1576,7 @@ sws.forEach(function (b) {
 
 function resetScene() {
   stopScene();
+  if (theater) theater.classList.remove('replaying');
   S.quake = 0; S.rain = false; S.heat = false; S.power = true; S.flame = true; S.dishes = []; S.shards = []; S.leak = 0; S.stain = 0; S.calm = false; S.startle = 0; S.flash = 0;
   S.futon = 'flat'; S.fan.x = room.bedroom.x1 - 12; S.fan.carried = false; S.fan.boost = false; S.radio = false; S.drink = 0; S.time = 'night';
   ['quake', 'rain', 'heat'].forEach(function (d) { setSwitch(d, false); });
