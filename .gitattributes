@@ -1,0 +1,2 @@
+# Pilot result pages (experiment records made with Claude) are documentation, not app code: keep them out of the language stats
+pilot/*.html linguist-documentation

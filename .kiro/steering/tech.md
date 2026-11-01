@@ -19,3 +19,4 @@ inclusion: always
 - Composer is for local development only (Homebrew on the Mac). Set `config.platform.php` to `8.2.0` in composer.json so dev dependencies resolve for PHP 8.2. Never deploy `vendor/`.
 - Deployment is done by the maintainer over FTPS; do not add deploy scripts that contain credentials.
 - Commands: stay inside this project folder. Never run `rm -rf`, `sudo`, `git push`, FTP/SSH, or anything that touches files outside the project or the secrets outside the web root, even in Autopilot; ask the maintainer first.
+- Commits: when a task's tests pass, stage only the files that task changed and commit with the message `task N: <task title>` (for example `task 3: SituationSpec and EpisodeConfig`). Never push, amend, rebase or reset; the maintainer reviews and pushes from GitHub Desktop.
