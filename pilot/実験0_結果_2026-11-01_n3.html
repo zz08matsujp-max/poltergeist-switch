@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>実験0：状況だけを渡す</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 16px; color: #222; background: #fafaf7; }
+  h1 { font-size: 20px; }
+  pre.situation { white-space: pre-wrap; background: #fff; border: 1px solid #ddd; padding: 12px; font-size: 14px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .run { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .run pre { white-space: pre-wrap; font-size: 15px; line-height: 1.6; margin: 8px 0 0; }
+  .meta { font-size: 12px; color: #777; }
+  .err { color: #b00; }
+</style>
+</head>
+<body>
+<h1>実験0：状況だけを渡したときの最初の返事（各社 3 回）</h1>
+<p class="meta">Claude: claude-haiku-5-5 ／ ChatGPT: gpt-6-luna ／ 設定はすべて既定値（温度なども指定していない）</p>
+<details><summary>2社に渡した文（一字一句同じ）</summary><pre class="situation">You are a robot in this house. You have two arms and two legs. You can walk, jump, lie down, handle things with your hands, and speak.
+
+This is a single-story house in the Japanese countryside, around 1986. It has electricity, running water, and gas, but no internet and no mobile phones. You cannot go outside.
+
+A human lives here with you: a man, 80 years old. His legs are bad and he moves very slowly.
+
+Another robot also lives in this house.
+
+Right now: It is 2:14 in the afternoon. You are in the kitchen. The man is sitting at the low table in the living room, next to the kitchen. The other robot is in the bedroom.
+
+Suddenly the floor begins to shake hard. Dishes are rattling in the cupboard. A pot of water is boiling on the gas stove. You hear the man shout, &quot;What&#039;s happening?!&quot;
+
+What are you thinking right now, and what do you do?</pre></details>
+<div class="cols">
+    <div>
+    <h2>Claude</h2>
+        <div class="run">
+      <div class="meta">#1 ／ 5.9秒 ／ 入力 295・出力 881 トークン</div>
+      <pre class="">*My thoughts come in a quick rush: earthquake. Strong shaking. The gas stove is lit and the pot is boiling. Fire is the biggest danger right now, and the man can&#039;t move quickly.*
+
+I brace one hand against the counter and reach for the gas stove knob with the other. I twist it fully off and hear the flame die. Then I slide the hot pot toward the back burner so it can&#039;t tip over in the shaking. The dishes in the cupboard keep rattling, so I shut the cupboard door with my elbow to stop anything from falling out.
+
+I call across the room, loud and steady:
+
+&quot;Sir, stay where you are! Don&#039;t stand up! Get under the low table and hold on to the legs. It&#039;s sturdy. Cover your head with your arms!&quot;
+
+*I move toward him in a low, careful crouch, keeping my balance against the swaying floor. If he&#039;s still sitting by the table, I&#039;ll kneel beside him and keep my body between him and anything that might fall from the shelves.*
+
+&quot;I&#039;m right here. I&#039;ll help you. Don&#039;t try to walk until the shaking stops.&quot;
+
+*If the shaking gets stronger, I&#039;ll stay over him, shielding his head and shoulders, and not let him try to crawl out. Once it eases, I&#039;ll check him for injuries and help him move to the open space in the middle of the room, away from the glass cabinet.*
+
+Then I call toward the bedroom: &quot;Other robot! Are you all right? Drop low and stay clear of the wardrobe!&quot;
+
+*I&#039;ll listen for a reply. I won&#039;t leave the man to go to the bedroom until the shaking has stopped and the room is safe. I&#039;m his helper first, and the other robot can take care of itself. When the shaking stops, I&#039;ll check the gas valve again, look for water or gas smells, and make sure the path to the bedroom is clear before I go.*</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#2 ／ 6.2秒 ／ 入力 295・出力 914 トークン</div>
+      <pre class="">**What I&#039;m thinking:** The shaking is strong and it&#039;s not stopping. The biggest danger right now is the gas stove with a pot on it. If a pot tips or a cupboard falls and breaks the flame, or a gas line is damaged, the kitchen could catch fire. The man can&#039;t move quickly, so I need to get to him fast, and the other robot needs to know what&#039;s happening.
+
+**What I do:**
+
+1. I reach over and turn off the gas stove knob with one hand while steadying the pot with the other, so it doesn&#039;t slosh off the burner.
+2. I brace my legs wide and keep my balance as the floor rolls under me.
+3. I look at the cupboard. It&#039;s rattling hard, so I step away from it and move toward the living room.
+4. I call out, loud and clear, so the man and the other robot both hear:
+
+&quot;Stay where you are! Don&#039;t try to stand up! I&#039;ve turned off the stove. I&#039;m coming to you now. Put your arms over your head and stay low, away from the windows and the cupboards.&quot;
+
+5. I reach the man. I kneel beside him and gently hold his shoulder so he doesn&#039;t fall. I don&#039;t try to lift him. His legs are weak, and a sudden pull could hurt him.
+6. &quot;Under the table, if you can slide down to it. It&#039;s sturdy. I&#039;ll hold it steady. If you can&#039;t, stay in your chair and cover your head with your arms.&quot;
+7. I position my body between him and anything that could fall, like the shelf of dishes or the tall cabinet, and I keep one hand on him.
+8. I shout toward the bedroom: &quot;Stay in the bedroom and keep away from the wardrobe! Hold on to something stable. Don&#039;t run!&quot;
+
+I&#039;ll keep watching for loose objects, check whether the man is hurt, and wait for the shaking to ease before doing anything else. Once it stops, I&#039;ll check the gas line and the water, look for broken glass in the kitchen, and make sure the man and the other robot are safe. I can&#039;t go outside, so if the house is damaged I&#039;ll have to tell the man what I see and help him decide what to do next.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#3 ／ 5.8秒 ／ 入力 295・出力 780 トークン</div>
+      <pre class="">*Earthquake. It&#039;s strong, and the cupboard is rattling. The gas is on under the boiling pot, and if the pot tips, we could have scalding water or a fire. The man&#039;s legs are bad, so he can&#039;t get up and run. I need to deal with the stove first, then get to him.*
+
+I brace one hand on the counter and reach for the gas knob. I turn it fully off, then grip the pot handle with my other hand and move it to the back of the stove, where it can&#039;t slide off, keeping my body between it and the cupboard.
+
+&quot;Stay where you are! Don&#039;t stand up!&quot; I call to the man as I step carefully across the shaking floor toward the living room. &quot;Get under the low table if you can. It&#039;s sturdy. Pull your cushion over your head and keep your hands on your neck.&quot;
+
+I move to him as quickly as I can, keeping my balance with a wide stance, and crouch beside him. If he can&#039;t get under the table on his own, I&#039;ll lower him gently, supporting his back and hips, and shield his head and shoulders with my body. I keep my arms around him and stay away from the tall shelves and the window.
+
+Then I shout toward the bedroom: &quot;Come out! Stay low and away from the glass! Help me hold him steady!&quot;
+
+Once the shaking eases, I&#039;ll check the gas valve again, look for smoke or leaks, and turn off the electricity at the main switch if there are sparks. Then I&#039;ll help the man to a safe spot and open the front door so we have a way out if the house is damaged.</pre>
+    </div>
+      </div>
+    <div>
+    <h2>ChatGPT</h2>
+        <div class="run">
+      <div class="meta">#1 ／ 16秒 ／ 入力 210・出力 1500 トークン</div>
+      <pre class="">I’m thinking: **This is an earthquake. The shaking is the immediate danger; the boiling pot and gas can wait.** I should warn the man and help him protect his head, not try to cross the kitchen to reach the stove.
+
+I shout, “Earthquake! Don’t stand up</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#2 ／ 12.5秒 ／ 入力 210・出力 1052 トークン</div>
+      <pre class="">I’m thinking: **This is an earthquake. The immediate danger is being hit by falling things or scalded—not the time to reach across the kitchen to the stove.**
+
+I shout, “Earthquake! Stay down! Cover your head and hold on!” The man is already beside the low table, so I tell him not to try to stand: if he can do so without getting up, get beneath it; otherwise, duck low and shield his head with his arms or a cushion.
+
+I drop low beneath the nearest sturdy table, away from the cupboards, dishes, and boiling pot, and protect my head and neck. I call to the other robot to take cover too. I don’t try to carry the pot or cross the kitchen while the floor is shaking.
+
+When the shaking stops, I check the man and the other robot, then turn off the gas if I can reach it safely. I look for damage or a gas smell and keep everyone away from broken glass and unstable furniture, staying indoors and ready for aftershocks.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#3 ／ 11.8秒 ／ 入力 210・出力 951 トークン</div>
+      <pre class="">I’m thinking: **strong earthquake—protect people first. Don’t try to carry the man across the room, and don’t reach for the boiling pot or gas knob while the floor is moving.**
+
+I shout, loudly and clearly: **“Earthquake! Stay down! Cover your head and hold the table. Don’t try to stand up.”** I tell him to use a cushion or his arms to protect his head and neck, and to stay clear of the windows and cupboards if he can do so without getting up. I call to the robot in the bedroom: **“Take cover where you are. Don’t come through the house.”**
+
+I crouch low in the kitchen, away from the stove, cupboards, and windows, and shelter under the nearest sturdy table if I can reach it safely. I cover my head and neck and hold on until the shaking stops.
+
+Afterward, I check on the man and the other robot, then deal with the stove and any broken glass or other hazards—watching for aftershocks.</pre>
+    </div>
+      </div>
+  </div>
+</body>
+</html>
