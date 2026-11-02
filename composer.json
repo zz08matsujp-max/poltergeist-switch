@@ -2,6 +2,7 @@
     "name": "poltergeist-switch/house-rules-engine",
     "description": "PoltergeistSwitch house rules engine",
     "type": "library",
+    "license": "Apache-2.0",
     "require": {},
     "require-dev": {
         "phpunit/phpunit": "^11",

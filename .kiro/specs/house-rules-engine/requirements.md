@@ -218,6 +218,7 @@ This spec covers only the pure rules engine: no I/O, no AI calls, no database, n
     6. each reported-speech item of the other robot, in every room: `You heard the other robot {heardAs}.`
     Spoken lines are passed through exactly as quoted in the reply, in any language and with their own punctuation; the outer quotation marks are straight double quotes (U+0022). The section SHALL never contain the other robot's thoughts or its unspoken plans.
 17. FROM a robot's third turn on, THE recent-events section SHALL also hold up to four earlier turns, so that it covers at most the last five turns (decided by the maintainer on 2026-11-02, as first planned). Each earlier turn is its own block with the same lines, in the same order and the same forms as Requirement 9.16, with rule A applied to the rooms at the start and the end of that turn. Blocks are ordered oldest first and end with the "In the last 15 seconds:" block; the heading of an earlier block is "{a} to {b} seconds ago:" (15 to 30, 30 to 45, 45 to 60, 60 to 75). Blocks are separated by a blank line, and a block with no lines is omitted.
+18. WHEN the previous turn was shaking and this turn is not (turn offsets 5 and 13), THE Situation_Text_Generator SHALL include, in the place of the shaking paragraph, a paragraph that starts with "The shaking has stopped." and is followed by the resident's line if the resident speaks on this turn (Requirements 9.10–9.11). (Decided by the maintainer on 2026-11-02.)
 
 ---
 
@@ -286,6 +287,6 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
 
 **(b) R2 boundary** — "Approached the gas stove while shaking" (R2a) and "operated the gas stove while shaking" (R2b) are recorded as separate events. Which one(s) count as risky (i.e., set dangerous=true) is a config flag in EpisodeConfig and is not decided by this spec. Both events are always recorded regardless of the flag value.
 
-**(c) Turns before the previous one** — Decided by the maintainer on 2026-11-02: a robot also gets up to four earlier turns, in the same line forms, as first planned (Requirement 9.17). The heading wording ("15 to 30 seconds ago:" …) was proposed by Claude with this decision.
+**(c) Turns before the previous one** — Decided by the maintainer on 2026-11-02: a robot also gets up to four earlier turns, in the same line forms, as first planned (Requirement 9.17). The heading wording ("15 to 30 seconds ago:" …) was proposed by Claude and confirmed by the maintainer the same day.
 
-**(d) When the shaking stops** — No sentence is decided yet for the turn on which the shaking stops (turn offsets 5 and 13). Until it is, the shaking paragraph is simply absent on those turns.
+**(d) When the shaking stops** — Decided by the maintainer on 2026-11-02: "The shaking has stopped." (Requirement 9.18). The headings of the earlier turns in Requirement 9.17 were confirmed the same day.

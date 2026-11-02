@@ -12,3 +12,7 @@ A behavior lab for future home robots, built for **Kiroween 2026** (category: Fr
 - Original documents (Japanese): `PoltergeistSwitch_要件定義書_v0.5_2026-11-01.md` (requirements), `PoltergeistSwitch_概要設計書_v0.3_2026-11-01.md` (design)
 
 Live app: https://kiro.pyol.net/ (coming soon)
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

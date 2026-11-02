@@ -747,6 +747,8 @@ Components joined with a single space (Req 9.14):
    - Same room: `'The man shouts, "What\'s happening?!"'`
    - Different room: `'You hear the man shout, "What\'s happening?!"'`
 
+On the turn the shaking stops (previous turn shaking, this one not: offsets 5 and 13) the paragraph is `"The shaking has stopped."` followed by the resident line, if any (Req 9.18).
+
 Turn 1 (S0–S5) uses components 1, 2, 3 and 5, so the golden texts are unchanged. Turn 2 of the turn-2 pilot uses 1 ("still"), 2, 3 and 4, e.g. `The floor is still shaking hard. Dishes are rattling in the cupboard. The lights go out.`
 
 Room shake texts (verbatim from `pilot/index.php` V_ROOMS `'shake'` field):

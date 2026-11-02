@@ -425,8 +425,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Shared room = same room at the start (`roomsAtStart`) or at the end (`snapshot`) of the previous turn
     - The S0–S5 golden tests (turn 1) must still pass unchanged
     - From the third turn: up to four earlier turns as blocks headed `15 to 30 seconds ago:` … `60 to 75 seconds ago:`, oldest first, rule A per turn, empty blocks omitted (Req 9.17)
-    - No "shaking stopped" sentence is written until §Open Questions (d) of the requirements is decided
-    - _Requirements: Req 9.1, Req 9.12, Req 9.14, Req 9.16, Req 9.17_
+    - On the turn the shaking stops (offsets 5 and 13): the paragraph "The shaking has stopped." + the resident line, if any (Req 9.18)
+    - _Requirements: Req 9.1, Req 9.12, Req 9.14, Req 9.16, Req 9.17, Req 9.18_
   - [ ] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
     - For each of the 18 runs in `pilot/予備実験_2手目_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
     - Assert that the "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt` (checked by hand on 2026-11-02: all 18 match these rules)

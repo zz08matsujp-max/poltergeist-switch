@@ -135,6 +135,7 @@ You heard the other robot call to you to ...            <- reported speech, in t
 Right now: <time, room, objects, man, other robot>
 
 The floor is still shaking hard. <room shake text> [A pot of water is boiling on the gas stove.] The lights go out.
+                                                        <- on the turn the shaking stops: "The shaking has stopped."
 
 What are you thinking right now, and what do you do?
 ```
@@ -243,7 +244,7 @@ First milestone: one earthquake episode from zero memory, end to end, read by a 
 
 ## 16. Open questions
 
-Title; time per turn; disaster numbers; final room/object list and model solutions; which AI is the recorder; where to draw R2 (approaching vs operating the stove while shaking); whether the situation text time should match the night look; reflection question wording; cookie lifetime and idle release time; demo during the research batch; publishing raw data; server folder layout outside the web root; PHP property-based testing in Kiro (Eris for PHPUnit is the fallback); resident acceptance thresholds; label for the OpenAI robot (decided 2026-11-02: Amber and Jade, §11); the sentence for when the shaking stops (`house-rules-engine` Open Question (d); older turns were decided on 2026-11-02: up to five turns).
+Title; time per turn; disaster numbers; final room/object list and model solutions; which AI is the recorder; where to draw R2 (approaching vs operating the stove while shaking); whether the situation text time should match the night look; reflection question wording; cookie lifetime and idle release time; demo during the research batch; publishing raw data; server folder layout outside the web root; PHP property-based testing in Kiro (Eris for PHPUnit is the fallback); resident acceptance thresholds; label for the OpenAI robot (decided 2026-11-02: Amber and Jade, §11); (decided 2026-11-02: up to five turns in the recent-events block, and "The shaking has stopped." on the turn the shaking stops; `house-rules-engine` Requirements 9.17–9.18).
 
 ## Appendix A. Fixed situation text (experiment 0, variant B, verbatim)
 
