@@ -24,14 +24,21 @@ header('Cache-Control: no-store, no-cache, must-revalidate, private');
 header('Pragma: no-cache');
 
 // --- Settings ---
-const ANTHROPIC_KEY_PATH = '/home/r7833127/public_html/2024020313210611535515.onamaeweb.jp/anthropic.key';
-const OPENAI_KEY_PATH    = '/home/r7833127/public_html/2024020313210611535515.onamaeweb.jp/openai.key';
+// Server-specific settings live in config.local.php next to this file. It is not in the repository (see config.example.php):
+// the folder that holds the API key files (outside this site's web root) and the SHA-256 of the passphrase. (Moved out of the code 2026-11-02.)
+$CFG = @include __DIR__ . '/config.local.php';
+if (!is_array($CFG) || !isset($CFG['secrets_dir'], $CFG['token_sha256'])) {
+    http_response_code(500);
+    exit('Not configured');
+}
+define('ANTHROPIC_KEY_PATH', rtrim((string)$CFG['secrets_dir'], '/') . '/anthropic.key');
+define('OPENAI_KEY_PATH',    rtrim((string)$CFG['secrets_dir'], '/') . '/openai.key');
 const CLAUDE_MODEL = 'claude-haiku-5-5';
 const GPT_MODEL    = 'gpt-6-luna';
 const MAX_TOKENS   = 4000;   // leaves room for reasoning tokens (raised 1500 -> 4000 on 2026-11-01 after ChatGPT hit the limit in 3 of 28 runs; same for both)
 const MAX_RUNS     = 5;      // max calls per company per page view
-// store only the SHA-256 of the passphrase, never the passphrase itself
-const TOKEN_SHA256 = '90704bb305e59084572a15ab5b62d30d2252f1dc17fb0bd0419e368746bd4742';
+// only the SHA-256 of the passphrase is kept (in config.local.php), never the passphrase itself
+define('TOKEN_SHA256', (string)$CFG['token_sha256']);
 
 // --- Situation text (same for both companies, English) ---
 // A: the first version. B: A plus one sentence listing the objects in the robot's room (in the design's room order, no danger words)

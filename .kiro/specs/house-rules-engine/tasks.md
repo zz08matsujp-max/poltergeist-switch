@@ -399,12 +399,48 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [ ] 21.2 Checkpoint — all tests pass
     - Ensure all tests pass (unit tests, golden tests, property tests, integration tests); ask the user if questions arise.
 
+- [ ] 22. Value objects for turn 2 and later (added 2026-11-02)
+  - [ ] 22.1 Update the value objects in `src/Engine/Values/` and `src/Engine/Enums/`:
+    - `Operation`: add `unknown`
+    - `Action`: `words` becomes `array` (string[], default `[]`); add `?string $actionQuote = null` and `array $reported = []` (`ReportedSpeech[]`)
+    - New `ReportedSpeech` (`quote`, `heardAs`, `ownForm`)
+    - `Outcome`: add `?string $seenByOtherText = null`; `success()` takes an optional `$seenByOtherText`
+    - `TurnRecord`: add `array $roomsAtStart` (robotId => room key at the start of the turn)
+    - Update existing callers and tests so that every test still passes
+    - _Requirements: Req 5.12, Req 9.16, Req 12.1_
+
+- [ ] 23. EvidenceCheck (added 2026-11-02)
+  - [ ] 23.1 Implement `EvidenceCheck::verify(string $reply, Action $action): Action` in `src/Engine/EvidenceCheck.php`:
+    - Byte-for-byte `str_contains`, no trimming or normalisation
+    - Missing or failed `actionQuote` → operation `unknown`, target `null`; a failed spoken line or reported-speech quote → dropped, the rest kept
+    - `RulesEvaluator` / `ActionExecutor`: `unknown` is possible, executes nothing, and gives empty `whatHappenedText` and `seenByOtherText`
+    - _Requirements: Req 12.2–12.4_
+  - [ ] 23.2 Write tests in `tests/Engine/EvidenceCheckTest.php`:
+    - Every quote in the 18 readings of `pilot/予備実験_2手目_2026-11-02_n3.json` (`reading.quote`, `reading.words`, `reading.indirect[].quote`) passes against `turn1.reply`; hand-made failing quotes become `unknown` or are dropped
+    - Property 12 with Eris (`withMinSuccesses(100)`): substrings of a generated reply pass, non-substrings fail
+    - _Requirements: Req 11.14, Req 12.2–12.4_
+
+- [ ] 24. SituationTextGenerator — turn 2 and later, rule A (added 2026-11-02)
+  - [ ] 24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: "The floor is still shaking hard." when the previous turn was shaking, "The lights go out." on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn
+    - Shared room = same room at the start (`roomsAtStart`) or at the end (`snapshot`) of the previous turn
+    - The S0–S5 golden tests (turn 1) must still pass unchanged
+    - Older turns are not shown and no "shaking stopped" sentence is written until §Open Questions (c) and (d) of the requirements are decided
+    - _Requirements: Req 9.1, Req 9.12, Req 9.14, Req 9.16_
+  - [ ] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
+    - For each of the 18 runs in `pilot/予備実験_2手目_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
+    - Assert that the "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt` (checked by hand on 2026-11-02: all 18 match these rules)
+    - Property 11 with Eris (`withMinSuccesses(100)`)
+    - _Requirements: Req 11.12, Req 11.13_
+  - [ ] 24.3 Checkpoint — all tests pass
+    - Ensure all tests pass; ask the user if questions arise.
+
 ---
 
 ## Notes
 
 - Tasks marked with `*` are optional test sub-tasks; they can be skipped to reach a faster MVP, but are strongly recommended given the safety-critical nature of the resident state logic.
-- Property-based tests (8.3, 14.3, 15.3, 18.3, 20.1, 20.2) are required, not optional: they are the main evidence that the rules hold.
+- Property-based tests (8.3, 14.3, 15.3, 18.3, 20.1, 20.2, 23.2, 24.2) are required, not optional: they are the main evidence that the rules hold.
+- Tasks 22–24 were added on 2026-11-02 (turn 2 and later, rule A, evidence quotes; Req 9.14, 9.16, 12). They sit early in the dependency graph: run 22 and 23 right after task 3, and 24 right after task 5, so that tasks 12, 13 and 18 use the new `Action.words` list from the start.
 - Every numeric threshold (draft values) lives exclusively in `EpisodeConfig`; no literal constants for those values appear anywhere else.
 - The golden test S0 (task 4.2) is the canonical correctness anchor: if `SituationTextGenerator` passes S0, the pilot experiment is reproducible.
 - Golden tests S1–S5 (task 5.1) read expected prompts from `pilot/実験0_状況を変える_2026-11-01_n3.json`, indexed by `sid`, first occurrence.
@@ -422,12 +458,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   "waves": [
     { "id": 0, "tasks": ["1.1"] },
     { "id": 1, "tasks": ["2.1", "2.2", "2.3"] },
-    { "id": 2, "tasks": ["2.4", "3.1", "3.2"] },
-    { "id": 3, "tasks": ["3.3", "4.1"] },
-    { "id": 4, "tasks": ["4.2", "5.1"] },
-    { "id": 5, "tasks": ["6.1", "6.2"] },
-    { "id": 6, "tasks": ["6.3", "7.1"] },
-    { "id": 7, "tasks": ["7.2", "8.1"] },
+    { "id": 2, "tasks": ["2.4", "3.1", "3.2", "22.1"] },
+    { "id": 3, "tasks": ["3.3", "4.1", "23.1"] },
+    { "id": 4, "tasks": ["4.2", "5.1", "23.2"] },
+    { "id": 5, "tasks": ["6.1", "6.2", "24.1"] },
+    { "id": 6, "tasks": ["6.3", "7.1", "24.2"] },
+    { "id": 7, "tasks": ["7.2", "8.1", "24.3"] },
     { "id": 8, "tasks": ["8.2", "8.3", "9.1"] },
     { "id": 9, "tasks": ["9.2", "10.1"] },
     { "id": 10, "tasks": ["10.2", "11.1"] },

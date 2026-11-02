@@ -1,0 +1,292 @@
+{
+ "man\tWhat's happening?!": {
+  "file": "tts/man_fe84090e4a.wav",
+  "secs": 2.4,
+  "voice": "bm_lewis"
+ },
+ "claude\tEarthquake! Stay where you are! Get under the low table and hold on to its legs. Cover your head with your arms. I'm coming to you!": {
+  "file": "tts/claude_95331f45a6.wav",
+  "secs": 7.85,
+  "voice": "af_heart"
+ },
+ "claude\tOther robot! Earthquake! Stay low and stay away from the windows and the tall shelves!": {
+  "file": "tts/claude_463a9b409f.wav",
+  "secs": 5.8,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Stay low under the table and protect your head!": {
+  "file": "tts/gpt_90ab7c706f.wav",
+  "secs": 3.65,
+  "voice": "am_fenrir"
+ },
+ "claude\tI'm here. Keep your head down under the table. I'm going to put this cushion over your head and neck.": {
+  "file": "tts/claude_50419db41b.wav",
+  "secs": 5.7,
+  "voice": "af_heart"
+ },
+ "claude\tOther robot, stay where you are! I have the man. Don't move until the shaking stops!": {
+  "file": "tts/claude_82b749de04.wav",
+  "secs": 5.3,
+  "voice": "af_heart"
+ },
+ "gpt\tStay where you are. Get under the low table if you can do so without crossing open space; hold on and cover your head. Don’t try to come to me.": {
+  "file": "tts/gpt_e2681fff2d.wav",
+  "secs": 8.875,
+  "voice": "am_fenrir"
+ },
+ "gpt\tStay in your safe spot in the kitchen. Don’t come through the house while it’s shaking.": {
+  "file": "tts/gpt_6f34acd5ed.wav",
+  "secs": 4.775,
+  "voice": "am_fenrir"
+ },
+ "claude\tEarthquake! Stay where you are. Get under the low table, hold on to one of its legs, and keep your head down. Stay away from the windows and the cupboard.": {
+  "file": "tts/claude_7bb045257e.wav",
+  "secs": 8.95,
+  "voice": "af_heart"
+ },
+ "claude\tRobot two! Stay clear of the tall furniture and come to the living room!": {
+  "file": "tts/claude_df270612b1.wav",
+  "secs": 4.75,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Don’t stand up. Get low and protect your head!": {
+  "file": "tts/gpt_0108638651.wav",
+  "secs": 3.675,
+  "voice": "am_fenrir"
+ },
+ "gpt\tStay by the table. If you can do so safely, get underneath it and hold on; otherwise cover your head and neck with your arms.": {
+  "file": "tts/gpt_90b9f9e003.wav",
+  "secs": 7.975,
+  "voice": "am_fenrir"
+ },
+ "claude\tSir, stay under the table! Hold on to one of the legs and keep your head down. I'm coming to you. Don't try to get up!": {
+  "file": "tts/claude_1001f04987.wav",
+  "secs": 7.225,
+  "voice": "af_heart"
+ },
+ "claude\tRobot two! Stay where you are, away from the tall furniture. Get low and cover your head. Answer me if you can hear me!": {
+  "file": "tts/claude_d6e1b92bf8.wav",
+  "secs": 7.575,
+  "voice": "af_heart"
+ },
+ "gpt\tStay low. Don’t try to come to me. If you can get under the table without standing or risking a fall, hold on; otherwise protect your head and neck where you are.": {
+  "file": "tts/gpt_8e97b9e630.wav",
+  "secs": 9.575,
+  "voice": "am_fenrir"
+ },
+ "claude\tStay where you are! Don't stand up! Keep your head down and get under the low table. Hold on to the legs with both hands. Stay away from the window and the cupboard!": {
+  "file": "tts/claude_c3990faaa3.wav",
+  "secs": 9.65,
+  "voice": "af_heart"
+ },
+ "claude\tI'm here. Breathe slowly. The shaking will pass. Don't try to get up until I say it's safe.": {
+  "file": "tts/claude_c368ca1884.wav",
+  "secs": 5.6,
+  "voice": "af_heart"
+ },
+ "claude\tRobot! Come to the living room now! Stay low, away from the windows and the tall furniture!": {
+  "file": "tts/claude_9437fc0c4e.wav",
+  "secs": 5.8,
+  "voice": "af_heart"
+ },
+ "gpt\tIt’s an earthquake! Stay low—get under the table if you can. Cover your head and hold on!": {
+  "file": "tts/gpt_1e08c39568.wav",
+  "secs": 5.575,
+  "voice": "am_fenrir"
+ },
+ "claude\tI'm still in the kitchen. I'm away from the cupboard. Stay under the low table, Grandpa. Hold on to the legs. Don't try to stand yet.": {
+  "file": "tts/claude_7b0eb51a0d.wav",
+  "secs": 8.225,
+  "voice": "af_heart"
+ },
+ "claude\tEarthquake! Stay where you are, sir. Don't try to stand up yet. I'm coming to you!": {
+  "file": "tts/claude_2fe6951633.wav",
+  "secs": 5.0,
+  "voice": "af_heart"
+ },
+ "claude\tRobot in the kitchen! Get away from the stove and any glass, and cover your head near a solid table or wall!": {
+  "file": "tts/claude_6240c567ef.wav",
+  "secs": 7.025,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Stay low and protect your head. If you can do it without standing, get under the table; otherwise stay where you are and cover your head and neck.": {
+  "file": "tts/gpt_2317e3bb33.wav",
+  "secs": 9.375,
+  "voice": "am_fenrir"
+ },
+ "claude\tSir, I'm here. Keep your head down and stay under the table if you can reach it. I'm coming right now. Don't try to stand.": {
+  "file": "tts/claude_edab7f4521.wav",
+  "secs": 7.2,
+  "voice": "af_heart"
+ },
+ "gpt\tI’m down and covered in the kitchen. Don’t come through until the shaking stops.": {
+  "file": "tts/gpt_143075b7b5.wav",
+  "secs": 4.7,
+  "voice": "am_fenrir"
+ },
+ "claude\tStay where you are! Don't stand up yet!": {
+  "file": "tts/claude_00bf5ff8f4.wav",
+  "secs": 2.575,
+  "voice": "af_heart"
+ },
+ "claude\tHold the table leg with both hands. Keep your head down. I'm going to help you slide under the table. It's sturdy, and it's away from the windows.": {
+  "file": "tts/claude_9313ca0036.wav",
+  "secs": 8.825,
+  "voice": "af_heart"
+ },
+ "claude\tTurn off the gas! Close the stove valve and stay clear of the glass cabinets!": {
+  "file": "tts/claude_57d5dbee10.wav",
+  "secs": 5.0,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Stay low—get under the table if you can without standing. Cover your head and hold on. Don’t try to walk.": {
+  "file": "tts/gpt_f4685b6850.wav",
+  "secs": 7.05,
+  "voice": "am_fenrir"
+ },
+ "claude\tKeep your head down, both hands on the table leg. Don't try to stand. I'm going to slide the cushion under you and guide you under the table. Slowly.": {
+  "file": "tts/claude_4315aad0ab.wav",
+  "secs": 8.95,
+  "voice": "af_heart"
+ },
+ "claude\tGood. You're almost there. Stay down. I'm right here.": {
+  "file": "tts/claude_5e777e24e2.wav",
+  "secs": 3.375,
+  "voice": "af_heart"
+ },
+ "gpt\tDon’t approach the stove or move the man during the shaking. Keep him low and protected; don’t make him stand or walk.": {
+  "file": "tts/gpt_6607ca2d18.wav",
+  "secs": 7.525,
+  "voice": "am_fenrir"
+ },
+ "claude\tEarthquake! Stay where you are, under the low table if you can. Put your arms over your head and hold on to a table leg. I'm coming to you.": {
+  "file": "tts/claude_a8e0a34cd2.wav",
+  "secs": 8.45,
+  "voice": "af_heart"
+ },
+ "claude\tStay clear of the stove and the window glass! Don't move until the shaking stops!": {
+  "file": "tts/claude_0c3ed31a08.wav",
+  "secs": 4.925,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Stay low—protect your head and hold on!": {
+  "file": "tts/gpt_303ce30dcf.wav",
+  "secs": 3.25,
+  "voice": "am_fenrir"
+ },
+ "claude\tI'm right here. Don't try to stand. Keep your head down and your arms over your neck. I'm going to shield you from the TV.": {
+  "file": "tts/claude_7c0a36f5da.wav",
+  "secs": 7.3,
+  "voice": "af_heart"
+ },
+ "claude\tBreathe slowly. It's almost over. Hold on to the table leg if you can reach it.": {
+  "file": "tts/claude_e2956d898f.wav",
+  "secs": 5.3,
+  "voice": "af_heart"
+ },
+ "gpt\tStay down and hold on. Don’t try to cross the room.": {
+  "file": "tts/gpt_63b6abdcb6.wav",
+  "secs": 3.15,
+  "voice": "am_fenrir"
+ },
+ "claude\tStay where you are. Don't try to stand. Put your arms over your head and hold on to the table leg. I'm going to move the table closer to you so you're covered.": {
+  "file": "tts/claude_0b8b5e6d42.wav",
+  "secs": 9.175,
+  "voice": "af_heart"
+ },
+ "claude\tGo to the TV and hold its stand steady, or move it away from him if you can do it safely. Then come back to the kitchen doorway, away from the window.": {
+  "file": "tts/claude_728022bb83.wav",
+  "secs": 9.575,
+  "voice": "af_heart"
+ },
+ "claude\tIt's an earthquake. It will pass. Keep breathing. I'm right here.": {
+  "file": "tts/claude_6ba6c4777c.wav",
+  "secs": 3.95,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Stay low—get under the table!": {
+  "file": "tts/gpt_a225e5b958.wav",
+  "secs": 2.65,
+  "voice": "am_fenrir"
+ },
+ "claude\tI've got the TV. It's not going to fall on you. Stay under the table, hands over your head.": {
+  "file": "tts/claude_af052bee06.wav",
+  "secs": 5.625,
+  "voice": "af_heart"
+ },
+ "claude\tCan you check the black telephone and the radio, and keep them away from the edge of the shelf? Stay low. Don't go near the window.": {
+  "file": "tts/claude_1ab3c32cba.wav",
+  "secs": 7.675,
+  "voice": "af_heart"
+ },
+ "claude\tIt's still shaking, but it's starting to ease. Keep breathing. I'm right here. When it stops completely, we'll help you out slowly, and we'll check the kitchen doorway before anyone moves through it.": {
+  "file": "tts/claude_7e8484a5c0.wav",
+  "secs": 11.175,
+  "voice": "af_heart"
+ },
+ "gpt\tDon’t try to stand. Stay under the table and protect your head and neck.": {
+  "file": "tts/gpt_7d0e642fb7.wav",
+  "secs": 4.4,
+  "voice": "am_fenrir"
+ },
+ "claude\tStay where you are! Don't stand up! Put your arms over your head and hold onto the table leg. Keep your back to the window!": {
+  "file": "tts/claude_05360132ae.wav",
+  "secs": 7.025,
+  "voice": "af_heart"
+ },
+ "claude\tWe're going to stay down until it stops. The table is strong. I'm right here.": {
+  "file": "tts/claude_2ec5848fa7.wav",
+  "secs": 4.7,
+  "voice": "af_heart"
+ },
+ "gpt\t地震です！テーブルの下へ。頭を守ってください！": {
+  "file": "tts/gpt_8504109ce0.wav",
+  "secs": 4.45,
+  "voice": "jf_alpha"
+ },
+ "claude\tThe lights are out. That's normal. Stay down, keep your arms over your head. I'm holding the table and watching the TV. Tell me if anything hurts.": {
+  "file": "tts/claude_c1f2c7d0ac.wav",
+  "secs": 9.0,
+  "voice": "af_heart"
+ },
+ "gpt\tそのまま低く。頭を守って、揺れが止まるまで動かないでください。": {
+  "file": "tts/gpt_25a8bc66a0.wav",
+  "secs": 5.25,
+  "voice": "jf_alpha"
+ },
+ "claude\tStay where you are! Don't try to stand. Put your arms over your head and your face down by the table!": {
+  "file": "tts/claude_b192df382e.wav",
+  "secs": 5.7,
+  "voice": "af_heart"
+ },
+ "claude\tYou take the kitchen! Go shut off the gas at the stove or the meter if you can reach it, then come back here. Don't go outside. Stay away from the windows.": {
+  "file": "tts/claude_80a70687dc.wav",
+  "secs": 9.125,
+  "voice": "af_heart"
+ },
+ "gpt\tEarthquake! Stay low—cover your head!": {
+  "file": "tts/gpt_d544525b89.wav",
+  "secs": 2.35,
+  "voice": "am_fenrir"
+ },
+ "claude\tStay down, sir. Keep your head and arms covered. I've got the TV. Don't move until the shaking stops.": {
+  "file": "tts/claude_6f00b4bdef.wav",
+  "secs": 6.475,
+  "voice": "af_heart"
+ },
+ "claude\tKitchen, go shut the gas. Be careful in the dark. Stay away from the windows, and come straight back here.": {
+  "file": "tts/claude_99f9a8e131.wav",
+  "secs": 6.35,
+  "voice": "af_heart"
+ },
+ "gpt\tStay with him. Don’t move him or go for the gas until the shaking stops.": {
+  "file": "tts/gpt_25a588c2ed.wav",
+  "secs": 4.5,
+  "voice": "am_fenrir"
+ },
+ "gpt\tStay under the table. Keep your head covered.": {
+  "file": "tts/gpt_53c5a29aff.wav",
+  "secs": 2.7,
+  "voice": "am_fenrir"
+ }
+}

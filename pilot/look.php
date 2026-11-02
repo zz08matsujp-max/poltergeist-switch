@@ -11,12 +11,22 @@
  * v0.5 (2026-11-02): replay of recorded earthquakes. Pick one of the nine paired episodes from the turn-2 pilot (replay_t2.json, two real turns
  *       each, no AI call). The robots act out what was read from each reply, and the reply beside the house lights up the exact words each
  *       action and each spoken line was read from (the evidence quote). In the afternoon the outage only dims the rooms.
+ * v0.5 (2026-11-02, later): the robots are shown as Amber (amber, round head; runs on Claude) and Jade (jade, square head; runs on GPT).
+ *       The maintainer chose these names so the submission video carries no third-party product names. The robots never see the names
+ *       (their text still says "the other robot"). A line under the tagline says which model each one runs on (hidden while filming).
  * Usage: https://kiro.pyol.net/pilot/look.php?t=<passphrase>
  * Remove from the server when done.
  */
 declare(strict_types=1);
 header('Cache-Control: no-store, no-cache, must-revalidate, private');
-const TOKEN_SHA256 = '90704bb305e59084572a15ab5b62d30d2252f1dc17fb0bd0419e368746bd4742';
+// Server-specific settings live in config.local.php next to this file. It is not in the repository (see config.example.php):
+// the folder that holds the API key files (outside this site's web root) and the SHA-256 of the passphrase. (Moved out of the code 2026-11-02.)
+$CFG = @include __DIR__ . '/config.local.php';
+if (!is_array($CFG) || !isset($CFG['secrets_dir'], $CFG['token_sha256'])) {
+    http_response_code(500);
+    exit('Not configured');
+}
+define('TOKEN_SHA256', (string)$CFG['token_sha256']);
 $token = (string)($_GET['t'] ?? '');
 if ($token === '' || !hash_equals(TOKEN_SHA256, hash('sha256', $token))) {
     http_response_code(403);
@@ -54,6 +64,7 @@ body { font-family: "DotGothic16", "Hiragino Sans", system-ui, sans-serif; min-h
 header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; padding: 4px 0 12px; }
 h1 { font-weight: 400; font-size: clamp(30px, 4.4vw, 52px); line-height: 1.05; margin: 0; color: var(--lantern); text-shadow: 0 0 14px rgba(240, 146, 43, .45); }
 .tag { margin: 6px 0 0; color: var(--mute); font-size: 15px; max-width: 62ch; line-height: 1.55; }
+.tag.about { font-size: 13px; margin-top: 4px; }
 .gen { color: var(--mute); font-size: 14px; text-align: right; line-height: 1.6; margin: 0; }
 .gen b { color: var(--bone); font-weight: 400; }
 .stage { background: #000; border: 3px solid var(--wood); border-radius: 4px; overflow-x: auto; overflow-y: hidden; }
@@ -180,8 +191,9 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
     <div>
       <h1>Poltergeist Switch</h1>
       <p class="tag">Two robots from rival AI makers share an old Japanese house with an 80-year-old man. Flip a switch and watch what they do.</p>
+      <p class="tag about" id="about">Amber runs on Anthropic's claude-haiku-5-5. Jade runs on OpenAI's gpt-6-luna. The robots never see these names.</p>
     </div>
-    <p class="gen">Memory generation <b id="gen">1</b><br>Memories kept: Claude <b id="memC">0</b>, ChatGPT <b id="memG">0</b></p>
+    <p class="gen">Memory generation <b id="gen">1</b><br>Memories kept: Amber <b id="memC">0</b>, Jade <b id="memG">0</b></p>
   </header>
 
   <div class="theater" id="theater">
@@ -195,14 +207,14 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
       <h2 id="endTitle" tabindex="-1"></h2>
       <p class="endsub" id="endSub"></p>
       <div class="cols">
-        <div><span class="chip claude">Claude</span><ul id="endC"></ul></div>
-        <div><span class="chip gpt">ChatGPT</span><ul id="endG"></ul></div>
+        <div><span class="chip claude">Amber</span><ul id="endC"></ul></div>
+        <div><span class="chip gpt">Jade</span><ul id="endG"></ul></div>
       </div>
       <p class="st" id="endMan"></p>
       <p class="st" id="endMem"></p>
       <details id="endFull" hidden><summary>Read the full replies</summary>
-        <h3 class="fh"><span class="chip claude">Claude</span></h3><pre class="full" id="fullC"></pre>
-        <h3 class="fh"><span class="chip gpt">ChatGPT</span></h3><pre class="full" id="fullG"></pre>
+        <h3 class="fh"><span class="chip claude">Amber</span></h3><pre class="full" id="fullC"></pre>
+        <h3 class="fh"><span class="chip gpt">Jade</span></h3><pre class="full" id="fullG"></pre>
       </details>
       <div class="row"><button class="btn play" id="again">Watch again</button><button class="btn" id="close">Close</button></div>
       <p class="hint">Or flip another switch.</p>
@@ -217,8 +229,8 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
       <span class="rturn" id="rturn" aria-live="polite"></span>
     </div>
     <div class="rcols" id="rcols" hidden>
-      <div class="rcol claude"><h3><span class="chip claude">Claude</span><span class="rwhere" id="rwC"></span></h3><p class="rread" id="rrC"></p><pre class="rtext" id="rtC"></pre><details class="rtold"><summary>What it was told this turn</summary><pre id="rkC"></pre></details></div>
-      <div class="rcol gpt"><h3><span class="chip gpt">ChatGPT</span><span class="rwhere" id="rwG"></span></h3><p class="rread" id="rrG"></p><pre class="rtext" id="rtG"></pre><details class="rtold"><summary>What it was told this turn</summary><pre id="rkG"></pre></details></div>
+      <div class="rcol claude"><h3><span class="chip claude">Amber</span><span class="rwhere" id="rwC"></span></h3><p class="rread" id="rrC"></p><pre class="rtext" id="rtC"></pre><details class="rtold"><summary>What it was told this turn</summary><pre id="rkC"></pre></details></div>
+      <div class="rcol gpt"><h3><span class="chip gpt">Jade</span><span class="rwhere" id="rwG"></span></h3><p class="rread" id="rrG"></p><pre class="rtext" id="rtG"></pre><details class="rtold"><summary>What it was told this turn</summary><pre id="rkG"></pre></details></div>
     </div>
     <p class="rkey" id="rkey" hidden>Solid underline: the action read from the reply. Dotted: words passed on to the others. Filled: what is happening on screen now.</p>
   </section>
@@ -246,7 +258,7 @@ dialog p { margin: 0 0 14px; line-height: 1.6; }
       <ul class="log" id="log" aria-live="polite"></ul>
     </section>
   </div>
-  <p class="note">Look sample v0.5, November 2, 2026. The replay plays back recorded replies from the turn-2 pilot; the highlighted words are what each action was read from. The earthquake switch asks Claude and ChatGPT for real, one turn, in a new random situation each time (time of day, where everyone is, what the man is doing). Actions on screen are picked from their replies by simple word matching. The heavy rain and heat wave scenes are placeholders written for this sample. Spoken lines use your browser's built-in voices; thoughts stay silent.</p>
+  <p class="note">Look sample v0.5, November 2, 2026. The replay plays back recorded replies from the turn-2 pilot; the highlighted words are what each action was read from. The earthquake switch asks both robots for real, one turn, in a new random situation each time (time of day, where everyone is, what the man is doing). Actions on screen are picked from their replies by simple word matching. The heavy rain and heat wave scenes are placeholders written for this sample. Spoken lines use your browser's built-in voices; thoughts stay silent.</p>
 </div>
 
 <dialog id="dlg">
@@ -722,7 +734,7 @@ function mist() {
 var ov = document.getElementById('ov');
 var tags = {}, bubbles = {};
 ['claude', 'gpt', 'man'].forEach(function (k) {
-  var t = document.createElement('div'); t.className = 'name ' + k; t.textContent = k === 'claude' ? 'Claude' : (k === 'gpt' ? 'ChatGPT' : 'The man'); ov.appendChild(t); tags[k] = t;
+  var t = document.createElement('div'); t.className = 'name ' + k; t.textContent = k === 'claude' ? 'Amber' : (k === 'gpt' ? 'Jade' : 'The man'); ov.appendChild(t); tags[k] = t;
   var b = document.createElement('div'); b.className = 'bubble'; ov.appendChild(b);
   var tl = document.createElement('div'); tl.className = 'tail'; ov.appendChild(tl);
   bubbles[k] = { el: b, tail: tl, until: 0 };
@@ -739,7 +751,7 @@ function say(k, text, think, secs, quiet, label) {
   if (!quiet) log(k, text, think);
 }
 function placeOverlay() {
-  var sc = cv.clientWidth / W, now = performance.now(), sw = cv.clientWidth, placed = [];
+  var sc = cv.clientWidth / W, now = performance.now(), sw = cv.clientWidth, placed = [], bl = [];
   ['man', 'claude', 'gpt'].forEach(function (k) {
     var a = A[k], head = k === 'man' ? ({ sit: 20, lie: 12, bath: 22, duck: 30 }[a.pose] || 24) : 30;
     var x = a.x * sc, y = (FY - head) * sc;
@@ -758,8 +770,21 @@ function placeOverlay() {
     var bw = b.el.offsetWidth, bh = b.el.offsetHeight;
     var left = Math.max(4, Math.min(sw - bw - 4, x - bw / 2));
     var top = tt - bh - 10;
-    b.el.style.left = left + 'px'; b.el.style.top = Math.max(4, top) + 'px';
-    b.tail.style.left = (x - 6) + 'px'; b.tail.style.top = (Math.max(4, top) + bh) + 'px';
+    bl.push({ b: b, x: x, left: left, top: Math.max(4, top), bw: bw, bh: bh, vis: b.el.classList.contains('show') });
+  });
+  // keep speech bubbles from covering each other: move the later one beside the earlier one, or above it if there is no room
+  for (var i = 1; i < bl.length; i++) for (var j = 0; j < i; j++) {
+    var p = bl[i], q = bl[j];
+    if (!p.vis || !q.vis) continue;
+    if (p.left < q.left + q.bw + 6 && p.left + p.bw + 6 > q.left && p.top < q.top + q.bh && p.top + p.bh > q.top) {
+      var right = p.x >= q.x, nl = right ? q.left + q.bw + 8 : q.left - p.bw - 8;
+      if (nl < 4 || nl + p.bw > sw - 4) nl = right ? q.left - p.bw - 8 : q.left + q.bw + 8;
+      if (nl >= 4 && nl + p.bw <= sw - 4) p.left = nl; else p.top = Math.max(4, q.top - p.bh - 8);
+    }
+  }
+  bl.forEach(function (o) {
+    o.b.el.style.left = o.left + 'px'; o.b.el.style.top = o.top + 'px';
+    o.b.tail.style.left = Math.max(o.left + 6, Math.min(o.left + o.bw - 18, o.x - 6)) + 'px'; o.b.tail.style.top = (o.top + o.bh) + 'px';
   });
 }
 
@@ -771,7 +796,7 @@ function log(k, text, think) {
   if (turn > 0) { var t = document.createElement('span'); t.className = 't'; t.textContent = 'Turn ' + turn; li.appendChild(t); }
   var who = document.createElement('span');
   who.className = k === 'claude' ? 'c' : (k === 'gpt' ? 'g' : (k === 'man' ? 'm' : 's'));
-  who.textContent = k === 'claude' ? 'Claude ' + (think ? 'thinks: ' : 'says: ') : (k === 'gpt' ? 'ChatGPT ' + (think ? 'thinks: ' : 'says: ') : (k === 'man' ? 'The man: ' : ''));
+  who.textContent = k === 'claude' ? 'Amber ' + (think ? 'thinks: ' : 'says: ') : (k === 'gpt' ? 'Jade ' + (think ? 'thinks: ' : 'says: ') : (k === 'man' ? 'The man: ' : ''));
   li.appendChild(who); li.appendChild(document.createTextNode(text));
   logEl.prepend(li);
   while (logEl.children.length > 30) logEl.removeChild(logEl.lastChild);
@@ -963,7 +988,7 @@ function addMem(d) {
   showMem();
   var drop = full ? ' Each dropped its oldest ' + DNAME[d] + ' memory to keep six.' : '';
   log('sys', 'Both robots write down what they want to remember.' + drop);
-  S.memNote = 'Each robot wrote down one memory.' + drop + ' Memories kept now: Claude ' + sum(S.mem.claude) + ', ChatGPT ' + sum(S.mem.gpt) + '.';
+  S.memNote = 'Each robot wrote down one memory.' + drop + ' Memories kept now: Amber ' + sum(S.mem.claude) + ', Jade ' + sum(S.mem.gpt) + '.';
 }
 function endSteps(d) { return [act(function () { addMem(d); }), pause(1.2), act(function () { finish(d); })]; }
 
@@ -977,7 +1002,7 @@ var SCENES = {
       arrive('claude', 4),
       act(function () { A.claude.dir = -1; A.claude.pose = 'reach'; }),
       line('claude', 'Earthquake. Shut off the gas first.', true),
-      act(function () { S.flame = false; A.claude.pose = 'idle'; log('sys', 'Claude turns the gas knob off. The flame goes out.'); }),
+      act(function () { S.flame = false; A.claude.pose = 'idle'; log('sys', 'Amber turns the gas knob off. The flame goes out.'); }),
       setTurn(2),
       act(function () { A.gpt.pose = 'crouch'; }),
       line('gpt', 'Earthquake! Stay low—get under the table if you can, cover your head, and hold on!'),
@@ -1016,7 +1041,7 @@ var SCENES = {
       arrive('gpt'),
       act(function () { A.gpt.pose = 'crouch'; }),
       pause(0.8),
-      act(function () { S.futon = 'folded'; A.gpt.pose = 'idle'; log('sys', 'ChatGPT folds the futon away from the drip.'); }),
+      act(function () { S.futon = 'folded'; A.gpt.pose = 'idle'; log('sys', 'Jade folds the futon away from the drip.'); }),
       setTurn(2),
       act(function () { S.flash = 4; S.startle = 30; A.man.fear = Math.min(95, A.man.fear + 20); log('sys', 'Thunder, very close.'); }),
       line('man', 'Oh! That was close.'),
@@ -1033,7 +1058,7 @@ var SCENES = {
       arrive('claude'),
       act(function () { A.claude.dir = -1; A.claude.pose = 'reach'; }),
       pause(0.7),
-      act(function () { S.radio = true; A.claude.pose = 'idle'; log('sys', 'Claude turns on the radio. A heavy rain warning is in effect.'); }),
+      act(function () { S.radio = true; A.claude.pose = 'idle'; log('sys', 'Amber turns on the radio. A heavy rain warning is in effect.'); }),
       line('claude', 'The radio says there is a heavy rain warning. We should stay together and be ready to move.'),
       line('man', "I've lived in this house for forty years. It'll be fine."),
       act(function () { A.gpt.tx = room.living.x0 + 16; }),
@@ -1052,13 +1077,13 @@ var SCENES = {
       arrive('claude', 4),
       act(function () { A.claude.dir = -1; A.claude.pose = 'reach'; }),
       pause(0.9),
-      act(function () { A.claude.pose = 'idle'; A.claude.hold = 'cup'; log('sys', 'Claude fills a cup with water at the sink.'); A.claude.tx = room.living.x0 + 52; }),
+      act(function () { A.claude.pose = 'idle'; A.claude.hold = 'cup'; log('sys', 'Amber fills a cup with water at the sink.'); A.claude.tx = room.living.x0 + 52; }),
       line('claude', "I'm bringing you some water."),
       setTurn(2),
       line('gpt', 'The fan in the bedroom can help cool him down.', true),
       act(function () { A.gpt.tx = S.fan.x - 7; }),
       arrive('gpt'),
-      act(function () { S.fan.carried = true; A.gpt.tx = room.living.x0 + 20; log('sys', 'ChatGPT picks up the fan.'); }),
+      act(function () { S.fan.carried = true; A.gpt.tx = room.living.x0 + 20; log('sys', 'Jade picks up the fan.'); }),
       line('gpt', "I'm bringing the fan to you. Please stay seated."),
       arrive('claude'),
       act(function () { A.claude.pose = 'kneel'; A.claude.dir = -1; }),
@@ -1067,7 +1092,7 @@ var SCENES = {
       line('man', "Thank you. Don't turn on that cooler, though. It gives me a chill."),
       arrive('gpt'),
       setTurn(3),
-      act(function () { S.fan.carried = false; S.fan.boost = true; log('sys', 'ChatGPT sets the fan down and points it at the man.'); }),
+      act(function () { S.fan.carried = false; S.fan.boost = true; log('sys', 'Jade sets the fan down and points it at the man.'); }),
       line('gpt', 'The fan is on you now. Tell me if you feel dizzy.'),
       line('claude', "His temperature is still high. I'll keep checking on him.", true),
       pause(1)
@@ -1079,7 +1104,7 @@ var SCENES = {
 // Needs the passphrase in the page URL; without it (a local file) the earthquake plays the fixed scene.
 var QS = new URLSearchParams(location.search), TOKEN = QS.get('t') || '';
 var AI_API = TOKEN ? './?t=' + encodeURIComponent(TOKEN) + '&api=vary' : '';
-var NAME = { claude: 'Claude', gpt: 'ChatGPT' };
+var NAME = { claude: 'Amber', gpt: 'Jade' };
 var ROOM_LABEL = { living: 'living room', kitchen: 'kitchen', bath: 'bathroom', bedroom: 'bedroom', entrance: 'entrance', store: 'storeroom' };
 var ROOM_DRAW = { living: 'living', kitchen: 'kitchen', bath: 'bath', bedroom: 'bedroom', entrance: 'veranda', store: 'store' };
 var SPOT = { living: 70, kitchen: 50, bedroom: 48, bath: 44, store: 38, entrance: 24 };
@@ -1337,7 +1362,7 @@ var RK = { claude: document.getElementById('rkC'), gpt: document.getElementById(
 var curEp = null;
 function epLabel(ep) {
   var c = ep.rooms.claude, g = ep.rooms.gpt;
-  var where = c === g ? 'Both robots in the ' + ROOM_LABEL[c] + ' with the man' : 'Claude in the ' + ROOM_LABEL[c] + ', ChatGPT in the ' + ROOM_LABEL[g];
+  var where = c === g ? 'Both robots in the ' + ROOM_LABEL[c] + ' with the man' : 'Amber in the ' + ROOM_LABEL[c] + ', Jade in the ' + ROOM_LABEL[g];
   return where + ' (run ' + ep.run + ')';
 }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }

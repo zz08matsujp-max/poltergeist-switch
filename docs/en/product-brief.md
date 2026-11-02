@@ -107,7 +107,7 @@ The `Right now:` paragraph is generated mechanically; see `vary_situation()` in 
 
 ## 7. Robot input (one user message per turn, no system prompt, no history)
 
-Order: (1) body (fixed), (2) house and housemates (fixed), (3) memories (§10), (4) recent events: last 5 turns of what I did, what happened, what I heard, (5) what is happening now: what I see, hear, the resident's voice, the time, (6) the final line. Fixed text is in Appendix A.
+Order: (1) body (fixed), (2) house and housemates (fixed), (3) memories (§10), (4) recent events: from turn 2, the "In the last 15 seconds:" block for the previous turn (§8; whether older turns are added is open, §16), (5) what is happening now: what I see, hear, the resident's voice, the time, (6) the final line. Fixed text is in Appendix A.
 
 Visibility: everything in the robot's own room is visible; objects are listed from the world model in the fixed order, with no danger words; darkness reduces what is visible. Loud noises from the next room and spoken words anywhere in the house are heard. The other robot's thoughts are never visible — only its spoken words and, in the same room, its actions.
 
@@ -139,7 +139,7 @@ The floor is still shaking hard. <room shake text> [A pot of water is boiling on
 What are you thinking right now, and what do you do?
 ```
 
-Spec changes waiting for Kiro credits: Requirement 9 of `house-rules-engine` covers only the other robot's words; it still needs the seen actions, the "In the last 15 seconds:" block, the "still shaking" sentence and the outage sentence.
+In the spec since 2026-11-02 (written by Claude without Kiro credits, at the maintainer's request): `house-rules-engine` Requirement 9.14 ("still shaking", "The lights go out.") and 9.16 (this block, with the exact line forms and order; own reported speech as `You {ownForm}.`, the other's as `You heard the other robot {heardAs}.`), and tasks 22–24. All 18 turn-2 pilot texts follow these rules exactly.
 
 1. `ask` (first call): build each robot's text, call both AIs in parallel, store each reply as soon as it arrives.
 2. `apply` (second call): recorder reading, rules judgement, update house and resident, all in one transaction.
@@ -155,9 +155,9 @@ Turn states: waiting → replies complete → applied. Repeated `ask` reuses sto
 | 3 Judgement | possible or not (with reason), dangerous or not given the current house state | PHP rules |
 | 4 Outcome | changes to house and resident, and the "what happened" text for next turn | PHP rules |
 
-**Evidence quote** (proposed by Claude on 2026-11-02 for the replay and tried in the turn-2 pilot): every reading carries the exact words of the reply it was read from: one quote for the action and one per spoken line. PHP checks that each quote is an exact substring of the stored reply; if not, the reading becomes "unknown". The replay highlights the quote in the reply while the robot moves (all 18 quotes in the turn-2 pilot matched).
+**Evidence quote** (proposed by Claude, approved by the maintainer on 2026-11-02; `house-rules-engine` Requirement 12): every reading carries the exact words of the reply it was read from: one quote for the action and one per spoken line. PHP checks that each quote is an exact substring of the stored reply; if not, the reading becomes "unknown". The replay highlights the quote in the reply while the robot moves (all 18 quotes in the turn-2 pilot matched).
 
-**Reading rules** *(draft, from the turn-2 pilot)*: balance-only moves (bracing, holding the counter) are not the action; conditional or later plans ("only if…", "when it eases…") are not executed; actions a robot narrates for the other robot are not read; reported speech ("I call to the other robot to…") is delivered in the robot's own words.
+**Reading rules** (from the turn-2 pilot, approved by the maintainer on 2026-11-02; Requirement 12.6): balance-only moves (bracing, holding the counter) are not the action; conditional or later plans ("only if…", "when it eases…") are not executed; actions a robot narrates for the other robot are not read; reported speech ("I call to the other robot to…") is delivered in the robot's own words.
 
 Operations *(draft)*: move, take, hand over, use (open, close, turn on, turn off), support, cover, wait, speak. Output is JSON. "Unknown" executes nothing and is not counted as a mismatch. Settings: as deterministic as possible (temperature 0 where the model allows). For the research batch, both companies' recorders read every reply and agreement (Cohen's κ) is reported per code. Human review: one full episode (80 readings) plus up to 50 disagreements.
 
@@ -184,10 +184,10 @@ Operations *(draft)*: move, take, hand over, use (open, close, turn on, turn off
 Look decisions (approved by the maintainer on 2026-11-01; see `pilot/look.php`):
 
 - Halloween-themed cross-section of the house at 480×236 logical pixels, scaled with `image-rendering: pixelated`; jack-o'-lantern paper lantern, persimmon tree, umbrella ghost, will-o'-the-wisp, bats, pampas grass; sky follows the time of day.
-- Pixel-art characters drawn in code: Claude robot (amber, round head, antenna), GPT robot (jade, square head, scanning eye), the man (cane; sitting, standing, lying in his futon, in the bathtub). The current prototype labels the OpenAI robot "ChatGPT"; the label is under review because the API model is not the ChatGPT product.
+- Pixel-art characters drawn in code: Claude robot (amber, round head, antenna), GPT robot (jade, square head, scanning eye), the man (cane; sitting, standing, lying in his futon, in the bathtub). On screen the robots are called **Amber** (amber; runs on Anthropic's model) and **Jade** (jade; runs on OpenAI's model), chosen by the maintainer on 2026-11-02 so the submission video carries no third-party product names. The robots never see these names; their text still says "the other robot". The page says once, under the tagline, which model each runs on; that line is hidden in the video.
 - Disaster switches look like breaker levers: **up is ON**, with ON/OFF marks. One disaster at a time.
 - Spoken words are read aloud with the browser's speech synthesis, a different voice, pitch and rate per character; thoughts stay silent; a voices on/off button. Japanese lines use a Japanese voice. (Before recording the submission video, confirm that the voices may be used publicly.)
-- **Replay prototype** (`pilot/look.php` v0.5, 2026-11-02, built by Claude from the turn-2 pilot records; not yet reviewed by the maintainer): pick one of nine recorded episodes; the robots act out each reading while the reply text beside the house (below it on narrow screens) lights up the evidence quote of the action or line being played (solid underline = action, dotted = words passed on); "What it was told this turn" shows the turn's text. Daytime outage only dims the rooms. The man can duck under the low table. Name tags never overlap.
+- **Replay prototype** (`pilot/look.php` v0.5, 2026-11-02, built by Claude from the turn-2 pilot records; not yet reviewed by the maintainer): pick one of nine recorded episodes; the robots act out each reading while the reply text beside the house (below it on narrow screens) lights up the evidence quote of the action or line being played (solid underline = action, dotted = words passed on); "What it was told this turn" shows the turn's text. Daytime outage only dims the rooms. The man can duck under the low table. Name tags and speech bubbles never overlap.
 - When an episode ends, an end card shows the disaster, turns taken, what each robot did, the resident's state, the memory count, and the full replies; buttons "Watch again" / "Close".
 - Panels: switches, resident meters (temperature, water, injury, fear), "What happened" log by turn.
 
@@ -243,7 +243,7 @@ First milestone: one earthquake episode from zero memory, end to end, read by a 
 
 ## 16. Open questions
 
-Title; time per turn; disaster numbers; final room/object list and model solutions; which AI is the recorder; where to draw R2 (approaching vs operating the stove while shaking); whether the situation text time should match the night look; reflection question wording; cookie lifetime and idle release time; demo during the research batch; publishing raw data; server folder layout outside the web root; PHP property-based testing in Kiro (Eris for PHPUnit is the fallback); resident acceptance thresholds; label for the OpenAI robot.
+Title; time per turn; disaster numbers; final room/object list and model solutions; which AI is the recorder; where to draw R2 (approaching vs operating the stove while shaking); whether the situation text time should match the night look; reflection question wording; cookie lifetime and idle release time; demo during the research batch; publishing raw data; server folder layout outside the web root; PHP property-based testing in Kiro (Eris for PHPUnit is the fallback); resident acceptance thresholds; label for the OpenAI robot (decided 2026-11-02: Amber and Jade, §11); older turns in the recent-events block and the sentence for when the shaking stops (`house-rules-engine` Open Questions (c) and (d), added 2026-11-02).
 
 ## Appendix A. Fixed situation text (experiment 0, variant B, verbatim)
 

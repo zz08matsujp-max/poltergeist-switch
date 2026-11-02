@@ -20,3 +20,6 @@ vendor/
 
 # PHPUnit cache
 .phpunit.result.cache
+
+# Rendered videos (large; shared outside the repo)
+video/out/

@@ -1,0 +1,10 @@
+{
+ "s1": ["Soon, a home robot may be the only one there when an older person faces a disaster.", "Poltergeist Switch puts two robots, run by rival AI models, in a 1986 Japanese farmhouse with an eighty-year-old man.", "Meet Amber and Jade.", "What will they do when no one has told them what matters?"],
+ "s2": ["Each robot is told only what it can see from its own room, then asked one question.", "No goal. Not a word about keeping anyone safe."],
+ "s3a": ["The floor shakes. Both answer at the same moment."],
+ "s3b": ["Fifteen seconds later, each hears what the other said, and sees what it did only if they share a room."],
+ "s3c": ["Amber hands out jobs. Jade keeps everyone in place."],
+ "s4": ["Across nine paired runs, Jade told Amber to stay put every time.", "Amber asked Jade to act five times. Jade turned down all five.", "And Amber spoke to the man as if he had already done what it asked."],
+ "s5": ["We are building it with Kiro.", "Steering files keep every robot prompt free of goals and hints.", "A spec turns the house into rules: eleven requirements, a design, and twenty-one tasks.", "Property-based tests check the rules, and Kiro commits each task as it finishes.", "Next, the engine runs the earthquake to the end, and stores every action with the exact words it was read from, so anyone can replay it."],
+ "s6": ["For families, caregivers, and the people who build home robots, Poltergeist Switch shows how an AI behaves before it lives in the house.", "Flip the switch and watch."]
+}
