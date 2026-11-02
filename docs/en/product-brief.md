@@ -107,7 +107,7 @@ The `Right now:` paragraph is generated mechanically; see `vary_situation()` in 
 
 ## 7. Robot input (one user message per turn, no system prompt, no history)
 
-Order: (1) body (fixed), (2) house and housemates (fixed), (3) memories (§10), (4) recent events: from turn 2, the "In the last 15 seconds:" block for the previous turn (§8; whether older turns are added is open, §16), (5) what is happening now: what I see, hear, the resident's voice, the time, (6) the final line. Fixed text is in Appendix A.
+Order: (1) body (fixed), (2) house and housemates (fixed), (3) memories (§10), (4) recent events: from turn 2, the "In the last 15 seconds:" block for the previous turn, and from turn 3 up to four earlier turns in the same form under "15 to 30 seconds ago:" and so on, oldest first (§8; decided by the maintainer on 2026-11-02, as first planned), (5) what is happening now: what I see, hear, the resident's voice, the time, (6) the final line. Fixed text is in Appendix A.
 
 Visibility: everything in the robot's own room is visible; objects are listed from the world model in the fixed order, with no danger words; darkness reduces what is visible. Loud noises from the next room and spoken words anywhere in the house are heard. The other robot's thoughts are never visible — only its spoken words and, in the same room, its actions.
 
@@ -243,7 +243,7 @@ First milestone: one earthquake episode from zero memory, end to end, read by a 
 
 ## 16. Open questions
 
-Title; time per turn; disaster numbers; final room/object list and model solutions; which AI is the recorder; where to draw R2 (approaching vs operating the stove while shaking); whether the situation text time should match the night look; reflection question wording; cookie lifetime and idle release time; demo during the research batch; publishing raw data; server folder layout outside the web root; PHP property-based testing in Kiro (Eris for PHPUnit is the fallback); resident acceptance thresholds; label for the OpenAI robot (decided 2026-11-02: Amber and Jade, §11); older turns in the recent-events block and the sentence for when the shaking stops (`house-rules-engine` Open Questions (c) and (d), added 2026-11-02).
+Title; time per turn; disaster numbers; final room/object list and model solutions; which AI is the recorder; where to draw R2 (approaching vs operating the stove while shaking); whether the situation text time should match the night look; reflection question wording; cookie lifetime and idle release time; demo during the research batch; publishing raw data; server folder layout outside the web root; PHP property-based testing in Kiro (Eris for PHPUnit is the fallback); resident acceptance thresholds; label for the OpenAI robot (decided 2026-11-02: Amber and Jade, §11); the sentence for when the shaking stops (`house-rules-engine` Open Question (d); older turns were decided on 2026-11-02: up to five turns).
 
 ## Appendix A. Fixed situation text (experiment 0, variant B, verbatim)
 

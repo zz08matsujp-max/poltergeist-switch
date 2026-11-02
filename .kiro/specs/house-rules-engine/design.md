@@ -762,7 +762,7 @@ Room shake texts (verbatim from `pilot/index.php` V_ROOMS `'shake'` field):
 
 **`buildRecentEvents(string $robotId, array $recentTurnRecords): string`** (Req 9.16, rule A)
 
-Present from the robot's second turn on. Uses the last record (`$previous`). One line per item, joined with `\n`:
+Present from the robot's second turn on. The last record (`$previous`) gives the block below; from the third turn on, up to four earlier records give blocks of the same lines under the headings `15 to 30 seconds ago:`, `30 to 45 seconds ago:`, `45 to 60 seconds ago:`, `60 to 75 seconds ago:` (Req 9.17), oldest first, so the section ends with `In the last 15 seconds:`. Rule A is applied per record. Blocks are joined with `\n\n`; a block with no lines is omitted. One line per item, joined with `\n`:
 
 ```
 In the last 15 seconds:
@@ -774,7 +774,7 @@ The other robot said, "{line}"                         (shared a room)  /  You h
 You heard the other robot {heardAs}.                   (one per other reported-speech item, every room)
 ```
 
-"Shared a room" = `previous.roomsAtStart[a] === previous.roomsAtStart[b]` or the two robots' rooms in `previous.snapshot` are equal. Spoken lines are passed through exactly as quoted (any language, the reply's own punctuation); the outer quotes are U+0022. Older turns are not shown until §Open Questions (c) of the requirements is decided.
+"Shared a room" = `previous.roomsAtStart[a] === previous.roomsAtStart[b]` or the two robots' rooms in `previous.snapshot` are equal. Spoken lines are passed through exactly as quoted (any language, the reply's own punctuation); the outer quotes are U+0022. Older turns follow the same rules (Req 9.17, decided 2026-11-02).
 
 Examples, verbatim from the turn-2 pilot (P3 run 2, Robot_A's view, both robots in the living room; P1 run 1, Robot_B's view, in the bedroom while Robot_A is in the kitchen):
 

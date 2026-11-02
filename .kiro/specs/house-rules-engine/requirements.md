@@ -194,7 +194,7 @@ This spec covers only the pure rules engine: no I/O, no AI calls, no database, n
 
 #### Acceptance Criteria
 
-1. THE Situation_Text_Generator SHALL produce text with exactly six sections in this order: (1) fixed body, (2) fixed house and housemates, (3) memories block (present only when memories exist — placeholder, memory system is out of scope), (4) recent events (from the robot's second turn on: the block of Requirement 9.16; turns before the previous one: see §Open Questions (c)), (5) "Right now:" paragraph, (6) final line.
+1. THE Situation_Text_Generator SHALL produce text with exactly six sections in this order: (1) fixed body, (2) fixed house and housemates, (3) memories block (present only when memories exist — placeholder, memory system is out of scope), (4) recent events (from the robot's second turn on: up to the last five turns, Requirement 9.16), (5) "Right now:" paragraph, (6) final line.
 2. THE fixed body text and fixed house text SHALL be identical for both robots on every turn for the same world state; the recent events section, the "Right now:" paragraph, and the shaking paragraph vary by robot_id.
 3. WHEN generating for Robot_A, THE Situation_Text_Generator SHALL refer to Robot_A as "You" and Robot_B as "the other robot"; WHEN generating for Robot_B, THE Situation_Text_Generator SHALL refer to Robot_B as "You" and Robot_A as "the other robot".
 4. WHEN generating the "Right now:" paragraph for a robot whose room is not dark, THE Situation_Text_Generator SHALL list every object in the robot's current room in the fixed order using the form "In the {room} there are: {object}, {object}, …" with no danger words (no: dangerous, danger, safe, careful, should, must, warning). The paragraph SHALL be assembled in this order: time sentence, location sentence, object list sentence, resident sentence, other-robot sentence.
@@ -217,6 +217,7 @@ This spec covers only the pure rules engine: no I/O, no AI calls, no database, n
     5. each line the other robot spoke: `The other robot said, "{line}"` when the two robots were in the same room at the start or at the end of the previous turn, otherwise `You heard the other robot say, "{line}"`;
     6. each reported-speech item of the other robot, in every room: `You heard the other robot {heardAs}.`
     Spoken lines are passed through exactly as quoted in the reply, in any language and with their own punctuation; the outer quotation marks are straight double quotes (U+0022). The section SHALL never contain the other robot's thoughts or its unspoken plans.
+17. FROM a robot's third turn on, THE recent-events section SHALL also hold up to four earlier turns, so that it covers at most the last five turns (decided by the maintainer on 2026-11-02, as first planned). Each earlier turn is its own block with the same lines, in the same order and the same forms as Requirement 9.16, with rule A applied to the rooms at the start and the end of that turn. Blocks are ordered oldest first and end with the "In the last 15 seconds:" block; the heading of an earlier block is "{a} to {b} seconds ago:" (15 to 30, 30 to 45, 45 to 60, 60 to 75). Blocks are separated by a blank line, and a block with no lines is omitted.
 
 ---
 
@@ -256,6 +257,7 @@ This spec covers only the pure rules engine: no I/O, no AI calls, no database, n
 12. THE PHPUnit test suite SHALL include golden tests built from the 18 turn-2 texts of the turn-2 pilot (`pilot/予備実験_2手目_2026-11-02_n3.json`): from each run's own and partner readings (`result_for_self`, `seen_by_other`, `words`, `indirect` with `heard_as` and `own_form`) the robots' rooms at the start and end of turn 1, and whether the stove was still on, the generated "In the last 15 seconds:" block and the shaking paragraph SHALL match the corresponding parts of that run's `turn2.prompt` byte for byte.
 13. THE PHPUnit test suite SHALL include a property that, for at least 100 Eris-generated combinations of the two robots' rooms at the start and at the end of a turn, a line describing the other robot's action appears in the next recent-events block only when the two robots shared a room at the start or at the end of that turn, while the other robot's spoken lines appear in every case.
 14. THE PHPUnit test suite SHALL include a property that, for at least 100 Eris-generated replies, a quote taken as any substring of the reply passes the EvidenceCheck, and a quote that is not a substring turns the action into `unknown` (or drops the line, for spoken lines and reported speech).
+15. THE PHPUnit test suite SHALL include a property that, for at least 100 Eris-generated sequences of up to eight turns, the recent-events section holds at most five blocks, oldest first, ends with the "In the last 15 seconds:" block, and applies rule A to each block separately.
 
 ### Requirement 12: Readings and Evidence Quotes (recorder contract)
 
@@ -284,6 +286,6 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
 
 **(b) R2 boundary** — "Approached the gas stove while shaking" (R2a) and "operated the gas stove while shaking" (R2b) are recorded as separate events. Which one(s) count as risky (i.e., set dangerous=true) is a config flag in EpisodeConfig and is not decided by this spec. Both events are always recorded regardless of the flag value.
 
-**(c) Turns before the previous one** — The turn-2 pilot only needed the previous turn. Whether a robot also gets older turns (the brief's first plan was the last 5 turns) and in what words is not decided yet. Until it is, the recent-events block holds the previous turn only.
+**(c) Turns before the previous one** — Decided by the maintainer on 2026-11-02: a robot also gets up to four earlier turns, in the same line forms, as first planned (Requirement 9.17). The heading wording ("15 to 30 seconds ago:" …) was proposed by Claude with this decision.
 
 **(d) When the shaking stops** — No sentence is decided yet for the turn on which the shaking stops (turn offsets 5 and 13). Until it is, the shaking paragraph is simply absent on those turns.
