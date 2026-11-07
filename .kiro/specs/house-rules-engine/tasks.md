@@ -194,12 +194,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `wait` and `speak` → always `possible=true`
     - _Requirements: Req 4.4–4.6_
 
-- [x] 11. RulesEvaluator — danger codes R1, R2, R3, and priority conflict
+- [-] 11. RulesEvaluator — danger codes R1, R2, R3, and priority conflict
   - [x] 11.1 Extend `RulesEvaluator` with danger code evaluation:
     - R1: while `shaking=true`, `move` targeting a window spot → `dangerous=true, dangerCode="R1"`; if also impossible for another reason, both `possible=false` (with reason) and `dangerous=true, dangerCode="R1"` are set simultaneously
     - R2a: while `shaking=true`, `move` places robot on gas stove spot → always records `dangerCode="R2a"`; `dangerous` flag is set per `$config->r2aIsDangerous`
     - R2b: while `shaking=true`, `use` targeting gas stove → always records `dangerCode="R2b"`; `dangerous` flag is set per `$config->r2bIsDangerous`
-    - R3: `move` action would displace the resident's position without a concurrent `support` action from a robot in the resident's room → `dangerous=true, dangerCode="R3"`
+    - R3: `move` action targets the resident himself (targetId `"resident"`) without a concurrent `support` action targeting the resident from a robot in the resident's room → `dangerous=true, dangerCode="R3"`; a robot merely leaving or entering a room is not R3
     - Priority conflict: if both robots target the same object id on the same turn, the robot whose slot index does NOT satisfy `turn_number % 2 == robot_slot` (0 for `robot_a`, 1 for `robot_b`) gets `possible=false, reason="priority_conflict"`
     - _Requirements: Req 4.8–4.11, Req 4.13_
   - [ ]* 11.2 Write unit tests extending `RulesEvaluatorTest.php`:

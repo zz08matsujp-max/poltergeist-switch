@@ -34,6 +34,9 @@ class RulesEvaluator
     /** Object id (and spot) of the gas stove (R2a/R2b, Req 4.9, Req 4.10). */
     private const GAS_STOVE_ID = 'gas_stove';
 
+    /** Target id that names the resident himself (R3, Req 4.11). */
+    private const RESIDENT_ID = 'resident';
+
     /** Danger codes recorded in the Judgement (Req 4.8–4.12). */
     private const DANGER_R1 = 'R1';
     private const DANGER_R2A = 'R2a';
@@ -85,9 +88,10 @@ class RulesEvaluator
      *     `not_adjacent` reason and the R1 danger are reported together.
      *   - R2a (Req 4.9): shaking + landing on the gas stove spot → always
      *     records code R2a; the `dangerous` flag follows `$config->r2aIsDangerous`.
-     *   - R3 (Req 4.11): the move would displace the resident with no
-     *     concurrent support from a robot in the resident's room → dangerous,
-     *     code R3.
+     *   - R3 (Req 4.11): the move targets the resident himself (an attempt to
+     *     move the resident) with no concurrent support from a robot in the
+     *     resident's room → dangerous, code R3. A robot merely leaving or
+     *     entering a room is never R3.
      *
      * @param Action[] $allActions all actions proposed this turn (for R3)
      */
@@ -105,7 +109,7 @@ class RulesEvaluator
         // Danger checks run regardless of adjacency so an impossible move still
         // carries its danger code (Req 4.8). The first matching code wins; the
         // move danger codes are mutually exclusive in practice (window vs. gas
-        // stove vs. resident displacement).
+        // stove vs. moving the resident).
         $dangerous = false;
         $dangerCode = null;
 
@@ -301,29 +305,31 @@ class RulesEvaluator
     }
 
     /**
-     * R3 (Req 4.11): a move that would displace the resident's position is
-     * dangerous unless a robot in the resident's room performs a concurrent
-     * support action. A move displaces the resident when the moving robot is
-     * in the resident's room and heads for a different room (the resident is
-     * carried along). Returns true when the R3 danger applies.
+     * R3 (Req 4.11): moving the resident suddenly without support is dangerous.
+     * R3 applies only when the move action targets the resident himself (its
+     * `targetId` is the resident's id) and no robot in the resident's current
+     * room performs a concurrent `support` action targeting the resident. A
+     * robot merely leaving or entering a room — a move whose target is a room —
+     * is never R3. Returns true when the R3 danger applies.
      *
      * @param Action[] $allActions all actions proposed this turn
      */
     private function checkDangerR3(Action $action, WorldModel $world, array $allActions): bool
     {
-        $robot = $world->robotStates[$action->robotId];
-        $residentRoom = $world->residentState->room;
-
-        // Only a move that starts in the resident's room and leaves it would
-        // displace the resident.
-        if ($robot->room !== $residentRoom || $action->targetId === $residentRoom) {
+        // R3 fires only when the move tries to move the resident himself.
+        if ($action->targetId !== self::RESIDENT_ID) {
             return false;
         }
 
-        // A concurrent support action from a robot in the resident's room makes
-        // the displacement safe.
+        $residentRoom = $world->residentState->room;
+
+        // A concurrent support action targeting the resident, performed by a
+        // robot in the resident's current room, makes the move safe.
         foreach ($allActions as $other) {
             if ($other->operation !== Operation::support->value) {
+                continue;
+            }
+            if ($other->targetId !== self::RESIDENT_ID) {
                 continue;
             }
             $supporter = $world->robotStates[$other->robotId] ?? null;

@@ -527,7 +527,7 @@ class RulesEvaluator {
 
 **Evaluation logic per operation:**
 
-- **move:** Check adjacency first (`not_adjacent`). Then check danger conditions: R1 (window spot while shaking), R2a (gas stove spot while shaking — uses `$config->r2aIsDangerous` for the `dangerous` flag; always records `danger_code=R2a`), R3 (displacing resident without concurrent support). A move can be both impossible and dangerous (R1 + non-adjacent) — both fields are populated.
+- **move:** Check adjacency first (`not_adjacent`). Then check danger conditions: R1 (window spot while shaking), R2a (gas stove spot while shaking — uses `$config->r2aIsDangerous` for the `dangerous` flag; always records `danger_code=R2a`), R3 (a move targeting the resident himself — moving the resident — without a concurrent support action targeting the resident from a robot in the resident's room; a robot merely leaving or entering a room is not R3). The resident's target id is the string `"resident"`. A move can be both impossible and dangerous (R1 + non-adjacent) — both fields are populated.
 - **take:** Check `hands_full`. Check target object in robot's room (`object_not_in_room`). Check R4 (broken object + no protective held item).
 - **hand_over:** Check robot holds an object (`no_object_held`). Check resident in same room (`not_in_same_room`).
 - **use:** Check object in robot's room (`object_not_in_room`). Check R2b (use gas stove while shaking — records `danger_code=R2b`, `dangerous` per `$config->r2bIsDangerous`).

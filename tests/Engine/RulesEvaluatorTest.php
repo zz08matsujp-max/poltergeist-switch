@@ -100,14 +100,14 @@ class RulesEvaluatorTest extends TestCase
     {
         $world = $this->makeWorld();
 
-        // robot_b is in the kitchen; the resident sits in the living_room, so
-        // robot_b's move does not displace the resident (no R3). storeroom is
-        // adjacent to the kitchen and not shaking, so the move is plainly
-        // possible with no danger.
+        // robot_a is in the living_room with the resident; kitchen is adjacent
+        // and not shaking. A plain move to another room targets a room, not the
+        // resident, so it is never R3 — the move is plainly possible with no
+        // danger.
         $action = new Action(
-            robotId: 'robot_b',
+            robotId: 'robot_a',
             operation: Operation::move->value,
-            targetId: 'storeroom',
+            targetId: 'kitchen',
         );
 
         $judgement = $this->evaluate($world, $action);
@@ -430,14 +430,15 @@ class RulesEvaluatorTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    // R3 — move that displaces the resident without concurrent support
+    // R3 — moving the resident himself without concurrent support
     // ------------------------------------------------------------------
 
-    public function testMoveDisplacingResidentWithoutSupportIsDangerousR3(): void
+    public function testMoveLeavingResidentsRoomIsNotR3(): void
     {
         $world = $this->makeWorld();
-        // robot_a and the resident are both in the living_room; robot_a moves to
-        // the adjacent kitchen, carrying the resident along with no support.
+        // robot_a and the resident are both in the living_room; robot_a leaves
+        // for the adjacent kitchen. The move targets a room, not the resident,
+        // so the resident stays put (Req 7.8) and there is no R3.
         $action = new Action(
             robotId: 'robot_a',
             operation: Operation::move->value,
@@ -446,25 +447,45 @@ class RulesEvaluatorTest extends TestCase
 
         $judgement = $this->evaluateWith($world, $action, [$action]);
 
+        $this->assertFalse($judgement->dangerous);
+        $this->assertNull($judgement->dangerCode);
+    }
+
+    public function testMoveTargetingResidentWithoutSupportIsDangerousR3(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a and the resident are both in the living_room; robot_a tries to
+        // move the resident himself (targetId "resident") with no concurrent
+        // support. Moving the resident suddenly without support is R3.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'resident',
+        );
+
+        $judgement = $this->evaluateWith($world, $action, [$action]);
+
         $this->assertTrue($judgement->dangerous);
         $this->assertSame('R3', $judgement->dangerCode);
     }
 
-    public function testMoveDisplacingResidentWithConcurrentSupportIsNotR3(): void
+    public function testMoveTargetingResidentWithConcurrentSupportIsNotR3(): void
     {
         $world = $this->makeWorld();
-        // robot_b joins the resident's room and supports; robot_a's move is then
+        // robot_b joins the resident's room and supports the resident while
+        // robot_a moves the resident; the concurrent support makes the move
         // safe (no R3).
         $world->robotStates['robot_b']->room = 'living_room';
 
         $moveAction = new Action(
             robotId: 'robot_a',
             operation: Operation::move->value,
-            targetId: 'kitchen',
+            targetId: 'resident',
         );
         $supportAction = new Action(
             robotId: 'robot_b',
             operation: Operation::support->value,
+            targetId: 'resident',
         );
 
         $judgement = $this->evaluateWith($world, $moveAction, [$moveAction, $supportAction]);
