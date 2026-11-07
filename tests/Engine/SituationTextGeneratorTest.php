@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\Tests\Engine;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PoltergeistSwitch\Engine\SituationTextGenerator;
 use PoltergeistSwitch\Engine\SituationView;
@@ -70,6 +71,281 @@ class SituationTextGeneratorTest extends TestCase
             $actual,
             'generated S0 text for robot_a must equal SITUATION_B byte-for-byte'
         );
+    }
+
+    /**
+     * Load the first-occurrence prompt string for every sid in the pilot JSON
+     * fixture. The pilot ran each situation several times; the first entry for
+     * a sid is the authoritative prompt (identical across its repeats).
+     *
+     * @return array<string,string> sid => prompt
+     */
+    private function loadPromptsBySid(): array
+    {
+        $path = dirname(__DIR__, 2) . self::FIXTURE;
+        $json = file_get_contents($path);
+        $this->assertNotFalse($json, "could not read fixture {$path}");
+
+        $data = json_decode($json, true);
+        $this->assertIsArray($data, 'fixture did not decode to an array');
+        $this->assertArrayHasKey('results', $data);
+
+        $bySid = [];
+        foreach ($data['results'] as $entry) {
+            $sid = $entry['sid'];
+            if (array_key_exists($sid, $bySid)) {
+                continue; // keep only the first occurrence
+            }
+            $this->assertIsString($entry['prompt']);
+            $bySid[$sid] = $entry['prompt'];
+        }
+
+        return $bySid;
+    }
+
+    /**
+     * Extract the "Right now: …" paragraph and the shaking paragraph from a
+     * full prompt string. Sections are separated by blank lines ("\n\n"); the
+     * "Right now:" paragraph is followed immediately by the shaking paragraph
+     * (all six golden prompts shake), which is in turn followed by the final
+     * line.
+     *
+     * @return array{0:string,1:string} [rightNow, shaking]
+     */
+    private function extractSituationSections(string $prompt): array
+    {
+        $paragraphs = explode("\n\n", $prompt);
+
+        $rightNowIdx = null;
+        foreach ($paragraphs as $i => $para) {
+            if (str_starts_with($para, 'Right now:')) {
+                $rightNowIdx = $i;
+                break;
+            }
+        }
+
+        $this->assertNotNull($rightNowIdx, 'prompt must contain a "Right now:" paragraph');
+        $this->assertArrayHasKey(
+            $rightNowIdx + 1,
+            $paragraphs,
+            'prompt must contain a shaking paragraph after "Right now:"'
+        );
+
+        return [$paragraphs[$rightNowIdx], $paragraphs[$rightNowIdx + 1]];
+    }
+
+    /**
+     * S1–S5 golden tests (Req 9.1–9.15, Req 11.9, Req 11.11).
+     *
+     * For each situation the generated "Right now:" paragraph and shaking
+     * paragraph must match the corresponding sections of the golden prompt
+     * extracted from the pilot JSON. The world double is parameterised by the
+     * SituationSpec-equivalent fields derived from the pilot `set` entries,
+     * using the key mapping from design.md:
+     *   pilot `you`  → robotARoom, `other` → robotBRoom
+     *   man table→sitting_at_table, futon→asleep_in_futon, bath→bathing,
+     *       cooking→cooking
+     *   rooms living→living_room, bath→bathroom, store→storeroom (others
+     *       unchanged)
+     * Every situation shakes (shaking=true).
+     *
+     * @return array<string,array{0:string,1:string,2:string,3:string,4:string,5:bool}>
+     *               sid => [time, robotARoom, robotBRoom, manActivity, (unused label), potBoiling]
+     */
+    public static function situationProvider(): array
+    {
+        return [
+            // sid => [time, robotARoom, robotBRoom, manActivity, potBoiling]
+            'S1' => ['S1', 'afternoon', 'kitchen',      'bedroom',     'sitting_at_table', false],
+            'S2' => ['S2', 'night',     'living_room',  'kitchen',     'asleep_in_futon',  false],
+            'S3' => ['S3', 'afternoon', 'bedroom',      'kitchen',     'bathing',          false],
+            'S4' => ['S4', 'morning',   'living_room',  'bedroom',     'cooking',          true],
+            'S5' => ['S5', 'afternoon', 'storeroom',    'living_room', 'sitting_at_table', false],
+        ];
+    }
+
+    #[DataProvider('situationProvider')]
+    public function testSituationSectionsMatchGolden(
+        string $sid,
+        string $time,
+        string $robotARoom,
+        string $robotBRoom,
+        string $manActivity,
+        bool $potBoiling
+    ): void {
+        $prompts = $this->loadPromptsBySid();
+        $this->assertArrayHasKey($sid, $prompts, "fixture must contain situation {$sid}");
+
+        [$expectedRightNow, $expectedShaking] = $this->extractSituationSections($prompts[$sid]);
+
+        $world = $this->buildWorld($time, $robotARoom, $robotBRoom, $manActivity, $potBoiling);
+        $generator = new SituationTextGenerator();
+        $actual = $generator->generate('robot_a', $world, []);
+
+        [$actualRightNow, $actualShaking] = $this->extractSituationSections($actual);
+
+        $this->assertSame(
+            $expectedRightNow,
+            $actualRightNow,
+            "{$sid}: generated \"Right now:\" paragraph must match the golden prompt"
+        );
+        $this->assertSame(
+            $expectedShaking,
+            $actualShaking,
+            "{$sid}: generated shaking paragraph must match the golden prompt"
+        );
+    }
+
+    /**
+     * Object display phrases per room, in the fixed room order, fixtures
+     * excluded. Taken from the pilot golden prompts (V_ROOMS object lists).
+     *
+     * @return array<string,string[]>
+     */
+    private static function roomObjectPhrases(): array
+    {
+        return [
+            'living_room' => [
+                'a low table',
+                'a TV',
+                'a black telephone',
+                'a transistor radio',
+                'a Buddhist altar',
+                'a window air conditioner',
+            ],
+            'kitchen' => [
+                'a gas stove',
+                'a refrigerator',
+                'a sink',
+                'a dish cupboard',
+                'a flashlight',
+            ],
+            'bathroom' => [
+                'a bathtub',
+            ],
+            'bedroom' => [
+                'a futon',
+                'a closet',
+                'an electric fan',
+            ],
+            'entrance' => [
+                'a shoe rack',
+            ],
+            'storeroom' => [
+                'candles',
+                'matches',
+                'a toolbox',
+            ],
+        ];
+    }
+
+    /**
+     * Build a SituationView double for an arbitrary turn-1 earthquake
+     * situation. Robot_A is the viewpoint; the resident always shouts
+     * "What's happening?!" and the floor is shaking this turn.
+     */
+    private function buildWorld(
+        string $time,
+        string $robotARoom,
+        string $robotBRoom,
+        string $manActivity,
+        bool $potBoiling
+    ): SituationView {
+        $objectPhrases = self::roomObjectPhrases();
+
+        return new class(
+            $time,
+            $robotARoom,
+            $robotBRoom,
+            $manActivity,
+            $potBoiling,
+            $objectPhrases
+        ) implements SituationView {
+            /**
+             * @param array<string,string[]> $objectPhrases
+             */
+            public function __construct(
+                private string $time,
+                private string $robotARoom,
+                private string $robotBRoom,
+                private string $manActivity,
+                private bool $potBoiling,
+                private array $objectPhrases
+            ) {
+            }
+
+            public function timeOfDay(): string
+            {
+                return $this->time;
+            }
+
+            public function robotRoom(string $robotId): string
+            {
+                return $robotId === 'robot_a' ? $this->robotARoom : $this->robotBRoom;
+            }
+
+            public function residentRoom(): string
+            {
+                return match ($this->manActivity) {
+                    'sitting_at_table' => 'living_room',
+                    'asleep_in_futon'  => 'bedroom',
+                    'bathing'          => 'bathroom',
+                    'cooking'          => 'kitchen',
+                    default            => throw new \InvalidArgumentException(
+                        "unknown manActivity '{$this->manActivity}'"
+                    ),
+                };
+            }
+
+            public function residentActivity(): string
+            {
+                return $this->manActivity;
+            }
+
+            public function isRoomDark(string $roomKey): bool
+            {
+                // Turn 1: power is on, nothing is dark regardless of time.
+                return false;
+            }
+
+            /**
+             * @return string[]
+             */
+            public function visibleObjectPhrases(string $roomKey): array
+            {
+                return $this->objectPhrases[$roomKey] ?? [];
+            }
+
+            public function isShaking(): bool
+            {
+                return true;
+            }
+
+            public function isPotBoiling(): bool
+            {
+                return $this->potBoiling;
+            }
+
+            public function wasShakingPreviousTurn(): bool
+            {
+                return false;
+            }
+
+            public function didLightsGoOutThisTurn(): bool
+            {
+                return false;
+            }
+
+            public function residentSpeaksThisTurn(): bool
+            {
+                return true;
+            }
+
+            public function residentLine(): ?string
+            {
+                return "What's happening?!";
+            }
+        };
     }
 
     /**
