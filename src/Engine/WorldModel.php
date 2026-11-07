@@ -15,14 +15,18 @@ use PoltergeistSwitch\Engine\Values\WorldSnapshot;
  * Owns all mutable world state for one episode: rooms, objects, robots,
  * the resident, and house-wide flags. It holds no rules logic.
  *
- * This task (6.2) implements room/object initialisation and snapshot/restore
- * only. `reset()` with SituationSpec application (task 7) and
- * `objects_visible_to()` (task 8) are added later.
+ * Task 6.2 implemented room/object initialisation and snapshot/restore.
+ * Task 7.1 adds `reset()` with SituationSpec application and makes WorldModel
+ * implement SituationView so SituationTextGenerator can read from the live
+ * world. `objects_visible_to()` (task 8) is added later.
  *
- * Requirements: Req 1.4–1.6, Req 2.1–2.2
+ * Requirements: Req 1.1–1.12, Req 2.1–2.2, Req 8.5–8.9
  */
-class WorldModel
+class WorldModel implements SituationView
 {
+    /** Initial temperature for every room on reset, in °C (Req 1.9). */
+    private const INITIAL_ROOM_TEMPERATURE = 22.0;
+
     /** @var array<string,Room> room key => Room */
     public array $rooms = [];
 
@@ -44,23 +48,39 @@ class WorldModel
 
     public bool $disasterSubsided = false;
 
-    public function __construct()
+    /** Kept after reset() so EarthquakePhase can derive deterministic draws. */
+    public Seed $seed;
+
+    /** Kept after reset() so the text generator and rules can read the start-up layout. */
+    public SituationSpec $situationSpec;
+
+    /**
+     * EpisodeConfig supplies the resident's initial state values. It is held as
+     * a dependency because reset()'s signature (per design §a) takes only a
+     * Seed and an optional SituationSpec, so the config cannot be passed in per
+     * call. A default EpisodeConfig is used when the caller supplies none.
+     */
+    private EpisodeConfig $config;
+
+    public function __construct(?EpisodeConfig $config = null)
     {
+        $this->config = $config ?? new EpisodeConfig();
+
         $this->initRooms();
         $this->initObjects();
 
-        // Placeholder agent and house state so the world is always in a
-        // snapshot-able shape before reset() (task 7) positions the agents
-        // and applies the SituationSpec.
+        // Build an initial snapshot-able shape. reset() is the authoritative
+        // entry point for positioning agents and applying a SituationSpec; the
+        // constructor only guarantees every field is set before first use.
         $this->robotStates = [
             'robot_a' => new RobotState('robot_a', 'living_room'),
             'robot_b' => new RobotState('robot_b', 'living_room'),
         ];
         $this->residentState = new ResidentState(
-            bodyTemp: 36.2,
-            water: 80,
-            injury: 0,
-            fear: 0,
+            bodyTemp: $this->config->residentInitBodyTemp,
+            water: $this->config->residentInitWater,
+            injury: $this->config->residentInitInjury,
+            fear: $this->config->residentInitFear,
             weakened: false,
             room: 'living_room',
             spot: null,
@@ -73,6 +93,136 @@ class WorldModel
             shaking: false,
             fallingObjects: false,
             timeOfDay: '',
+        );
+    }
+
+    /**
+     * Rebuild the whole world for the start of an episode (Req 1.1–1.12).
+     *
+     * reset() is deterministic: two calls with the same seed and the same spec
+     * (or no spec, so both derive the same SituationSpec from the seed) produce
+     * identical observable state (Req 1.11). The passed Seed is stored for
+     * EarthquakePhase; when no explicit spec is given the spec is derived from
+     * that same seed via SituationSpec::fromSeed().
+     *
+     * Steps (design §a):
+     *   1. store the seed
+     *   2/3. resolve the SituationSpec (derive from seed, or use the given one)
+     *   4/5. re-initialise rooms and objects
+     *   6. apply the fixed initial HouseState
+     *   7. apply the resident's initial state from EpisodeConfig
+     *   8. place robots and the resident per the SituationSpec
+     *      (incl. the boiling pot when potBoiling=true)
+     *   9. reset the episode counters/flags
+     *
+     * @param Seed               $seed the episode seed (stored for EarthquakePhase)
+     * @param SituationSpec|null  $spec explicit start layout; derived from the
+     *                                  seed when null
+     */
+    public function reset(Seed $seed, ?SituationSpec $spec = null): void
+    {
+        // 1. keep the seed for later deterministic draws (EarthquakePhase).
+        $this->seed = $seed;
+
+        // 2/3. resolve the start layout.
+        $this->situationSpec = $spec ?? SituationSpec::fromSeed($seed);
+
+        // 4/5. rebuild rooms and the object registry to their canonical state.
+        $this->initRooms();
+        $this->initObjects();
+
+        // 6. fixed initial house state (Req 1.9).
+        $this->houseState = new HouseState(
+            power: PowerState::on,
+            gasMain: GasState::open,
+            floorWaterLevel: 0.0,
+            shaking: false,
+            fallingObjects: false,
+            timeOfDay: $this->situationSpec->time,
+        );
+        foreach ($this->rooms as $room) {
+            $room->temperature = self::INITIAL_ROOM_TEMPERATURE;
+            $room->lightLevel = LightLevel::normal;
+            $room->hotWaterInjuryHazard = false;
+        }
+
+        // 7/8. resident initial state from EpisodeConfig, placed per the spec.
+        $this->placeResident($this->situationSpec->manActivity);
+
+        // 8. place the two robots per the spec.
+        $this->robotStates = [
+            'robot_a' => new RobotState('robot_a', $this->situationSpec->robotARoom),
+            'robot_b' => new RobotState('robot_b', $this->situationSpec->robotBRoom),
+        ];
+
+        // 8 (cont.). a boiling pot means the stove is lit and a pot sits on it
+        // (Req 1.7, Req 8.8).
+        if ($this->situationSpec->potBoiling) {
+            $this->lightStoveWithPot();
+        }
+
+        // 9. reset episode counters and flags.
+        $this->currentTurn = 0;
+        $this->earthquakeStartTurn = null;
+        $this->episodeEnded = false;
+        $this->disasterSubsided = false;
+    }
+
+    /**
+     * Build the resident's initial ResidentState from EpisodeConfig and place
+     * them in the room and pose implied by manActivity (Req 1.10, Req 8.7):
+     *   sitting_at_table → living room, seated at the low table
+     *   asleep_in_futon  → bedroom, lying in the futon
+     *   bathing          → bathroom, in the bathtub
+     *   cooking          → kitchen, standing at the gas stove
+     */
+    private function placeResident(string $manActivity): void
+    {
+        [$room, $spot] = match ($manActivity) {
+            ManActivity::sitting_at_table->value => ['living_room', 'low_table'],
+            ManActivity::asleep_in_futon->value  => ['bedroom', 'futon'],
+            ManActivity::bathing->value          => ['bathroom', 'bathtub'],
+            ManActivity::cooking->value          => ['kitchen', 'gas_stove'],
+            default => throw new InvalidArgumentException(
+                "Unknown manActivity '{$manActivity}'."
+            ),
+        };
+
+        $this->residentState = new ResidentState(
+            bodyTemp: $this->config->residentInitBodyTemp,
+            water: $this->config->residentInitWater,
+            injury: $this->config->residentInitInjury,
+            fear: $this->config->residentInitFear,
+            weakened: false,
+            room: $room,
+            spot: $spot,
+            activity: $manActivity,
+            coverFlag: false,
+            lastLineDeliveredOn: [],
+        );
+    }
+
+    /**
+     * Light the gas stove and place a boiling pot on it (Req 1.7, Req 8.8).
+     * The pot is not part of the canonical object registry; it only exists when
+     * the SituationSpec says the resident is cooking / a pot is boiling.
+     */
+    private function lightStoveWithPot(): void
+    {
+        $this->objects['gas_stove']->on = true;
+
+        $this->objects['pot'] = new ObjectState(
+            id: 'pot',
+            displayName: 'a pot',
+            room: 'kitchen',
+            spot: 'gas_stove',
+            on: false,
+            open: false,
+            contents: [],
+            broken: false,
+            fallen: false,
+            isPot: true,
+            isWaterContainer: true,
         );
     }
 
@@ -99,7 +249,7 @@ class WorldModel
                 displayName: $displayName,
                 adjacentRooms: $adjacent,
                 lightLevel: LightLevel::normal,
-                temperature: 22.0,
+                temperature: self::INITIAL_ROOM_TEMPERATURE,
                 hotWaterInjuryHazard: false,
                 fixtureKeys: $fixtures,
             );
@@ -151,8 +301,8 @@ class WorldModel
             ['matches',               'matches',                 'storeroom', ['isFireSource' => true]],
             ['toolbox',               'a toolbox',               'storeroom', ['isHeavy' => true]],
 
-            // The pot is not registered at init. reset() (task 7) places it on
-            // the gas stove only when the SituationSpec has potBoiling=true (Req 1.7).
+            // The pot is not registered at init. reset() places it on the gas
+            // stove only when the SituationSpec has potBoiling=true (Req 1.7).
         ];
 
         $this->objects = [];
@@ -237,5 +387,95 @@ class WorldModel
         $this->robotStates = $robotStates;
         $this->residentState = clone $snap->residentState;
         $this->houseState = clone $snap->houseState;
+    }
+
+    // ==================================================================
+    // SituationView — read-only accessors for SituationTextGenerator.
+    // Pure reads; they never mutate world state (Req 9.1–9.15).
+    // ==================================================================
+
+    public function timeOfDay(): string
+    {
+        return $this->houseState->timeOfDay;
+    }
+
+    public function robotRoom(string $robotId): string
+    {
+        if (!array_key_exists($robotId, $this->robotStates)) {
+            throw new InvalidArgumentException("Unknown robot id: {$robotId}");
+        }
+
+        return $this->robotStates[$robotId]->room;
+    }
+
+    public function residentRoom(): string
+    {
+        return $this->residentState->room;
+    }
+
+    public function residentActivity(): string
+    {
+        return $this->residentState->activity;
+    }
+
+    public function isRoomDark(string $roomKey): bool
+    {
+        return $this->getRoom($roomKey)->lightLevel === LightLevel::dark;
+    }
+
+    /**
+     * Object display phrases visible in the given room, in the fixed room order
+     * of Req 1.6, with fixtures excluded. Objects iterate in registration order
+     * (initObjects()), so a straight filter preserves the canonical order.
+     *
+     * @return string[]
+     */
+    public function visibleObjectPhrases(string $roomKey): array
+    {
+        $phrases = [];
+        foreach ($this->objects as $object) {
+            if ($object->room === $roomKey) {
+                $phrases[] = $object->displayName;
+            }
+        }
+
+        return $phrases;
+    }
+
+    public function isShaking(): bool
+    {
+        return $this->houseState->shaking;
+    }
+
+    public function isPotBoiling(): bool
+    {
+        return isset($this->objects['pot'])
+            && $this->objects['pot']->room === 'kitchen'
+            && ($this->objects['gas_stove']->on ?? false);
+    }
+
+    /**
+     * Whether the previous turn was also shaking. The engine (task 18) sets the
+     * flags SituationView reads; until it owns a dedicated previous-turn flag,
+     * this is false. Tracked via EarthquakePhase offsets in later tasks.
+     */
+    public function wasShakingPreviousTurn(): bool
+    {
+        return false;
+    }
+
+    public function didLightsGoOutThisTurn(): bool
+    {
+        return false;
+    }
+
+    public function residentSpeaksThisTurn(): bool
+    {
+        return false;
+    }
+
+    public function residentLine(): ?string
+    {
+        return null;
     }
 }
