@@ -67,6 +67,37 @@
         "chatSessionId": "sess_709ef8d7-c00d-49af-83e8-f13667625f3c",
         "timestamp": 1793536692087
       }
+    ],
+    "3.1 Implement `SituationSpec` as a `readonly` class in `src/Engine/SituationSpec.php`:": [
+      {
+        "executionId": "c2c65350-f0ae-470b-a010-8f79720d4fdd",
+        "chatSessionId": "sess_36311b15-5c99-4572-93bd-10af45fc33bb",
+        "timestamp": 1794016926681
+      },
+      {
+        "executionId": "c2c65350-f0ae-470b-a010-8f79720d4fdd",
+        "chatSessionId": "sess_36311b15-5c99-4572-93bd-10af45fc33bb",
+        "timestamp": 1794017124424
+      }
+    ],
+    "3.2 Implement `EpisodeConfig` as a `readonly` class in `src/Engine/EpisodeConfig.php`:": [
+      {
+        "executionId": "c2c65350-f0ae-470b-a010-8f79720d4fdd",
+        "chatSessionId": "sess_36311b15-5c99-4572-93bd-10af45fc33bb",
+        "timestamp": 1794016929738
+      },
+      {
+        "executionId": "c2c65350-f0ae-470b-a010-8f79720d4fdd",
+        "chatSessionId": "sess_36311b15-5c99-4572-93bd-10af45fc33bb",
+        "timestamp": 1794017127555
+      }
+    ],
+    "3. SituationSpec and EpisodeConfig": [
+      {
+        "executionId": "c2c65350-f0ae-470b-a010-8f79720d4fdd",
+        "chatSessionId": "sess_36311b15-5c99-4572-93bd-10af45fc33bb",
+        "timestamp": 1794017127725
+      }
     ]
   }
 }

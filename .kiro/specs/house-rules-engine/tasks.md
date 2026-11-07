@@ -52,13 +52,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `next()` with `$min > $max` throws `InvalidArgumentException`
     - _Requirements: Req 1.11, Req 3.8_
 
-- [ ] 3. SituationSpec and EpisodeConfig
-  - [ ] 3.1 Implement `SituationSpec` as a `readonly` class in `src/Engine/SituationSpec.php`:
+- [x] 3. SituationSpec and EpisodeConfig
+  - [x] 3.1 Implement `SituationSpec` as a `readonly` class in `src/Engine/SituationSpec.php`:
     - Fields: `time` (string), `robotARoom` (string), `robotBRoom` (string), `manActivity` (string), `potBoiling` (bool)
     - Constructor validates all fields against enum values; forces `potBoiling=true` when `manActivity === 'cooking'`; throws `InvalidArgumentException` when `(robotARoom === 'bathroom' || robotBRoom === 'bathroom') && manActivity === 'bathing'`
     - `static fromSeed(Seed $seed): self` — draws time (0–2), manActivity (0–3), robotARoom (0–5, excluding bathroom if bathing), robotBRoom (0–5, excluding bathroom if bathing); passes to constructor
     - _Requirements: Req 1.1–1.3, Req 8.1–8.9_
-  - [ ] 3.2 Implement `EpisodeConfig` as a `readonly` class in `src/Engine/EpisodeConfig.php`:
+  - [x] 3.2 Implement `EpisodeConfig` as a `readonly` class in `src/Engine/EpisodeConfig.php`:
     - All constructor-promoted properties with the default draft values from the design document (body_temp 36.2, water 80, injury 0, fear 0, deltas, clamped ranges, thresholds, open-question flags)
     - No numeric literal for any of these values may appear outside this class
     - _Requirements: Req 1.9, Req 5.6, Req 6.1–6.11, Req 10.6_
