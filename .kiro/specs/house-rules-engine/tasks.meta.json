@@ -840,6 +840,18 @@
         "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
         "timestamp": 1794062047766
       }
+    ],
+    "25. Resident move via support (added 2026-11-07; destination decided by the maintainer on 2026-11-07)": [
+      {
+        "executionId": "cda93c95-43ef-44b2-9a98-7d79c6b1ae26",
+        "chatSessionId": "sess_107cdc85-04a0-43e3-9e51-0eb0f4f36315",
+        "timestamp": 1794062250996
+      },
+      {
+        "executionId": "cda93c95-43ef-44b2-9a98-7d79c6b1ae26",
+        "chatSessionId": "sess_107cdc85-04a0-43e3-9e51-0eb0f4f36315",
+        "timestamp": 1794063027169
+      }
     ]
   }
 }

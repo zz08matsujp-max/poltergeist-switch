@@ -442,11 +442,11 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 24.3 Checkpoint — all tests pass
     - Ensure all tests pass; ask the user if questions arise.
 
-- [ ] 25. Resident move via support (added 2026-11-07; destination decided by the maintainer on 2026-11-07)
-  - [~] 25.1 Destination on the support action (Req 7.13): `RulesEvaluator` checks `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key), else `possible=false`, `reason="no_destination"`; add `ManActivity::standing`
-  - [~] 25.2 Engine (Req 7.14–7.15): build the proposal tokens from the support action and both robots' spoken lines; call `evaluateRefusal()` on the support turn; on refusal deliver "I don't want to move from here." as the resident's line and end the support; on acceptance move the resident when the countdown reaches 0. Remove the task-18 TODO
-  - [~] 25.3 `ResidentController`: no falling-object injury while the spot is `under_table` (Req 7.16). `SituationTextGenerator`: describe the resident by spot or `standing` (Req 7.17); the S0–S5 and turn-2 golden tests must still pass unchanged
-  - [~] 25.4 Tests: an accepted move to `under_table` happens on the second turn; a support with no destination word is refused with the refusal line; a weakened resident accepts; `under_table` blocks falling-object injury; a move to an adjacent room sets the room, spot `null` and activity `standing`
+- [x] 25. Resident move via support (added 2026-11-07; destination decided by the maintainer on 2026-11-07)
+  - [x] 25.1 Destination on the support action (Req 7.13): `RulesEvaluator` checks `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key), else `possible=false`, `reason="no_destination"`; add `ManActivity::standing`
+  - [x] 25.2 Engine (Req 7.14–7.15): build the proposal tokens from the support action and both robots' spoken lines; call `evaluateRefusal()` on the support turn; on refusal deliver "I don't want to move from here." as the resident's line and end the support; on acceptance move the resident when the countdown reaches 0. Remove the task-18 TODO
+  - [x] 25.3 `ResidentController`: no falling-object injury while the spot is `under_table` (Req 7.16). `SituationTextGenerator`: describe the resident by spot or `standing` (Req 7.17); the S0–S5 and turn-2 golden tests must still pass unchanged
+  - [x] 25.4 Tests: an accepted move to `under_table` happens on the second turn; a support with no destination word is refused with the refusal line; a weakened resident accepts; `under_table` blocks falling-object injury; a move to an adjacent room sets the room, spot `null` and activity `standing`
   - _Requirements: Req 6.3, Req 7.8–7.17_
 
 - [x] 26. Engine — turn records and each robot's situation text (added 2026-11-07)
