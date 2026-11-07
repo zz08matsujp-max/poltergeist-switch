@@ -409,7 +409,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Update existing callers and tests so that every test still passes
     - _Requirements: Req 5.12, Req 9.16, Req 12.1_
 
-- [ ] 23. EvidenceCheck (added 2026-11-02)
+- [x] 23. EvidenceCheck (added 2026-11-02)
   - [ ] 23.1 Implement `EvidenceCheck::verify(string $reply, Action $action): Action` in `src/Engine/EvidenceCheck.php`:
     - Byte-for-byte `str_contains`, no trimming or normalisation
     - Missing or failed `actionQuote` → operation `unknown`, target `null`; a failed spoken line or reported-speech quote → dropped, the rest kept

@@ -117,6 +117,18 @@
         "chatSessionId": "sess_478b55c2-9774-4be0-9082-2456648fed2c",
         "timestamp": 1794023849253
       }
+    ],
+    "23. EvidenceCheck (added 2026-11-02)": [
+      {
+        "executionId": "444a1e26-a6de-4ad3-94c5-1bdbcc148354",
+        "chatSessionId": "sess_1e95056d-d3bd-463b-92cc-1b2e7195dfc1",
+        "timestamp": 1794024107759
+      },
+      {
+        "executionId": "444a1e26-a6de-4ad3-94c5-1bdbcc148354",
+        "chatSessionId": "sess_1e95056d-d3bd-463b-92cc-1b2e7195dfc1",
+        "timestamp": 1794024679724
+      }
     ]
   }
 }
