@@ -6,9 +6,7 @@ namespace PoltergeistSwitch\Engine;
 
 use Throwable;
 use PoltergeistSwitch\Engine\Enums\GasState;
-use PoltergeistSwitch\Engine\Enums\LightLevel;
 use PoltergeistSwitch\Engine\Enums\Operation;
-use PoltergeistSwitch\Engine\Enums\PowerState;
 use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\Values\Judgement;
 use PoltergeistSwitch\Engine\Values\Outcome;
@@ -173,10 +171,11 @@ class ActionExecutor
         }
 
         // Lighting a flashlight or candle switches it on and can push a dark
-        // room back to lit, so the room's light level is recomputed.
+        // room back to lit, so the room's light level is recomputed through the
+        // shared light rule that EarthquakePhase owns (see §g).
         if ($object->isLightSource) {
             $object->on = true;
-            $this->recomputeLightLevel($world, $object->room);
+            EarthquakePhase::recomputeRoomLightLevel($world, $object->room);
 
             return "The robot switches on {$object->displayName}.";
         }
@@ -280,44 +279,6 @@ class ActionExecutor
         }
 
         return "The robot hands {$object->displayName} to the man.";
-    }
-
-    /**
-     * Recompute a room's light level after a light source changes (mirrors the
-     * rule EarthquakePhase::updateLightLevels will own in task 14): a room is
-     * dark only while the power is out, the time of day is not afternoon, and
-     * no lit flashlight or lit candle stands in the room; otherwise it is lit.
-     */
-    private function recomputeLightLevel(WorldModel $world, string $roomKey): void
-    {
-        $room = $world->getRoom($roomKey);
-
-        $powerOut = $world->houseState->power === PowerState::outage;
-        $isAfternoon = $world->houseState->timeOfDay === 'afternoon';
-
-        if (!$powerOut || $isAfternoon) {
-            $room->lightLevel = LightLevel::normal;
-
-            return;
-        }
-
-        $room->lightLevel = $this->roomHasLitLight($world, $roomKey)
-            ? LightLevel::normal
-            : LightLevel::dark;
-    }
-
-    /**
-     * Whether the given room contains a lit light source (flashlight or candle).
-     */
-    private function roomHasLitLight(WorldModel $world, string $roomKey): bool
-    {
-        foreach ($world->objects as $object) {
-            if ($object->room === $roomKey && $object->isLightSource && $object->on) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace PoltergeistSwitch\Tests\Engine\Properties;
 use Eris\Generators;
 use Eris\TestTrait;
 use PHPUnit\Framework\TestCase;
+use PoltergeistSwitch\Engine\EarthquakePhase;
 use PoltergeistSwitch\Engine\Seed;
 use PoltergeistSwitch\Engine\WorldModel;
 
@@ -65,5 +66,79 @@ class WorldModelPropertyTest extends TestCase
                     "Per-room object counts must sum to the total (seed {$seedValue})"
                 );
             });
+    }
+
+    /**
+     * Property 5: Earthquake determinism.
+     *
+     * For any seed, running the earthquake phase (offsets 1–13) with no robot
+     * actions produces the identical set of fallen objects at each offset every
+     * time. Two independent WorldModel instances reset with the same seed are
+     * driven through the phase, and the fallen-id sets per offset must match.
+     *
+     * Validates: Requirements 3.4, 3.8
+     */
+    public function testEarthquakeFallSequenceIsDeterministic(): void
+    {
+        $this->limitTo(100)
+            ->forAll(Generators::int())
+            ->then(function (int $seedValue): void {
+                $fallenA = $this->runEarthquakeFalls($seedValue);
+                $fallenB = $this->runEarthquakeFalls($seedValue);
+
+                $this->assertSame(
+                    $fallenA,
+                    $fallenB,
+                    "Earthquake fall sequence must be identical for seed {$seedValue}"
+                );
+            });
+    }
+
+    /**
+     * Drive a fresh world through the whole earthquake phase and return, per
+     * offset 1–13, the sorted list of object ids that fell on that turn. The
+     * fall selection is the only randomised step; no robot actions are applied.
+     *
+     * @return array<int,string[]> offset => sorted fallen object ids
+     */
+    private function runEarthquakeFalls(int $seedValue): array
+    {
+        $seed = Seed::fromInt($seedValue);
+        $world = new WorldModel();
+        $world->reset($seed);
+
+        $phase = new EarthquakePhase();
+
+        $perOffset = [];
+        for ($offset = 1; $offset <= 13; $offset++) {
+            $before = $this->fallenIds($world);
+            $phase->advanceTurn($world, $seed, $offset);
+            $after = $this->fallenIds($world);
+
+            // Objects newly marked fallen on this offset.
+            $new = array_values(array_diff($after, $before));
+            sort($new);
+            $perOffset[$offset] = $new;
+        }
+
+        return $perOffset;
+    }
+
+    /**
+     * Sorted ids of every object currently flagged fallen.
+     *
+     * @return string[]
+     */
+    private function fallenIds(WorldModel $world): array
+    {
+        $ids = [];
+        foreach ($world->objects as $object) {
+            if ($object->fallen) {
+                $ids[] = $object->id;
+            }
+        }
+        sort($ids);
+
+        return $ids;
     }
 }
