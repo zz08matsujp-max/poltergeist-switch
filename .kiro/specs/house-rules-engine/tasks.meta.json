@@ -98,6 +98,25 @@
         "chatSessionId": "sess_36311b15-5c99-4572-93bd-10af45fc33bb",
         "timestamp": 1794017127725
       }
+    ],
+    "22. Value objects for turn 2 and later (added 2026-11-02)": [
+      {
+        "executionId": "dafb7cef-1417-439d-a5e0-929b76457b44",
+        "chatSessionId": "sess_478b55c2-9774-4be0-9082-2456648fed2c",
+        "timestamp": 1794023523020
+      },
+      {
+        "executionId": "dafb7cef-1417-439d-a5e0-929b76457b44",
+        "chatSessionId": "sess_478b55c2-9774-4be0-9082-2456648fed2c",
+        "timestamp": 1794023732730
+      }
+    ],
+    "22.1 Update the value objects in `src/Engine/Values/` and `src/Engine/Enums/`:": [
+      {
+        "executionId": "194a5384-1f3b-4b5c-b0d7-b07eebe95afa",
+        "chatSessionId": "sess_478b55c2-9774-4be0-9082-2456648fed2c",
+        "timestamp": 1794023849253
+      }
     ]
   }
 }

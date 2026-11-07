@@ -399,8 +399,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [ ] 21.2 Checkpoint — all tests pass
     - Ensure all tests pass (unit tests, golden tests, property tests, integration tests); ask the user if questions arise.
 
-- [ ] 22. Value objects for turn 2 and later (added 2026-11-02)
-  - [ ] 22.1 Update the value objects in `src/Engine/Values/` and `src/Engine/Enums/`:
+- [x] 22. Value objects for turn 2 and later (added 2026-11-02)
+  - [x] 22.1 Update the value objects in `src/Engine/Values/` and `src/Engine/Enums/`:
     - `Operation`: add `unknown`
     - `Action`: `words` becomes `array` (string[], default `[]`); add `?string $actionQuote = null` and `array $reported = []` (`ReportedSpeech[]`)
     - New `ReportedSpeech` (`quote`, `heardAs`, `ownForm`)
