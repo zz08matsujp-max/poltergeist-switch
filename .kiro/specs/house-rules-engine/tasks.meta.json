@@ -436,6 +436,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027917035
+      },
+      {
+        "executionId": "30c5218e-2ca3-4988-8c0d-716cd24ffe79",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794060605755
+      },
+      {
+        "executionId": "30c5218e-2ca3-4988-8c0d-716cd24ffe79",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794060882432
       }
     ],
     "21.2 Checkpoint — all tests pass": [
@@ -443,6 +453,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027917138
+      },
+      {
+        "executionId": "30c5218e-2ca3-4988-8c0d-716cd24ffe79",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794060886703
+      },
+      {
+        "executionId": "30c5218e-2ca3-4988-8c0d-716cd24ffe79",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794060943229
       }
     ],
     "24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: \"The floor is still shaking hard.\" when the previous turn was shaking, \"The lights go out.\" on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn": [
@@ -726,6 +746,13 @@
         "executionId": "f668614f-4428-4e9c-8776-b4246c693e92",
         "chatSessionId": "sess_7d68af9f-ba03-4cfb-b7fb-f7d2c34d6b83",
         "timestamp": 1794060370516
+      }
+    ],
+    "21. Model solution integration test": [
+      {
+        "executionId": "30c5218e-2ca3-4988-8c0d-716cd24ffe79",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794060943498
       }
     ]
   }

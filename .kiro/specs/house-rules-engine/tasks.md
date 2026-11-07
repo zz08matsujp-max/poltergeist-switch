@@ -390,8 +390,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Both use `->limitTo(100)`
     - _Requirements: Req 9.2, Req 9.15, Req 11.7–11.8_
 
-- [ ] 21. Model solution integration test
-  - [ ] 21.1 Implement the model solution integration test in `tests/Engine/EngineIntegrationTest.php`:
+- [x] 21. Model solution integration test
+  - [x] 21.1 Implement the model solution integration test in `tests/Engine/EngineIntegrationTest.php`:
     - Use three explicit `SituationSpec` instances (not seed-derived) as documented in design.md §Testing Strategy:
       - S0: `(afternoon, kitchen, bedroom, sitting_at_table, potBoiling=true)`
       - S2: `(night, living_room, kitchen, asleep_in_futon, potBoiling=false)`
@@ -402,7 +402,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
       - `fear <= $config->modelSolutionFearThreshold`
       - `water >= $config->modelSolutionWaterThreshold`
     - _Requirements: Req 11.6_
-  - [ ] 21.2 Checkpoint — all tests pass
+  - [x] 21.2 Checkpoint — all tests pass
     - Ensure all tests pass (unit tests, golden tests, property tests, integration tests); ask the user if questions arise.
 
 - [x] 22. Value objects for turn 2 and later (added 2026-11-02)

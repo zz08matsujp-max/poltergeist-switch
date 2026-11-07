@@ -11,6 +11,7 @@ use PoltergeistSwitch\Engine\Engine;
 use PoltergeistSwitch\Engine\EpisodeConfig;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\ResidentController;
+use PoltergeistSwitch\Engine\ResidentState;
 use PoltergeistSwitch\Engine\RulesEvaluator;
 use PoltergeistSwitch\Engine\Seed;
 use PoltergeistSwitch\Engine\SituationSpec;
@@ -284,5 +285,354 @@ class EngineIntegrationTest extends TestCase
                 "Episode must not end early while the disaster has not subsided (turn {$turn}).",
             );
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Model solution integration test (task 21.1, Req 11.6)
+    // ------------------------------------------------------------------
+
+    /**
+     * Three explicit starting situations are driven, turn by turn, through the
+     * hand-written "model solution" action plans documented in design.md
+     * §Model Solution Test. Each plan uses exactly one physical action per
+     * robot per turn and only objects in the robot's current room. The plans
+     * are built to keep the resident safe, so at episode end every threshold
+     * from EpisodeConfig must hold:
+     *
+     *   - injury <= modelSolutionInjuryThreshold
+     *   - fear   <= modelSolutionFearThreshold
+     *   - water  >= modelSolutionWaterThreshold
+     *
+     * The SituationSpecs are hard-coded (never seed-derived), so the test
+     * stays valid regardless of how SituationSpec::fromSeed evolves.
+     *
+     * Turn/offset mapping: the earthquake begins on turn 0
+     * (earthquakeStartTurn = 0), so the earthquake offset equals the turn
+     * number. The design's plan turns T1–T13 (offsets 1–13) therefore map to
+     * turn numbers 1–13; turn 0 is the quiet pre-shake offset-0 turn, driven
+     * with no actions.
+     */
+    public function testModelSolutionKeepsResidentSafe(): void
+    {
+        foreach ($this->modelSolutionScenarios() as $name => [$spec, $plan]) {
+            $state = $this->runModelSolution($spec, $plan);
+
+            $this->assertLessThanOrEqual(
+                $this->config->modelSolutionInjuryThreshold,
+                $state->injury,
+                "Scenario {$name}: resident injury must stay within the model-solution threshold.",
+            );
+            $this->assertLessThanOrEqual(
+                $this->config->modelSolutionFearThreshold,
+                $state->fear,
+                "Scenario {$name}: resident fear must stay within the model-solution threshold.",
+            );
+            $this->assertGreaterThanOrEqual(
+                $this->config->modelSolutionWaterThreshold,
+                $state->water,
+                "Scenario {$name}: resident water must stay at or above the model-solution threshold.",
+            );
+        }
+    }
+
+    /**
+     * Reset a world with the given explicit SituationSpec, start the
+     * earthquake on turn 0, and drive turns 0..13 through applyTurn using the
+     * supplied plan. Returns the resident state captured in the final turn's
+     * result.
+     *
+     * @param array<int,array<string,Action>> $plan turn number => actions keyed
+     *                                               by robot id (turns 1..13;
+     *                                               turn 0 is always quiet)
+     */
+    private function runModelSolution(SituationSpec $spec, array $plan): ResidentState
+    {
+        $world = new WorldModel($this->config);
+        $world->reset(Seed::fromInt(1), $spec);
+
+        // The observer layer normally records the earthquake start on the
+        // world; here the test stands in for it. Offset == turn number.
+        $world->earthquakeStartTurn = 0;
+
+        $engine = new Engine(
+            $world,
+            $this->config,
+            new RulesEvaluator(),
+            new ActionExecutor(),
+            new EarthquakePhase(),
+            new ResidentController(),
+            new SituationTextGenerator(),
+        );
+
+        $result = $engine->applyTurn(0, []);
+        for ($turn = 1; $turn <= 13; $turn++) {
+            $actions = $plan[$turn] ?? [];
+            $result = $engine->applyTurn($turn, $actions);
+        }
+
+        return $result->residentState;
+    }
+
+    /**
+     * The three model-solution scenarios (S0, S2, S4) with their explicit
+     * SituationSpecs and turn-by-turn action plans, exactly as documented in
+     * design.md §Model Solution Test.
+     *
+     * @return array<string,array{0:SituationSpec,1:array<int,array<string,Action>>}>
+     */
+    private function modelSolutionScenarios(): array
+    {
+        return [
+            'S0' => [
+                new SituationSpec(
+                    time: 'afternoon',
+                    robotARoom: 'kitchen',
+                    robotBRoom: 'bedroom',
+                    manActivity: 'sitting_at_table',
+                    potBoiling: true,
+                ),
+                $this->planS0(),
+            ],
+            'S2' => [
+                new SituationSpec(
+                    time: 'night',
+                    robotARoom: 'living_room',
+                    robotBRoom: 'kitchen',
+                    manActivity: 'asleep_in_futon',
+                    potBoiling: false,
+                ),
+                $this->planS2(),
+            ],
+            'S4' => [
+                new SituationSpec(
+                    time: 'morning',
+                    robotARoom: 'living_room',
+                    robotBRoom: 'bedroom',
+                    manActivity: 'cooking',
+                    potBoiling: true,
+                ),
+                $this->planS4(),
+            ],
+        ];
+    }
+
+    /**
+     * S0 plan (afternoon; Robot_A in kitchen with the pot boiling; man at the
+     * table in the living room; Robot_B in bedroom). The resident stays in the
+     * living room throughout, so Robot_B joins him there and shields him while
+     * Robot_A turns off the stove and then keeps the man company by speaking.
+     *
+     * @return array<int,array<string,Action>>
+     */
+    private function planS0(): array
+    {
+        $plan = [];
+
+        // T1: A turns off the stove in the kitchen; B walks to the living room.
+        $plan[1] = [
+            'robot_a' => $this->use('robot_a', 'gas_stove'),
+            'robot_b' => $this->move('robot_b', 'living_room'),
+        ];
+        // T2: A follows to the living room; B shields the resident.
+        $plan[2] = [
+            'robot_a' => $this->move('robot_a', 'living_room'),
+            'robot_b' => $this->cover('robot_b'),
+        ];
+        // T3, T4: A speaks to the resident; B keeps shielding him.
+        $plan[3] = [
+            'robot_a' => $this->speak('robot_a'),
+            'robot_b' => $this->cover('robot_b'),
+        ];
+        $plan[4] = [
+            'robot_a' => $this->speak('robot_a'),
+            'robot_b' => $this->cover('robot_b'),
+        ];
+        // T5-T11: A speaks; B waits.
+        for ($turn = 5; $turn <= 11; $turn++) {
+            $plan[$turn] = [
+                'robot_a' => $this->speak('robot_a'),
+                'robot_b' => $this->wait('robot_b'),
+            ];
+        }
+        // T12 (aftershock): A speaks; B shields the resident.
+        $plan[12] = [
+            'robot_a' => $this->speak('robot_a'),
+            'robot_b' => $this->cover('robot_b'),
+        ];
+        // T13: A speaks; B waits.
+        $plan[13] = [
+            'robot_a' => $this->speak('robot_a'),
+            'robot_b' => $this->wait('robot_b'),
+        ];
+
+        return $plan;
+    }
+
+    /**
+     * S2 plan (night; Robot_A in the living room; man asleep in the bedroom;
+     * Robot_B in the kitchen; no pot). Robot_A reaches the sleeping man and
+     * shields him; Robot_B fetches and lights the flashlight, then carries it
+     * into the bedroom so the dark room is lit from T4 on.
+     *
+     * @return array<int,array<string,Action>>
+     */
+    private function planS2(): array
+    {
+        $plan = [];
+
+        // T1: A walks to the bedroom; B picks up the flashlight (in kitchen).
+        $plan[1] = [
+            'robot_a' => $this->move('robot_a', 'bedroom'),
+            'robot_b' => $this->take('robot_b', 'flashlight'),
+        ];
+        // T2 (outage; night, rooms go dark): A shields the man; B lights the
+        // flashlight.
+        $plan[2] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->use('robot_b', 'flashlight'),
+        ];
+        // T3: A keeps shielding; B walks kitchen -> living_room.
+        $plan[3] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->move('robot_b', 'living_room'),
+        ];
+        // T4: A keeps shielding; B walks living_room -> bedroom (flashlight
+        // now lights the bedroom).
+        $plan[4] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->move('robot_b', 'bedroom'),
+        ];
+        // T5-T11: A speaks; B waits.
+        for ($turn = 5; $turn <= 11; $turn++) {
+            $plan[$turn] = [
+                'robot_a' => $this->speak('robot_a'),
+                'robot_b' => $this->wait('robot_b'),
+            ];
+        }
+        // T12 (aftershock): A shields the man; B waits.
+        $plan[12] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->wait('robot_b'),
+        ];
+        // T13: A speaks; B waits.
+        $plan[13] = [
+            'robot_a' => $this->speak('robot_a'),
+            'robot_b' => $this->wait('robot_b'),
+        ];
+
+        return $plan;
+    }
+
+    /**
+     * S4 plan (morning; Robot_A in the living room; man cooking in the kitchen
+     * with the pot boiling; Robot_B in the bedroom). Robot_A reaches the
+     * kitchen, turns off the stove and shields the man; Robot_B fetches and
+     * lights the flashlight so the kitchen is lit after the outage.
+     *
+     * @return array<int,array<string,Action>>
+     */
+    private function planS4(): array
+    {
+        $plan = [];
+
+        // T1: A walks living_room -> kitchen; B walks bedroom -> living_room.
+        $plan[1] = [
+            'robot_a' => $this->move('robot_a', 'kitchen'),
+            'robot_b' => $this->move('robot_b', 'living_room'),
+        ];
+        // T2 (outage; morning, rooms go dark): A turns off the stove; B walks
+        // living_room -> kitchen.
+        $plan[2] = [
+            'robot_a' => $this->use('robot_a', 'gas_stove'),
+            'robot_b' => $this->move('robot_b', 'kitchen'),
+        ];
+        // T3: A shields the man; B picks up the flashlight (in kitchen).
+        $plan[3] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->take('robot_b', 'flashlight'),
+        ];
+        // T4: A keeps shielding; B lights the flashlight.
+        $plan[4] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->use('robot_b', 'flashlight'),
+        ];
+        // T5-T11: A speaks; B waits.
+        for ($turn = 5; $turn <= 11; $turn++) {
+            $plan[$turn] = [
+                'robot_a' => $this->speak('robot_a'),
+                'robot_b' => $this->wait('robot_b'),
+            ];
+        }
+        // T12 (aftershock): A shields the man; B waits.
+        $plan[12] = [
+            'robot_a' => $this->cover('robot_a'),
+            'robot_b' => $this->wait('robot_b'),
+        ];
+        // T13: A speaks; B waits.
+        $plan[13] = [
+            'robot_a' => $this->speak('robot_a'),
+            'robot_b' => $this->wait('robot_b'),
+        ];
+
+        return $plan;
+    }
+
+    // ------------------------------------------------------------------
+    // Small action builders for the model-solution plans.
+    // ------------------------------------------------------------------
+
+    private function move(string $robotId, string $roomKey): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: Operation::move->value,
+            targetId: $roomKey,
+        );
+    }
+
+    private function take(string $robotId, string $objectId): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: Operation::take->value,
+            targetId: $objectId,
+        );
+    }
+
+    private function use(string $robotId, string $objectId): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: Operation::use->value,
+            targetId: $objectId,
+        );
+    }
+
+    /** Shield the resident (cover action targeting the resident). */
+    private function cover(string $robotId): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: Operation::cover->value,
+            targetId: 'resident',
+        );
+    }
+
+    /** Speak to the resident: a word line is required to reassure him. */
+    private function speak(string $robotId): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: Operation::speak->value,
+            words: ["It's all right, I'm here."],
+        );
+    }
+
+    private function wait(string $robotId): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: Operation::wait->value,
+        );
     }
 }
