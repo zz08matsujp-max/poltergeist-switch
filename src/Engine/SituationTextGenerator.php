@@ -258,17 +258,157 @@ final class SituationTextGenerator
     }
 
     /**
-     * Build the recent-events section (Req 9.16, rule A). Present from the
-     * robot's second turn on and rendered by the caller in later tasks; for the
-     * S0–S5 golden situations there are no recent turns, so this returns ''.
+     * Headings for the earlier blocks, nearest first. The block immediately
+     * before the latest is "15 to 30 seconds ago:", the one before that
+     * "30 to 45 seconds ago:", etc. (Req 9.17). Indexed by how many turns the
+     * block sits before the latest one: offset 1 → index 0, offset 2 → index 1…
      *
-     * @param array<int,mixed> $recentTurnRecords
+     * @var string[]
+     */
+    private const EARLIER_HEADINGS = [
+        '15 to 30 seconds ago:',
+        '30 to 45 seconds ago:',
+        '45 to 60 seconds ago:',
+        '60 to 75 seconds ago:',
+    ];
+
+    /**
+     * Build the recent-events section (Req 9.16, Req 9.17, rule A). Present from
+     * the robot's second turn on: one block per recent turn, oldest first,
+     * ending with the "In the last 15 seconds:" block. For the S0–S5 golden
+     * situations there are no recent turns, so this returns ''.
+     *
+     * Rule A: the other robot's action and (shared-room phrasing of) its spoken
+     * lines are included only when the two robots were in the same room at the
+     * start or at the end of that turn. Its reported speech is heard in every
+     * room. The other robot's thoughts and unspoken plans are never included.
+     *
+     * @param array<int,mixed> $recentTurnRecords TurnRecord[]; at most the five
+     *                                            most recent are rendered.
      */
     private function buildRecentEvents(string $robotId, array $recentTurnRecords): string
     {
-        // Recent-events rendering is implemented with the turn-2 pilot tasks.
-        // For turn 1 (S0–S5) there is nothing to report.
-        return '';
+        $records = array_values($recentTurnRecords);
+        if ($records === []) {
+            return '';
+        }
+
+        // Keep only the five most recent turns, oldest first.
+        if (count($records) > 5) {
+            $records = array_slice($records, -5);
+        }
+
+        $self  = $robotId;
+        $other = $this->otherRobotId($robotId);
+        $last  = count($records) - 1;
+
+        $blocks = [];
+        foreach ($records as $index => $record) {
+            $lines = $this->buildRecentBlockLines($record, $self, $other);
+            if ($lines === []) {
+                continue; // a block with no lines is omitted entirely
+            }
+
+            // The latest block is headed "In the last 15 seconds:"; earlier
+            // blocks count back from it with fixed "{a} to {b} seconds ago:".
+            $offset  = $last - $index;
+            $heading = $offset === 0
+                ? 'In the last 15 seconds:'
+                : self::EARLIER_HEADINGS[$offset - 1];
+
+            $blocks[] = $heading . "\n" . implode("\n", $lines);
+        }
+
+        return implode("\n\n", $blocks);
+    }
+
+    /**
+     * Render the body lines of one recent-events block for one turn, in the
+     * fixed order of Req 9.16, with rule A computed from this turn's own
+     * roomsAtStart and snapshot.
+     *
+     * @return string[] zero or more lines, without the block heading
+     */
+    private function buildRecentBlockLines(mixed $record, string $self, string $other): array
+    {
+        $sharedRoom = $this->robotsSharedRoom($record, $self, $other);
+
+        /** @var Values\Action|null $selfAction */
+        $selfAction = $record->robotActions[$self] ?? null;
+        /** @var Values\Action|null $otherAction */
+        $otherAction = $record->robotActions[$other] ?? null;
+        /** @var Values\Outcome|null $selfOutcome */
+        $selfOutcome = $record->outcomes[$self] ?? null;
+        /** @var Values\Outcome|null $otherOutcome */
+        $otherOutcome = $record->outcomes[$other] ?? null;
+
+        $lines = [];
+
+        // 1. the robot's own action result (omitted when the action is unknown).
+        if ($selfAction !== null && $selfAction->operation !== 'unknown'
+            && $selfOutcome !== null
+            && $selfOutcome->whatHappenedText !== null
+            && $selfOutcome->whatHappenedText !== ''
+        ) {
+            $lines[] = $selfOutcome->whatHappenedText;
+        }
+
+        // 2. each line the robot spoke.
+        if ($selfAction !== null) {
+            foreach ($selfAction->words as $line) {
+                $lines[] = 'You said, "' . $line . '"';
+            }
+            // 3. each reported-speech item of the robot.
+            foreach ($selfAction->reported as $reported) {
+                $lines[] = 'You ' . $reported->ownForm . '.';
+            }
+        }
+
+        // 4. the other robot's action: only when they shared a room and the
+        //    action was not unknown.
+        if ($sharedRoom
+            && $otherAction !== null && $otherAction->operation !== 'unknown'
+            && $otherOutcome !== null
+            && $otherOutcome->seenByOtherText !== null
+            && $otherOutcome->seenByOtherText !== ''
+        ) {
+            $lines[] = $otherOutcome->seenByOtherText;
+        }
+
+        if ($otherAction !== null) {
+            // 5. each line the other robot spoke; phrasing depends on rule A.
+            foreach ($otherAction->words as $line) {
+                $lines[] = $sharedRoom
+                    ? 'The other robot said, "' . $line . '"'
+                    : 'You heard the other robot say, "' . $line . '"';
+            }
+            // 6. each reported-speech item of the other robot, in every room.
+            foreach ($otherAction->reported as $reported) {
+                $lines[] = 'You heard the other robot ' . $reported->heardAs . '.';
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Rule A: the two robots shared a room on this turn when they were in the
+     * same room at the START or at the END of the turn. The start rooms come
+     * from TurnRecord.roomsAtStart; the end rooms from the turn's snapshot.
+     */
+    private function robotsSharedRoom(mixed $record, string $self, string $other): bool
+    {
+        $startSelf  = $record->roomsAtStart[$self] ?? null;
+        $startOther = $record->roomsAtStart[$other] ?? null;
+        if ($startSelf !== null && $startSelf === $startOther) {
+            return true;
+        }
+
+        $snapshot = $record->snapshot;
+        $endSelf  = $snapshot->robotStates[$self]->room ?? null;
+        $endOther = $snapshot->robotStates[$other]->room ?? null;
+
+        return $endSelf !== null && $endSelf === $endOther;
     }
 
     /**

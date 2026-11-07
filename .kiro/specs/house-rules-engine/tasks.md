@@ -127,6 +127,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 
 - [ ] 7. WorldModel: reset() and SituationSpec application
   - [~] 7.1 Implement `reset(Seed $seed, ?SituationSpec $spec = null): void` on `WorldModel`:
+    - WorldModel implements SituationView
     - If `$spec` is null, derive via `SituationSpec::fromSeed($seed)`; otherwise use `$spec` directly
     - Re-initialise all six rooms and all ~20 objects (call `initRooms()` and `initObjects()`)
     - Apply `HouseState`: `power=on`, `gasMain=open`, all room temperatures to 22.0 °C, all room light levels to `LightLevel::normal`, `floorWaterLevel=0`, `shaking=false`, `fallingObjects=false`
@@ -250,6 +251,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 
 - [ ] 14. EarthquakePhase
   - [~] 14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:
+    - EarthquakePhase sets the flags that SituationView reads (still shaking, lights go out, shaking stopped)
     - `advanceTurn(WorldModel $world, Seed $seed, int $turnOffset): void`
     - Sets `houseState->shaking` per the offset table: `true` at offsets 1–4 and 12; `false` at all others (0, 5–11, 13)
     - At offset 2: set `power = PowerState::outage`; call `updateLightLevels()`
@@ -421,19 +423,19 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 11.14, Req 12.2–12.4_
 
 - [x] 24. SituationTextGenerator — turn 2 and later, rule A (added 2026-11-02)
-  - [~] 24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: "The floor is still shaking hard." when the previous turn was shaking, "The lights go out." on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn
+  - [x] 24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: "The floor is still shaking hard." when the previous turn was shaking, "The lights go out." on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn
     - Shared room = same room at the start (`roomsAtStart`) or at the end (`snapshot`) of the previous turn
     - The S0–S5 golden tests (turn 1) must still pass unchanged
     - From the third turn: up to four earlier turns as blocks headed `15 to 30 seconds ago:` … `60 to 75 seconds ago:`, oldest first, rule A per turn, empty blocks omitted (Req 9.17)
     - On the turn the shaking stops (offsets 5 and 13): the paragraph "The shaking has stopped." + the resident line, if any (Req 9.18)
     - _Requirements: Req 9.1, Req 9.12, Req 9.14, Req 9.16, Req 9.17, Req 9.18_
-  - [~] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
+  - [x] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
     - For each of the 18 runs in `pilot/予備実験_2手目_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
     - Assert that the "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt` (checked by hand on 2026-11-02: all 18 match these rules)
     - Property 11 with Eris (`withMinSuccesses(100)`)
     - A hand-written example of a robot's sixth turn (five blocks, oldest first, one turn in a shared room and one not), and the property of Req 11.15
     - _Requirements: Req 11.12, Req 11.13, Req 11.15, Req 9.17_
-  - [~] 24.3 Checkpoint — all tests pass
+  - [x] 24.3 Checkpoint — all tests pass
     - Ensure all tests pass; ask the user if questions arise.
 
 ---

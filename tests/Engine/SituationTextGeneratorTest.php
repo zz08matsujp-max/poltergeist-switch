@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\Tests\Engine;
 
+use Eris\Generator;
+use Eris\TestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PoltergeistSwitch\Engine\RobotState;
 use PoltergeistSwitch\Engine\SituationTextGenerator;
 use PoltergeistSwitch\Engine\SituationView;
+use PoltergeistSwitch\Engine\Values\Action;
+use PoltergeistSwitch\Engine\Values\Outcome;
+use PoltergeistSwitch\Engine\Values\ReportedSpeech;
+use PoltergeistSwitch\Engine\Values\TurnRecord;
+use PoltergeistSwitch\Engine\Values\WorldSnapshot;
 
 /**
  * S0 golden test for SituationTextGenerator (Requirements: Req 9.1–9.15, Req 11.9, Req 11.10).
@@ -30,7 +38,22 @@ use PoltergeistSwitch\Engine\SituationView;
  */
 class SituationTextGeneratorTest extends TestCase
 {
+    use TestTrait;
+
     private const FIXTURE = '/pilot/実験0_状況を変える_2026-11-01_n3.json';
+
+    /** The pilot turn-2 fixture: 18 runs = 3 worlds × 3 runs × 2 robots. */
+    private const FIXTURE_TURN2 = '/pilot/予備実験_2手目_2026-11-02_n3.json';
+
+    /** The six full room keys used throughout the engine. */
+    private const ROOM_KEYS = [
+        'living_room',
+        'kitchen',
+        'bathroom',
+        'bedroom',
+        'entrance',
+        'storeroom',
+    ];
 
     /**
      * Load the authoritative S0 prompt string from the pilot JSON fixture.
@@ -429,5 +452,637 @@ class SituationTextGeneratorTest extends TestCase
                 return "What's happening?!";
             }
         };
+    }
+
+    // ==================================================================
+    // Task 24.2 — turn-2 recent-events tests (Req 11.12, 11.13, 11.15)
+    // ==================================================================
+
+    /** Fixed robot-id convention for the pilot runs: claude=robot_a, gpt=robot_b. */
+    private const WHO_TO_ID = ['claude' => 'robot_a', 'gpt' => 'robot_b'];
+
+    /** Map a pilot room abbreviation to the full engine room key. */
+    private static function fullRoom(string $pilotRoom): string
+    {
+        return match ($pilotRoom) {
+            'living' => 'living_room',
+            'bath'   => 'bathroom',
+            'store'  => 'storeroom',
+            default  => $pilotRoom, // kitchen, bedroom, entrance already full
+        };
+    }
+
+    /**
+     * Load and decode the 18-run turn-2 pilot fixture.
+     *
+     * @return array<string,mixed>
+     */
+    private function loadTurn2Fixture(): array
+    {
+        $path = dirname(__DIR__, 2) . self::FIXTURE_TURN2;
+        $json = file_get_contents($path);
+        $this->assertNotFalse($json, "could not read fixture {$path}");
+
+        $data = json_decode($json, true);
+        $this->assertIsArray($data, 'turn-2 fixture did not decode to an array');
+        $this->assertArrayHasKey('runs', $data);
+        $this->assertCount(18, $data['runs'], 'turn-2 fixture should hold 18 runs');
+
+        return $data;
+    }
+
+    /**
+     * Pull the "In the last 15 seconds:" block and the shaking paragraph out of
+     * a full prompt. The recent-events block is the paragraph that starts with
+     * "In the last 15 seconds:"; the shaking paragraph is the one immediately
+     * after the "Right now:" paragraph.
+     *
+     * @return array{0:string,1:string} [recentEvents, shaking]
+     */
+    private function extractTurn2Sections(string $prompt): array
+    {
+        $paragraphs = explode("\n\n", $prompt);
+
+        $recent  = null;
+        $shaking = null;
+        foreach ($paragraphs as $i => $para) {
+            if (str_starts_with($para, 'In the last 15 seconds:')) {
+                $recent = $para;
+            }
+            if (str_starts_with($para, 'Right now:')) {
+                $shaking = $paragraphs[$i + 1] ?? null;
+            }
+        }
+
+        $this->assertNotNull($recent, 'prompt must contain an "In the last 15 seconds:" block');
+        $this->assertNotNull($shaking, 'prompt must contain a shaking paragraph after "Right now:"');
+
+        return [$recent, $shaking];
+    }
+
+    /**
+     * Build the turn-1 TurnRecord for a (world, run) pair, seen from scratch:
+     * both robots' turn-1 readings become Actions + Outcomes, start rooms come
+     * from the top-level "worlds"[world], end rooms are the same (turn 1 ends
+     * where turn 1 started in the pilot — the reading never moves either robot
+     * out of its room). Keyed by the fixed claude=robot_a / gpt=robot_b ids.
+     *
+     * @param array<string,mixed> $data full fixture
+     */
+    private function buildTurn1Record(array $data, string $world, int $run): TurnRecord
+    {
+        // Collect the two partner runs for this (world, run).
+        $byId = [];
+        foreach ($data['runs'] as $r) {
+            if ($r['world'] === $world && $r['run'] === $run) {
+                $byId[self::WHO_TO_ID[$r['who']]] = $r;
+            }
+        }
+        $this->assertArrayHasKey('robot_a', $byId, "missing claude run for {$world}/{$run}");
+        $this->assertArrayHasKey('robot_b', $byId, "missing gpt run for {$world}/{$run}");
+
+        $worldRooms = $data['worlds'][$world];
+        $roomsAtStart = [
+            'robot_a' => self::fullRoom($worldRooms['claude']),
+            'robot_b' => self::fullRoom($worldRooms['gpt']),
+        ];
+
+        $actions  = [];
+        $outcomes = [];
+        $states   = [];
+        foreach (['robot_a', 'robot_b'] as $id) {
+            $reading = $byId[$id]['reading'];
+
+            $reported = [];
+            foreach ($reading['indirect'] as $ind) {
+                $reported[] = new ReportedSpeech($ind['quote'], $ind['heard_as'], $ind['own_form']);
+            }
+
+            // The exact operation value only needs to be non-'unknown' so the
+            // action line is kept; the pilot op string serves fine.
+            $actions[$id] = new Action(
+                robotId: $id,
+                operation: $reading['op'],
+                words: $reading['words'],
+                actionQuote: $reading['quote'],
+                reported: $reported,
+            );
+
+            $outcomes[$id] = new Outcome(
+                robotId: $id,
+                success: true,
+                whatHappenedText: $reading['result_for_self'],
+                seenByOtherText: $reading['seen_by_other'],
+            );
+
+            // Turn 1 ends in the same room it started in.
+            $states[$id] = new RobotState(id: $id, room: $roomsAtStart[$id]);
+        }
+
+        $snapshot = new WorldSnapshot(
+            objects: [],
+            robotStates: $states,
+            residentState: null,
+            houseState: null,
+        );
+
+        return new TurnRecord(
+            turnNumber: 1,
+            robotActions: $actions,
+            judgements: [],
+            outcomes: $outcomes,
+            residentLine: null,
+            snapshot: $snapshot,
+            roomsAtStart: $roomsAtStart,
+        );
+    }
+
+    /**
+     * A SituationView double for a turn-2 earthquake: still shaking, lights go
+     * out this turn, resident silent. The viewpoint robot sits in $room, the
+     * other in $otherRoom; the pot boils only when $stoveOn (the generator
+     * shows the pot sentence only when the viewpoint is in the kitchen).
+     */
+    private function turn2World(
+        string $viewpointId,
+        string $room,
+        string $otherRoom,
+        bool $stoveOn
+    ): SituationView {
+        $otherId = $viewpointId === 'robot_a' ? 'robot_b' : 'robot_a';
+        $objectPhrases = self::roomObjectPhrases();
+
+        return new class(
+            $viewpointId,
+            $otherId,
+            $room,
+            $otherRoom,
+            $stoveOn,
+            $objectPhrases
+        ) implements SituationView {
+            /** @param array<string,string[]> $objectPhrases */
+            public function __construct(
+                private string $viewpointId,
+                private string $otherId,
+                private string $room,
+                private string $otherRoom,
+                private bool $stoveOn,
+                private array $objectPhrases
+            ) {
+            }
+
+            public function timeOfDay(): string
+            {
+                return 'afternoon';
+            }
+
+            public function robotRoom(string $robotId): string
+            {
+                return $robotId === $this->viewpointId ? $this->room : $this->otherRoom;
+            }
+
+            public function residentRoom(): string
+            {
+                return 'living_room'; // the man is at the low table in every run
+            }
+
+            public function residentActivity(): string
+            {
+                return 'sitting_at_table';
+            }
+
+            public function isRoomDark(string $roomKey): bool
+            {
+                // The lights only go out at the end of this turn; the "Right now:"
+                // object list still appears in the pilot turn-2 prompts.
+                return false;
+            }
+
+            /** @return string[] */
+            public function visibleObjectPhrases(string $roomKey): array
+            {
+                return $this->objectPhrases[$roomKey] ?? [];
+            }
+
+            public function isShaking(): bool
+            {
+                return true;
+            }
+
+            public function isPotBoiling(): bool
+            {
+                return $this->stoveOn;
+            }
+
+            public function wasShakingPreviousTurn(): bool
+            {
+                return true; // turn 2 is still shaking
+            }
+
+            public function didLightsGoOutThisTurn(): bool
+            {
+                return true; // every turn-2 prompt ends with "The lights go out."
+            }
+
+            public function residentSpeaksThisTurn(): bool
+            {
+                return false; // the man is silent on turn 2
+            }
+
+            public function residentLine(): ?string
+            {
+                return null;
+            }
+        };
+    }
+
+    /**
+     * Data provider over the 18 turn-2 runs, keyed "world/run/who".
+     *
+     * @return array<string,array{0:string,1:int,2:string}>
+     */
+    public static function turn2RunProvider(): array
+    {
+        $cases = [];
+        foreach (['P1', 'P2', 'P3'] as $world) {
+            foreach ([1, 2, 3] as $run) {
+                foreach (['claude', 'gpt'] as $who) {
+                    $cases["{$world}/{$run}/{$who}"] = [$world, $run, $who];
+                }
+            }
+        }
+
+        return $cases;
+    }
+
+    /**
+     * TEST 1 — turn-2 golden (Req 11.12, 11.13).
+     *
+     * For each of the 18 runs, build the turn-1 TurnRecord from the run's own
+     * reading and its partner's reading, generate the viewpoint robot's turn-2
+     * text, and assert the "In the last 15 seconds:" block and the shaking
+     * paragraph match the pilot's turn2.prompt byte-for-byte.
+     */
+    #[DataProvider('turn2RunProvider')]
+    public function testTurn2RecentEventsAndShakingMatchGolden(
+        string $world,
+        int $run,
+        string $who
+    ): void {
+        $data = $this->loadTurn2Fixture();
+
+        $this_run = null;
+        foreach ($data['runs'] as $r) {
+            if ($r['world'] === $world && $r['run'] === $run && $r['who'] === $who) {
+                $this_run = $r;
+                break;
+            }
+        }
+        $this->assertNotNull($this_run, "missing run {$world}/{$run}/{$who}");
+
+        [$expectedRecent, $expectedShaking] = $this->extractTurn2Sections($this_run['turn2']['prompt']);
+
+        $viewpointId = self::WHO_TO_ID[$who];
+        $record = $this->buildTurn1Record($data, $world, $run);
+
+        $world2 = $this->turn2World(
+            $viewpointId,
+            self::fullRoom($this_run['turn2']['room']),
+            self::fullRoom($this_run['turn2']['other_room']),
+            (bool) $this_run['turn2']['stove_on'],
+        );
+
+        $generator = new SituationTextGenerator();
+        $actual = $generator->generate($viewpointId, $world2, [$record]);
+
+        [$actualRecent, $actualShaking] = $this->extractTurn2Sections($actual);
+
+        $this->assertSame(
+            $expectedRecent,
+            $actualRecent,
+            "{$world}/{$run}/{$who}: \"In the last 15 seconds:\" block must match the golden prompt"
+        );
+        $this->assertSame(
+            $expectedShaking,
+            $actualShaking,
+            "{$world}/{$run}/{$who}: shaking paragraph must match the golden prompt"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // TEST 2 — rule A property (Req 11.13 / Property 11)
+    // ------------------------------------------------------------------
+
+    /**
+     * Build a one-turn TurnRecord for the rule-A property: the other robot both
+     * acts (a non-'unknown' action with seenByOtherText) and speaks a line and
+     * carries a reported-speech item. The viewpoint robot does nothing, so the
+     * block holds only the other robot's lines, isolating rule A.
+     */
+    private function ruleARecord(
+        string $selfStart,
+        string $otherStart,
+        string $selfEnd,
+        string $otherEnd
+    ): TurnRecord {
+        $otherAction = new Action(
+            robotId: 'robot_b',
+            operation: 'cover',
+            words: ['Stay low!'],
+            actionQuote: 'I cover my head',
+            reported: [new ReportedSpeech(
+                'I call to the other robot to take cover',
+                'call to you to take cover',
+                'called to the other robot to take cover',
+            )],
+        );
+
+        $otherOutcome = new Outcome(
+            robotId: 'robot_b',
+            success: true,
+            whatHappenedText: 'The other robot covered its head.',
+            seenByOtherText: 'The other robot covered its head.',
+        );
+
+        $snapshot = new WorldSnapshot(
+            objects: [],
+            robotStates: [
+                'robot_a' => new RobotState(id: 'robot_a', room: $selfEnd),
+                'robot_b' => new RobotState(id: 'robot_b', room: $otherEnd),
+            ],
+            residentState: null,
+            houseState: null,
+        );
+
+        return new TurnRecord(
+            turnNumber: 1,
+            robotActions: ['robot_b' => $otherAction],
+            judgements: [],
+            outcomes: ['robot_b' => $otherOutcome],
+            residentLine: null,
+            snapshot: $snapshot,
+            roomsAtStart: ['robot_a' => $selfStart, 'robot_b' => $otherStart],
+        );
+    }
+
+    /**
+     * TEST 2 — rule A (Req 11.13 / Property 11).
+     *
+     * For any pair of start and end rooms, the other robot's ACTION line appears
+     * in the recent-events block iff the robots shared a room at the start OR at
+     * the end of the turn; its spoken words appear in every case (shared-room
+     * phrasing when they shared, "You heard the other robot say," otherwise);
+     * its reported speech ("You heard the other robot …") appears in every case.
+     *
+     * **Validates: Requirements 11.13**
+     */
+    public function testRuleAProperty(): void
+    {
+        $this->limitTo(100);
+
+        $rooms = Generator\elements(self::ROOM_KEYS);
+
+        $this->forAll($rooms, $rooms, $rooms, $rooms)->then(
+            function (string $selfStart, string $otherStart, string $selfEnd, string $otherEnd): void {
+                $record = $this->ruleARecord($selfStart, $otherStart, $selfEnd, $otherEnd);
+
+                $generator = new SituationTextGenerator();
+                $text = $generator->generate('robot_a', $this->ruleAWorld(), [$record]);
+
+                $shared = ($selfStart === $otherStart) || ($selfEnd === $otherEnd);
+
+                $actionLine = 'The other robot covered its head.';
+                $sharedSay  = 'The other robot said, "Stay low!"';
+                $heardSay   = 'You heard the other robot say, "Stay low!"';
+                $reported   = 'You heard the other robot call to you to take cover.';
+
+                if ($shared) {
+                    $this->assertStringContainsString($actionLine, $text, 'shared room: action line present');
+                    $this->assertStringContainsString($sharedSay, $text, 'shared room: spoken line uses shared phrasing');
+                    $this->assertStringNotContainsString($heardSay, $text, 'shared room: no "heard" phrasing');
+                } else {
+                    $this->assertStringNotContainsString($actionLine, $text, 'separate rooms: action line absent');
+                    $this->assertStringContainsString($heardSay, $text, 'separate rooms: spoken line uses "heard" phrasing');
+                }
+
+                // Reported speech is heard in every room.
+                $this->assertStringContainsString($reported, $text, 'reported speech present in every case');
+            }
+        );
+    }
+
+    /**
+     * A minimal still-shaking turn-2 world for the rule-A / six-turn properties.
+     * The viewpoint robot is in the living room; the shaking paragraph and
+     * "Right now:" text are irrelevant to these assertions.
+     */
+    private function ruleAWorld(): SituationView
+    {
+        return $this->turn2World('robot_a', 'living_room', 'bedroom', false);
+    }
+
+    // ------------------------------------------------------------------
+    // TEST 3 — six-turn example + at-most-five-blocks property (Req 11.15)
+    // ------------------------------------------------------------------
+
+    /**
+     * Build a simple one-turn TurnRecord where only the other robot acts and
+     * speaks, with the given start/end rooms for both robots. Used to assemble
+     * multi-turn histories for the block-count tests.
+     */
+    private function simpleOtherTurn(
+        int $turnNumber,
+        string $selfRoom,
+        string $otherRoom
+    ): TurnRecord {
+        $otherAction = new Action(
+            robotId: 'robot_b',
+            operation: 'cover',
+            words: ['Stay low!'],
+            actionQuote: 'I cover my head',
+            reported: [],
+        );
+        $otherOutcome = new Outcome(
+            robotId: 'robot_b',
+            success: true,
+            whatHappenedText: 'The other robot covered its head.',
+            seenByOtherText: 'The other robot covered its head.',
+        );
+        $snapshot = new WorldSnapshot(
+            objects: [],
+            robotStates: [
+                'robot_a' => new RobotState(id: 'robot_a', room: $selfRoom),
+                'robot_b' => new RobotState(id: 'robot_b', room: $otherRoom),
+            ],
+            residentState: null,
+            houseState: null,
+        );
+
+        return new TurnRecord(
+            turnNumber: $turnNumber,
+            robotActions: ['robot_b' => $otherAction],
+            judgements: [],
+            outcomes: ['robot_b' => $otherOutcome],
+            residentLine: null,
+            snapshot: $snapshot,
+            roomsAtStart: ['robot_a' => $selfRoom, 'robot_b' => $otherRoom],
+        );
+    }
+
+    /**
+     * Extract the recent-events section (every block up to and including the
+     * "In the last 15 seconds:" block) from a full prompt. The section is the
+     * run of consecutive paragraphs ending at the "In the last 15 seconds:"
+     * paragraph, each starting with one of the known block headings.
+     *
+     * @return string[] the block paragraphs, oldest first
+     */
+    private function extractRecentBlocks(string $prompt): array
+    {
+        $paragraphs = explode("\n\n", $prompt);
+        $headings = [
+            '60 to 75 seconds ago:',
+            '45 to 60 seconds ago:',
+            '30 to 45 seconds ago:',
+            '15 to 30 seconds ago:',
+            'In the last 15 seconds:',
+        ];
+
+        $blocks = [];
+        foreach ($paragraphs as $para) {
+            foreach ($headings as $h) {
+                if (str_starts_with($para, $h)) {
+                    $blocks[] = $para;
+                    break;
+                }
+            }
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * TEST 3a — hand-written six-turn example (Req 11.15).
+     *
+     * Passing five TurnRecords, oldest first, yields exactly five blocks with
+     * the fixed headings in order. One turn shares a room (its block shows the
+     * other robot's action) and one does not (its block omits the action),
+     * demonstrating rule A per block.
+     */
+    public function testSixthTurnShowsAtMostFiveBlocksOldestFirst(): void
+    {
+        // Five previous turns, oldest first. Turns 2 and 4 share the living
+        // room; turns 1, 3 and 5 keep the robots in separate rooms.
+        $records = [
+            $this->simpleOtherTurn(1, 'kitchen', 'bedroom'),      // separate
+            $this->simpleOtherTurn(2, 'living_room', 'living_room'), // shared
+            $this->simpleOtherTurn(3, 'kitchen', 'bedroom'),      // separate
+            $this->simpleOtherTurn(4, 'living_room', 'living_room'), // shared
+            $this->simpleOtherTurn(5, 'kitchen', 'bedroom'),      // separate
+        ];
+
+        $generator = new SituationTextGenerator();
+        $text = $generator->generate('robot_a', $this->ruleAWorld(), $records);
+
+        $blocks = $this->extractRecentBlocks($text);
+
+        $this->assertCount(5, $blocks, 'the sixth turn shows exactly five recent-events blocks');
+
+        $expectedHeadings = [
+            '60 to 75 seconds ago:',
+            '45 to 60 seconds ago:',
+            '30 to 45 seconds ago:',
+            '15 to 30 seconds ago:',
+            'In the last 15 seconds:',
+        ];
+        foreach ($expectedHeadings as $i => $heading) {
+            $this->assertStringStartsWith(
+                $heading,
+                $blocks[$i],
+                "block {$i} must be headed \"{$heading}\" (oldest first)"
+            );
+        }
+
+        $actionLine = 'The other robot covered its head.';
+        // Oldest-first mapping: records[0] -> block 0 ... records[4] -> block 4.
+        // Shared turns (records 1 and 3) show the action; separate turns do not.
+        $this->assertStringNotContainsString($actionLine, $blocks[0], 'separate-room block omits the action');
+        $this->assertStringContainsString($actionLine, $blocks[1], 'shared-room block shows the action');
+        $this->assertStringNotContainsString($actionLine, $blocks[2], 'separate-room block omits the action');
+        $this->assertStringContainsString($actionLine, $blocks[3], 'shared-room block shows the action');
+        $this->assertStringNotContainsString($actionLine, $blocks[4], 'separate-room block omits the action');
+    }
+
+    /**
+     * TEST 3b — at-most-five-blocks property (Req 11.15).
+     *
+     * For a history of up to eight turns, the recent-events section holds at
+     * most five blocks, oldest first, ends with the "In the last 15 seconds:"
+     * block, and applies rule A to each block separately (a shared-room block
+     * shows the other robot's action; a separate-room block omits it).
+     *
+     * **Validates: Requirements 11.15**
+     */
+    public function testRecentEventsHoldsAtMostFiveBlocks(): void
+    {
+        $this->limitTo(100);
+
+        // A sequence of 1..8 booleans; each flag marks whether that turn shared
+        // a room (true) or kept the robots apart (false).
+        $sharedFlags = Generator\seq(Generator\bool());
+
+        $this->forAll(
+            Generator\suchThat(
+                static fn (array $flags): bool => count($flags) >= 1 && count($flags) <= 8,
+                $sharedFlags
+            )
+        )->then(
+            function (array $flags): void {
+                $records = [];
+                foreach (array_values($flags) as $i => $shared) {
+                    $records[] = $shared
+                        ? $this->simpleOtherTurn($i + 1, 'living_room', 'living_room')
+                        : $this->simpleOtherTurn($i + 1, 'kitchen', 'bedroom');
+                }
+
+                $generator = new SituationTextGenerator();
+                $text = $generator->generate('robot_a', $this->ruleAWorld(), $records);
+
+                $blocks = $this->extractRecentBlocks($text);
+
+                $kept = min(count($records), 5);
+                $this->assertCount($kept, $blocks, 'at most five (and exactly min(n,5)) blocks are shown');
+                $this->assertLessThanOrEqual(5, count($blocks), 'never more than five blocks');
+
+                // The final block is always "In the last 15 seconds:".
+                $last = $blocks[count($blocks) - 1];
+                $this->assertStringStartsWith('In the last 15 seconds:', $last, 'ends with the latest block');
+
+                // Earlier blocks count back with the fixed headings, oldest first.
+                $expected = array_slice([
+                    '60 to 75 seconds ago:',
+                    '45 to 60 seconds ago:',
+                    '30 to 45 seconds ago:',
+                    '15 to 30 seconds ago:',
+                    'In the last 15 seconds:',
+                ], 5 - $kept);
+                foreach ($expected as $i => $heading) {
+                    $this->assertStringStartsWith($heading, $blocks[$i], 'headings in order, oldest first');
+                }
+
+                // Rule A per block: the kept records are the newest $kept, in
+                // oldest-first order. A shared turn shows the action line; a
+                // separate turn omits it.
+                $keptRecords = array_slice(array_values($flags), -$kept);
+                $actionLine = 'The other robot covered its head.';
+                foreach ($keptRecords as $i => $shared) {
+                    if ($shared) {
+                        $this->assertStringContainsString($actionLine, $blocks[$i], 'shared block shows the action');
+                    } else {
+                        $this->assertStringNotContainsString($actionLine, $blocks[$i], 'separate block omits the action');
+                    }
+                }
+            }
+        );
     }
 }
