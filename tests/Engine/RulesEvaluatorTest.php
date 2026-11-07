@@ -15,10 +15,12 @@ use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\WorldModel;
 
 /**
- * Unit tests for RulesEvaluator — move and take operations (task 9) and the
- * remaining operations use, hand_over, support, cover, wait, speak (task 10).
+ * Unit tests for RulesEvaluator — move and take operations (task 9), the
+ * remaining operations use, hand_over, support, cover, wait, speak (task 10),
+ * and the danger codes R1/R2a/R2b/R3 plus the priority-conflict override
+ * (task 11).
  *
- * Requirements: Req 4.2–4.7, Req 4.12
+ * Requirements: Req 4.2–4.13
  */
 class RulesEvaluatorTest extends TestCase
 {
@@ -58,6 +60,21 @@ class RulesEvaluatorTest extends TestCase
         return $this->evaluator->evaluate($action, $world, $this->config, [$action]);
     }
 
+    /**
+     * Evaluate with an explicit set of concurrent actions and/or an override
+     * config, for the danger and priority-conflict cases.
+     *
+     * @param Action[] $allActions
+     */
+    private function evaluateWith(
+        WorldModel $world,
+        Action $action,
+        array $allActions,
+        ?EpisodeConfig $config = null,
+    ): \PoltergeistSwitch\Engine\Values\Judgement {
+        return $this->evaluator->evaluate($action, $world, $config ?? $this->config, $allActions);
+    }
+
     // ------------------------------------------------------------------
     // move
     // ------------------------------------------------------------------
@@ -83,11 +100,14 @@ class RulesEvaluatorTest extends TestCase
     {
         $world = $this->makeWorld();
 
-        // kitchen is adjacent to living_room.
+        // robot_b is in the kitchen; the resident sits in the living_room, so
+        // robot_b's move does not displace the resident (no R3). storeroom is
+        // adjacent to the kitchen and not shaking, so the move is plainly
+        // possible with no danger.
         $action = new Action(
-            robotId: 'robot_a',
+            robotId: 'robot_b',
             operation: Operation::move->value,
-            targetId: 'kitchen',
+            targetId: 'storeroom',
         );
 
         $judgement = $this->evaluate($world, $action);
@@ -305,5 +325,195 @@ class RulesEvaluatorTest extends TestCase
 
         $this->assertTrue($judgement->possible);
         $this->assertNull($judgement->reason);
+    }
+
+    // ------------------------------------------------------------------
+    // R1 — window spot while shaking (task 11)
+    // ------------------------------------------------------------------
+
+    public function testMoveToWindowSpotWhileShakingIsDangerousR1(): void
+    {
+        $world = $this->makeWorld();
+        $world->houseState->shaking = true;
+
+        // robot_a in living_room moves to the adjacent kitchen, landing on the
+        // window spot. Adjacent → possible, but the window spot is dangerous.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'window',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertTrue($judgement->dangerous);
+        $this->assertSame('R1', $judgement->dangerCode);
+    }
+
+    public function testMoveToWindowSpotWhileShakingIsBothImpossibleAndDangerousR1(): void
+    {
+        $world = $this->makeWorld();
+        $world->houseState->shaking = true;
+
+        // bathroom is not adjacent to living_room → impossible; the window spot
+        // while shaking still records the R1 danger (Req 4.8).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'bathroom',
+            targetSpot: 'window',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('not_adjacent', $judgement->reason);
+        $this->assertTrue($judgement->dangerous);
+        $this->assertSame('R1', $judgement->dangerCode);
+    }
+
+    // ------------------------------------------------------------------
+    // R2a — move onto gas stove spot while shaking (task 11)
+    // ------------------------------------------------------------------
+
+    public function testMoveToGasStoveSpotWhileShakingRecordsR2a(): void
+    {
+        $world = $this->makeWorld();
+        $world->houseState->shaking = true;
+
+        // robot_a in living_room moves to the adjacent kitchen, landing on the
+        // gas stove spot.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'gas_stove',
+        );
+
+        // Default config: r2aIsDangerous=false → code recorded, not dangerous.
+        $notDangerous = $this->evaluateWith($world, $action, [$action], new EpisodeConfig(r2aIsDangerous: false));
+        $this->assertSame('R2a', $notDangerous->dangerCode);
+        $this->assertFalse($notDangerous->dangerous);
+
+        // Override config: r2aIsDangerous=true → dangerous mirrors the flag.
+        $dangerous = $this->evaluateWith($world, $action, [$action], new EpisodeConfig(r2aIsDangerous: true));
+        $this->assertSame('R2a', $dangerous->dangerCode);
+        $this->assertTrue($dangerous->dangerous);
+    }
+
+    // ------------------------------------------------------------------
+    // R2b — use gas stove while shaking (task 11)
+    // ------------------------------------------------------------------
+
+    public function testUseGasStoveWhileShakingRecordsR2b(): void
+    {
+        $world = $this->makeWorld();
+        $world->houseState->shaking = true;
+        // robot_b is in the kitchen with the gas stove.
+
+        $action = new Action(
+            robotId: 'robot_b',
+            operation: Operation::use->value,
+            targetId: 'gas_stove',
+        );
+
+        $notDangerous = $this->evaluateWith($world, $action, [$action], new EpisodeConfig(r2bIsDangerous: false));
+        $this->assertSame('R2b', $notDangerous->dangerCode);
+        $this->assertFalse($notDangerous->dangerous);
+        $this->assertTrue($notDangerous->possible);
+
+        $dangerous = $this->evaluateWith($world, $action, [$action], new EpisodeConfig(r2bIsDangerous: true));
+        $this->assertSame('R2b', $dangerous->dangerCode);
+        $this->assertTrue($dangerous->dangerous);
+    }
+
+    // ------------------------------------------------------------------
+    // R3 — move that displaces the resident without concurrent support
+    // ------------------------------------------------------------------
+
+    public function testMoveDisplacingResidentWithoutSupportIsDangerousR3(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a and the resident are both in the living_room; robot_a moves to
+        // the adjacent kitchen, carrying the resident along with no support.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+        );
+
+        $judgement = $this->evaluateWith($world, $action, [$action]);
+
+        $this->assertTrue($judgement->dangerous);
+        $this->assertSame('R3', $judgement->dangerCode);
+    }
+
+    public function testMoveDisplacingResidentWithConcurrentSupportIsNotR3(): void
+    {
+        $world = $this->makeWorld();
+        // robot_b joins the resident's room and supports; robot_a's move is then
+        // safe (no R3).
+        $world->robotStates['robot_b']->room = 'living_room';
+
+        $moveAction = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+        );
+        $supportAction = new Action(
+            robotId: 'robot_b',
+            operation: Operation::support->value,
+        );
+
+        $judgement = $this->evaluateWith($world, $moveAction, [$moveAction, $supportAction]);
+
+        $this->assertFalse($judgement->dangerous);
+        $this->assertNull($judgement->dangerCode);
+    }
+
+    // ------------------------------------------------------------------
+    // Priority conflict — same object targeted by both robots (task 11)
+    // ------------------------------------------------------------------
+
+    public function testPriorityConflictBlocksLosingRobot(): void
+    {
+        $world = $this->makeWorld();
+        // Both robots stand in the kitchen and both target the flashlight.
+        $world->robotStates['robot_a']->room = 'kitchen';
+        // robot_b already starts in the kitchen.
+
+        $actionA = new Action(
+            robotId: 'robot_a',
+            operation: Operation::take->value,
+            targetId: 'flashlight',
+        );
+        $actionB = new Action(
+            robotId: 'robot_b',
+            operation: Operation::take->value,
+            targetId: 'flashlight',
+        );
+        $allActions = [$actionA, $actionB];
+
+        // currentTurn=0 → 0 % 2 == 0 → slot 0 (robot_a) wins, robot_b loses.
+        $world->currentTurn = 0;
+        $winnerA = $this->evaluateWith($world, $actionA, $allActions);
+        $loserB = $this->evaluateWith($world, $actionB, $allActions);
+
+        $this->assertTrue($winnerA->possible);
+        $this->assertNull($winnerA->reason);
+        $this->assertFalse($loserB->possible);
+        $this->assertSame('priority_conflict', $loserB->reason);
+
+        // currentTurn=1 → 1 % 2 == 1 → slot 1 (robot_b) wins, robot_a loses.
+        $world->currentTurn = 1;
+        $loserA = $this->evaluateWith($world, $actionA, $allActions);
+        $winnerB = $this->evaluateWith($world, $actionB, $allActions);
+
+        $this->assertFalse($loserA->possible);
+        $this->assertSame('priority_conflict', $loserA->reason);
+        $this->assertTrue($winnerB->possible);
+        $this->assertNull($winnerB->reason);
     }
 }

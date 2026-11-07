@@ -22,18 +22,36 @@ use PoltergeistSwitch\Engine\Values\Judgement;
  *   - cover, wait, speak: always possible (no blocking pre-conditions).
  *
  * The move/use danger codes (R1, R2a, R2b, R3) and the priority-conflict
- * override are added in task 11. Until then the `$allActions` argument is
- * accepted but unused.
+ * override are added in task 11.
  *
- * Requirements: Req 4.1–4.7, Req 4.12, Req 5.5, Req 5.7
+ * Requirements: Req 4.1–4.13, Req 5.5, Req 5.7
  */
 class RulesEvaluator
 {
+    /** Spot key that marks the window fixture of a room (R1, Req 4.8). */
+    private const WINDOW_SPOT = 'window';
+
+    /** Object id (and spot) of the gas stove (R2a/R2b, Req 4.9, Req 4.10). */
+    private const GAS_STOVE_ID = 'gas_stove';
+
+    /** Danger codes recorded in the Judgement (Req 4.8–4.12). */
+    private const DANGER_R1 = 'R1';
+    private const DANGER_R2A = 'R2a';
+    private const DANGER_R2B = 'R2b';
+    private const DANGER_R3 = 'R3';
+
+    /** Robot slot indices for the priority-conflict rule (Req 4.13). */
+    private const ROBOT_SLOTS = ['robot_a' => 0, 'robot_b' => 1];
+
     /**
      * Judge one robot's action.
      *
-     * @param Action[] $allActions all actions proposed this turn, kept for the
-     *                             priority-conflict check added in task 11
+     * The per-operation check runs first; the priority-conflict override
+     * (Req 4.13) is applied last so it can turn an otherwise-possible action
+     * impossible without discarding any danger code the operation recorded.
+     *
+     * @param Action[] $allActions all actions proposed this turn, used for the
+     *                             R3 and priority-conflict checks
      */
     public function evaluate(
         Action $action,
@@ -41,41 +59,73 @@ class RulesEvaluator
         EpisodeConfig $config,
         array $allActions,
     ): Judgement {
-        return match ($action->operation) {
-            Operation::move->value => $this->evaluateMove($action, $world),
+        $judgement = match ($action->operation) {
+            Operation::move->value => $this->evaluateMove($action, $world, $config, $allActions),
             Operation::take->value => $this->evaluateTake($action, $world),
-            Operation::use->value => $this->evaluateUse($action, $world),
+            Operation::use->value => $this->evaluateUse($action, $world, $config),
             Operation::hand_over->value => $this->evaluateHandOver($action, $world),
             Operation::support->value => $this->evaluateSupport($action, $world),
-            // cover, wait, speak, unknown — no blocking pre-conditions; the
-            // move/use danger codes and priority conflict are added in task 11.
+            // cover, wait, speak, unknown — no blocking pre-conditions.
             default => new Judgement(
                 robotId: $action->robotId,
                 possible: true,
             ),
         };
+
+        return $this->applyPriorityConflict($judgement, $action, $world, $allActions);
     }
 
     /**
      * move: possible only when the target room is adjacent to the robot's
      * current room (Req 4.2). `targetId` carries the target room key.
+     *
+     * Danger checks layer on top of the adjacency verdict and never clear it:
+     *   - R1 (Req 4.8): shaking + window spot → dangerous, code R1. Applies
+     *     even when the move is impossible for another reason, so both the
+     *     `not_adjacent` reason and the R1 danger are reported together.
+     *   - R2a (Req 4.9): shaking + landing on the gas stove spot → always
+     *     records code R2a; the `dangerous` flag follows `$config->r2aIsDangerous`.
+     *   - R3 (Req 4.11): the move would displace the resident with no
+     *     concurrent support from a robot in the resident's room → dangerous,
+     *     code R3.
+     *
+     * @param Action[] $allActions all actions proposed this turn (for R3)
      */
-    private function evaluateMove(Action $action, WorldModel $world): Judgement
-    {
+    private function evaluateMove(
+        Action $action,
+        WorldModel $world,
+        EpisodeConfig $config,
+        array $allActions,
+    ): Judgement {
         $currentRoom = $world->robotStates[$action->robotId]->room;
         $adjacent = $world->getRoom($currentRoom)->adjacentRooms;
+        $possible = in_array($action->targetId, $adjacent, true);
+        $reason = $possible ? null : 'not_adjacent';
 
-        if (!in_array($action->targetId, $adjacent, true)) {
-            return new Judgement(
-                robotId: $action->robotId,
-                possible: false,
-                reason: 'not_adjacent',
-            );
+        // Danger checks run regardless of adjacency so an impossible move still
+        // carries its danger code (Req 4.8). The first matching code wins; the
+        // move danger codes are mutually exclusive in practice (window vs. gas
+        // stove vs. resident displacement).
+        $dangerous = false;
+        $dangerCode = null;
+
+        if (($code = $this->checkDangerR1($action, $world)) !== null) {
+            $dangerous = true;
+            $dangerCode = $code;
+        } elseif (($code = $this->checkDangerR2($action, $world, $config)) === self::DANGER_R2A) {
+            $dangerCode = self::DANGER_R2A;
+            $dangerous = $config->r2aIsDangerous;
+        } elseif ($this->checkDangerR3($action, $world, $allActions)) {
+            $dangerous = true;
+            $dangerCode = self::DANGER_R3;
         }
 
         return new Judgement(
             robotId: $action->robotId,
-            possible: true,
+            possible: $possible,
+            reason: $reason,
+            dangerous: $dangerous,
+            dangerCode: $dangerCode,
         );
     }
 
@@ -125,25 +175,34 @@ class RulesEvaluator
 
     /**
      * use: the target object must be in the robot's current room
-     * (`object_not_in_room`, Req 4.6). The R2b shaking danger on the gas stove
-     * is layered on in task 11.
+     * (`object_not_in_room`, Req 4.6).
+     *
+     * R2b (Req 4.10): using the gas stove while shaking always records
+     * `dangerCode="R2b"`; the `dangerous` flag follows `$config->r2bIsDangerous`.
+     * The danger code is attached even when the use is impossible, mirroring the
+     * R1 rule on move.
      */
-    private function evaluateUse(Action $action, WorldModel $world): Judgement
+    private function evaluateUse(Action $action, WorldModel $world, EpisodeConfig $config): Judgement
     {
         $robot = $world->robotStates[$action->robotId];
 
         $target = $world->objects[$action->targetId] ?? null;
-        if ($target === null || $target->room !== $robot->room) {
-            return new Judgement(
-                robotId: $action->robotId,
-                possible: false,
-                reason: 'object_not_in_room',
-            );
+        $possible = $target !== null && $target->room === $robot->room;
+        $reason = $possible ? null : 'object_not_in_room';
+
+        $dangerous = false;
+        $dangerCode = null;
+        if ($this->checkDangerR2b($action, $world)) {
+            $dangerCode = self::DANGER_R2B;
+            $dangerous = $config->r2bIsDangerous;
         }
 
         return new Judgement(
             robotId: $action->robotId,
-            possible: true,
+            possible: $possible,
+            reason: $reason,
+            dangerous: $dangerous,
+            dangerCode: $dangerCode,
         );
     }
 
@@ -199,6 +258,133 @@ class RulesEvaluator
             robotId: $action->robotId,
             possible: true,
             duration: 2,
+        );
+    }
+
+    /**
+     * R1 (Req 4.8): while the house is shaking, a move onto a window spot is
+     * dangerous. Returns the danger code 'R1' when it fires, else null.
+     * `targetSpot` carries the spot the robot moves onto.
+     */
+    private function checkDangerR1(Action $action, WorldModel $world): ?string
+    {
+        if (!$world->houseState->shaking) {
+            return null;
+        }
+
+        return $action->targetSpot === self::WINDOW_SPOT ? self::DANGER_R1 : null;
+    }
+
+    /**
+     * R2a (Req 4.9): while the house is shaking, a move that lands the robot on
+     * the gas stove spot records the danger code 'R2a'. Returns the code when it
+     * fires, else null. The caller decides the `dangerous` flag from
+     * `$config->r2aIsDangerous`; the `$config` argument keeps the design's
+     * checkDangerR2(Action, WorldModel, EpisodeConfig) signature.
+     */
+    private function checkDangerR2(Action $action, WorldModel $world, EpisodeConfig $config): ?string
+    {
+        if (!$world->houseState->shaking) {
+            return null;
+        }
+
+        return $action->targetSpot === self::GAS_STOVE_ID ? self::DANGER_R2A : null;
+    }
+
+    /**
+     * R2b (Req 4.10): while the house is shaking, a use action targeting the gas
+     * stove records the danger code 'R2b'. Returns true when it fires.
+     */
+    private function checkDangerR2b(Action $action, WorldModel $world): bool
+    {
+        return $world->houseState->shaking && $action->targetId === self::GAS_STOVE_ID;
+    }
+
+    /**
+     * R3 (Req 4.11): a move that would displace the resident's position is
+     * dangerous unless a robot in the resident's room performs a concurrent
+     * support action. A move displaces the resident when the moving robot is
+     * in the resident's room and heads for a different room (the resident is
+     * carried along). Returns true when the R3 danger applies.
+     *
+     * @param Action[] $allActions all actions proposed this turn
+     */
+    private function checkDangerR3(Action $action, WorldModel $world, array $allActions): bool
+    {
+        $robot = $world->robotStates[$action->robotId];
+        $residentRoom = $world->residentState->room;
+
+        // Only a move that starts in the resident's room and leaves it would
+        // displace the resident.
+        if ($robot->room !== $residentRoom || $action->targetId === $residentRoom) {
+            return false;
+        }
+
+        // A concurrent support action from a robot in the resident's room makes
+        // the displacement safe.
+        foreach ($allActions as $other) {
+            if ($other->operation !== Operation::support->value) {
+                continue;
+            }
+            $supporter = $world->robotStates[$other->robotId] ?? null;
+            if ($supporter !== null && $supporter->room === $residentRoom) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Priority conflict (Req 4.13): when both robots target the same object id
+     * on the same turn, priority goes to the robot whose slot index satisfies
+     * `turn_number % 2 == robot_slot` (robot_a=0, robot_b=1). The other robot's
+     * action is overridden to `possible=false, reason="priority_conflict"`.
+     * Any danger code already recorded on the losing judgement is preserved.
+     *
+     * @param Action[] $allActions all actions proposed this turn
+     */
+    private function applyPriorityConflict(
+        Judgement $judgement,
+        Action $action,
+        WorldModel $world,
+        array $allActions,
+    ): Judgement {
+        $targetId = $action->targetId;
+        if ($targetId === null) {
+            return $judgement;
+        }
+
+        // Find another robot's action targeting the same object id.
+        $conflict = false;
+        foreach ($allActions as $other) {
+            if ($other->robotId !== $action->robotId && $other->targetId === $targetId) {
+                $conflict = true;
+                break;
+            }
+        }
+        if (!$conflict) {
+            return $judgement;
+        }
+
+        $slot = self::ROBOT_SLOTS[$action->robotId] ?? null;
+        if ($slot === null) {
+            return $judgement;
+        }
+
+        // The winner's slot satisfies turn_number % 2 == slot; the loser does
+        // not and is blocked.
+        if (($world->currentTurn % 2) === $slot) {
+            return $judgement;
+        }
+
+        return new Judgement(
+            robotId: $judgement->robotId,
+            possible: false,
+            reason: 'priority_conflict',
+            dangerous: $judgement->dangerous,
+            dangerCode: $judgement->dangerCode,
+            duration: $judgement->duration,
         );
     }
 
