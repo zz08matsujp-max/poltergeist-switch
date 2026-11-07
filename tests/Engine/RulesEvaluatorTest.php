@@ -15,9 +15,10 @@ use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\WorldModel;
 
 /**
- * Unit tests for RulesEvaluator — move and take operations (task 9).
+ * Unit tests for RulesEvaluator — move and take operations (task 9) and the
+ * remaining operations use, hand_over, support, cover, wait, speak (task 10).
  *
- * Requirements: Req 4.2–4.3, Req 4.7, Req 4.12
+ * Requirements: Req 4.2–4.7, Req 4.12
  */
 class RulesEvaluatorTest extends TestCase
 {
@@ -175,5 +176,134 @@ class RulesEvaluatorTest extends TestCase
 
         $this->assertFalse($judgement->dangerous);
         $this->assertNull($judgement->dangerCode);
+    }
+
+    // ------------------------------------------------------------------
+    // use
+    // ------------------------------------------------------------------
+
+    public function testUseWhenObjectNotInRoomIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_a is in living_room; the flashlight lives in the kitchen.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('object_not_in_room', $judgement->reason);
+    }
+
+    // ------------------------------------------------------------------
+    // hand_over
+    // ------------------------------------------------------------------
+
+    public function testHandOverWhenRobotHoldsNothingIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a shares the living room with the resident but holds nothing.
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::hand_over->value,
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('no_object_held', $judgement->reason);
+    }
+
+    public function testHandOverWhenResidentNotInSameRoomIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+        // robot_b is in the kitchen; the resident sits in the living room.
+        $world->robotStates['robot_b']->heldObjectId = 'flashlight';
+
+        $action = new Action(
+            robotId: 'robot_b',
+            operation: Operation::hand_over->value,
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('not_in_same_room', $judgement->reason);
+    }
+
+    // ------------------------------------------------------------------
+    // support
+    // ------------------------------------------------------------------
+
+    public function testSupportWhenResidentInSameRoomIsPossibleWithDurationTwo(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a and the resident are both in the living room.
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertSame(2, $judgement->duration);
+    }
+
+    public function testSupportWhenResidentNotInSameRoomIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+        // robot_b is in the kitchen; the resident sits in the living room.
+
+        $action = new Action(
+            robotId: 'robot_b',
+            operation: Operation::support->value,
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('not_in_same_room', $judgement->reason);
+    }
+
+    // ------------------------------------------------------------------
+    // cover, wait, speak — no blocking pre-conditions
+    // ------------------------------------------------------------------
+
+    public function testWaitIsAlwaysPossible(): void
+    {
+        $world = $this->makeWorld();
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::wait->value,
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertNull($judgement->reason);
+    }
+
+    public function testSpeakIsAlwaysPossible(): void
+    {
+        $world = $this->makeWorld();
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::speak->value,
+            words: ['Hello.'],
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertNull($judgement->reason);
     }
 }
