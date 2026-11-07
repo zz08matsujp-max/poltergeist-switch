@@ -102,6 +102,10 @@ class Engine
      * when it equals the turn being applied, applyTurn skips its own earthquake
      * advance (design §d step 2). prepareTurn itself is idempotent per turn — a
      * second call for the same turn number does nothing.
+     *
+     * applyTurn consumes the marker (resets it to null) as soon as it takes
+     * over the prepared turn, so the marker never outlives its turn and a later
+     * turn cannot mistake a stale value for a prepared turn.
      */
     private ?int $preparedTurn = null;
 
@@ -111,7 +115,9 @@ class Engine
      * the previous turn, otherwise the scripted line — and stores it here so
      * applyTurn emits exactly that line instead of calling emitDialogueLine a
      * second time (which no robot would read, and which would double-record the
-     * line's cooldown). Null when the prepared turn has no line.
+     * line's cooldown). Null when the prepared turn has no line. Consumed (reset
+     * to null) by applyTurn together with $preparedTurn once the prepared turn
+     * is applied.
      */
     private ?string $preparedResidentLine = null;
 
@@ -321,6 +327,20 @@ class Engine
         //    not prepareTurn was called (Req 13.5, Req 13.7).
         $turnWasPrepared = $this->preparedTurn === $turnNumber;
 
+        // Consume the prepared-turn markers the moment applyTurn takes over the
+        // turn they belong to (Req 13.4). The line is read into a local so
+        // step 6 can still reuse it; both markers are then cleared so they
+        // never outlive their turn. This keeps the $preparedTurn guard a local
+        // fact about THIS turn rather than relying on turn numbers always
+        // increasing: once consumed, no later turn can mistake a stale marker
+        // for a prepared turn and wrongly skip its own earthquake advance.
+        $preparedLine = null;
+        if ($turnWasPrepared) {
+            $preparedLine = $this->preparedResidentLine;
+            $this->preparedTurn = null;
+            $this->preparedResidentLine = null;
+        }
+
         $offset = null;
         if ($this->world->earthquakeStartTurn !== null) {
             $offset = $turnNumber - $this->world->earthquakeStartTurn;
@@ -364,7 +384,7 @@ class Engine
         //    keeps the original behaviour (Req 13.7): a refusal produced this
         //    turn claims the line, else the scripted line is emitted now.
         if ($turnWasPrepared) {
-            $residentLine = $this->preparedResidentLine;
+            $residentLine = $preparedLine;
         } else {
             $residentLine = $refusalLine
                 ?? $this->resident->emitDialogueLine(
