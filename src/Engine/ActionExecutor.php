@@ -20,11 +20,9 @@ use PoltergeistSwitch\Engine\Values\Outcome;
  * world is left exactly as it was (design §f, Req 5.10).
  *
  * Task 12 covers move, take, use, speak, and cover plus the rollback pattern.
- * The support and hand_over mutations are added in task 13; this class routes
- * them to a stub for now so an unknown-but-possible action does not silently
- * corrupt the world.
+ * Task 13 adds the support and hand_over mutations.
  *
- * Requirements: Req 5.1–5.4, Req 5.7–5.10
+ * Requirements: Req 5.1–5.6, Req 5.7–5.11
  */
 class ActionExecutor
 {
@@ -39,6 +37,12 @@ class ActionExecutor
      * registered object; `use` on it closes the house gas main (Req 5.4).
      */
     private const GAS_MAIN_VALVE_ID = 'gas_main_valve';
+
+    /**
+     * A `support` action starts a two-turn countdown on the robot; the
+     * resident moves with the robot when it decrements to zero (Req 5.5).
+     */
+    private const SUPPORT_TURNS = 2;
 
     /**
      * Execute one judged action against the world.
@@ -90,12 +94,11 @@ class ActionExecutor
             Operation::move->value  => $this->executeMove($action, $world),
             Operation::take->value  => $this->executeTake($action, $world),
             Operation::use->value   => $this->executeUse($action, $world),
-            Operation::cover->value => $this->executeCover($action, $world),
-            Operation::speak->value => $this->executeSpeak($action),
-            Operation::wait->value  => 'The robot waits.',
-            // support and hand_over gain their mutations in task 13.
-            Operation::support->value, Operation::hand_over->value =>
-                $this->executeUnimplemented($action),
+            Operation::cover->value     => $this->executeCover($action, $world),
+            Operation::speak->value     => $this->executeSpeak($action),
+            Operation::wait->value      => 'The robot waits.',
+            Operation::support->value   => $this->executeSupport($action, $world),
+            Operation::hand_over->value => $this->executeHandOver($action, $world, $config),
             default => $this->executeSpeak($action),
         };
     }
@@ -219,15 +222,64 @@ class ActionExecutor
     }
 
     /**
-     * support and hand_over are not yet implemented (task 13). Executing one is
-     * a programming error at this stage, so throw to trigger rollback rather
-     * than silently leave the world half-changed.
+     * support: start a two-turn countdown on the robot (Req 5.5). The resident
+     * is not moved this turn; the actual room transfer happens when the engine
+     * decrements the flag to zero on the second turn. Setting the countdown is
+     * the executor's only job here.
      */
-    private function executeUnimplemented(Action $action): string
+    private function executeSupport(Action $action, WorldModel $world): string
     {
-        throw new \LogicException(
-            "Operation '{$action->operation}' is not implemented by ActionExecutor yet."
-        );
+        $robot = $this->robot($action, $world);
+        $robot->supportTurnsRemaining = self::SUPPORT_TURNS;
+
+        return 'The robot begins to support the man.';
+    }
+
+    /**
+     * hand_over: give the held object to the resident (Req 5.6, Req 5.11). The
+     * executor re-checks the two guards the evaluator already enforces so a
+     * stale or hand-built judgement cannot half-mutate the world: the robot
+     * must hold an object, and the resident must share the robot's room. Either
+     * guard failing throws, which execute() turns into a rolled-back failure
+     * Outcome (Req 5.11).
+     *
+     * On success the robot's held slot is cleared and the object is assigned to
+     * the resident (its room set to the resident id, mirroring how `take`
+     * parks a held object on the robot so the one-room invariant holds). A
+     * water container also tops up the resident's water by
+     * `$config->waterDeltaHandover`; the final clamp is applied by
+     * ResidentController at end of turn.
+     */
+    private function executeHandOver(Action $action, WorldModel $world, EpisodeConfig $config): string
+    {
+        $robot = $this->robot($action, $world);
+
+        if ($robot->heldObjectId === null) {
+            throw new \LogicException('Robot holds no object to hand over.');
+        }
+
+        $resident = $world->residentState;
+        if ($resident->room !== $robot->room) {
+            throw new \LogicException('Resident is not in the same room.');
+        }
+
+        $object = $world->objects[$robot->heldObjectId] ?? null;
+        if ($object === null) {
+            throw new \InvalidArgumentException("Unknown held object id: {$robot->heldObjectId}");
+        }
+
+        $robot->heldObjectId = null;
+        // Park the object on the resident, mirroring how `take` parks a held
+        // object on the robot, so it stays in exactly one place.
+        $object->room = self::RESIDENT_ID;
+        $object->spot = null;
+
+        if ($object->isWaterContainer) {
+            // The end-of-turn ResidentController clamps water to its range.
+            $resident->water += $config->waterDeltaHandover;
+        }
+
+        return "The robot hands {$object->displayName} to the man.";
     }
 
     /**
