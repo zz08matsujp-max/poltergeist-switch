@@ -60,6 +60,23 @@ class Engine
      */
     private ?int $lastSeenEarthquakeStartTurn = null;
 
+    /**
+     * Number of consecutive turns up to and including the current one on which
+     * the resident met every stability condition (Req 10.6). Reset to zero the
+     * moment any condition fails, so a stable run must be unbroken. Read only by
+     * checkEpisodeEnd().
+     */
+    private int $stableRunCount = 0;
+
+    /**
+     * The resident's injury value recorded at the end of the immediately
+     * preceding turn, or null before the first turn is checked. Req 10.6's
+     * fourth stability condition compares the current injury against this value
+     * (injury must not have risen). On the very first checked turn there is no
+     * preceding turn, so the comparison is treated as satisfied.
+     */
+    private ?int $previousInjury = null;
+
     public function __construct(
         private WorldModel $world,
         private EpisodeConfig $config,
@@ -448,25 +465,82 @@ class Engine
     }
 
     /**
-     * Decide whether the episode has ended (design §d step 8).
+     * Decide whether the episode has ended (design §d step 8, Req 10.6).
      *
-     * The full stability tracking (40-turn cap, five-turn stable run after the
-     * disaster subsides) is task 19. This stub keeps the call site and the
-     * contract — it sets `WorldModel::episodeEnded` and never clears a flag
-     * already raised — so task 19 can fill in the conditions without changing
-     * `applyTurn`. For now the only end condition honoured is one another layer
-     * may already have set (episodeEnded stays whatever it is).
+     * Called once per turn after the resident state is updated (step 5) and the
+     * line is emitted (step 6), but before the turn clock is advanced (step 9),
+     * so `$world->currentTurn` still holds the index of the turn just
+     * processed. Two independent end conditions are honoured:
+     *
+     *   1. Turn cap. The episode lasts at most `$config->maxTurns` turns. Turn
+     *      numbers are 0-indexed and this runs before the clock increment, so
+     *      the turn whose completion makes the count reach `maxTurns` is index
+     *      `maxTurns - 1`: once `currentTurn + 1 >= maxTurns` the cap is hit.
+     *
+     *   2. Stability after the disaster subsides. Every turn the resident is
+     *      checked against the four stability conditions (Req 10.6):
+     *        - fear     <  $config->fearStableThreshold
+     *        - water    >  $config->waterStableThreshold
+     *        - bodyTemp <  $config->tempStableThreshold
+     *        - injury   <= the injury recorded on the immediately preceding turn
+     *      A run of `$config->stableRunLength` consecutive stable turns, while
+     *      `disasterSubsided` is true, ends the episode. The run counter resets
+     *      the instant any condition fails, so the run must be unbroken; the
+     *      injury comparison on the first checked turn (no preceding turn) is
+     *      treated as satisfied.
+     *
+     * The stability run is tracked every turn regardless of `disasterSubsided`
+     * so that, on the turn the disaster subsides, an already-steady resident is
+     * credited for the turns that led up to it rather than starting from zero.
+     * Only the episode-ending decision is gated on `disasterSubsided`.
+     *
+     * Once set, `episodeEnded` is never cleared: a flag raised here or by
+     * another layer stays raised. All thresholds and run lengths come from
+     * `EpisodeConfig`; no numeric literal for them appears here.
      */
     private function checkEpisodeEnd(): void
     {
-        // Intentionally minimal: task 19 implements the real conditions here.
-        // Leaving episodeEnded untouched means a flag raised elsewhere is
-        // preserved and no premature end is forced.
+        $this->updateStableRun();
+
         if ($this->world->episodeEnded) {
             return;
         }
 
-        // No end condition evaluated yet (task 19).
+        // Condition 1: the turn cap. currentTurn is still this turn's index.
+        if ($this->world->currentTurn + 1 >= $this->config->maxTurns) {
+            $this->world->episodeEnded = true;
+            return;
+        }
+
+        // Condition 2: a stable run once the disaster has subsided.
+        if ($this->world->disasterSubsided
+            && $this->stableRunCount >= $this->config->stableRunLength
+        ) {
+            $this->world->episodeEnded = true;
+        }
+    }
+
+    /**
+     * Update the running count of consecutive stable turns from the resident's
+     * current state (Req 10.6). Extends the run by one when all four stability
+     * conditions hold, otherwise resets it to zero. Records this turn's injury
+     * as the baseline for the next turn's injury comparison.
+     */
+    private function updateStableRun(): void
+    {
+        $resident = $this->world->residentState;
+
+        $injuryNotWorse = $this->previousInjury === null
+            || $resident->injury <= $this->previousInjury;
+
+        $stable = $resident->fear < $this->config->fearStableThreshold
+            && $resident->water > $this->config->waterStableThreshold
+            && $resident->bodyTemp < $this->config->tempStableThreshold
+            && $injuryNotWorse;
+
+        $this->stableRunCount = $stable ? $this->stableRunCount + 1 : 0;
+
+        $this->previousInjury = $resident->injury;
     }
 
     /**
