@@ -69,8 +69,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `EpisodeConfig` default constructor-promotion values match the design's draft defaults
     - _Requirements: Req 8.2, Req 8.3_
 
-- [ ] 4. SituationTextGenerator — S0 golden test
-  - [ ] 4.1 Implement `SituationTextGenerator` in `src/Engine/SituationTextGenerator.php`:
+- [x] 4. SituationTextGenerator — S0 golden test
+  - [x] 4.1 Implement `SituationTextGenerator` in `src/Engine/SituationTextGenerator.php`:
     - Port `v_path()`, `v_list()`, `v_the()`, and `vary_situation()` from `pilot/index.php` as private methods `vPath()`, `vList()`, `vThe()`, and the section-assembly logic
     - Room key mapping: use the six full keys (`living_room`, `kitchen`, `bathroom`, `bedroom`, `entrance`, `storeroom`); the internal adjacency constant mirrors `V_LINKS` from `pilot/index.php`
     - Room display names and shake texts mirror `V_ROOMS` from `pilot/index.php`
@@ -83,7 +83,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Resident speech uses straight double-quote U+0022 (not curly quotes)
     - `bannedWordCheck(string $text): void` — in dev mode asserts none of: `Claude`, `ChatGPT`, `GPT`, `Anthropic`, `OpenAI`, `dangerous`, `danger`, `safe`, `careful`, `should`, `must`, `warning` appear in the engine-authored sections
     - _Requirements: Req 9.1–9.15_
-  - [ ] 4.2 Write the S0 golden test in `tests/Engine/SituationTextGeneratorTest.php`:
+  - [x] 4.2 Write the S0 golden test in `tests/Engine/SituationTextGeneratorTest.php`:
     - Construct a minimal `WorldModel` stub (or the real `WorldModel` from task 7 — but task 4 precedes task 7, so use a test double or minimal stub that exposes the fields `SituationTextGenerator` needs for S0: robot_a in kitchen, man at low table in living_room, robot_b in bedroom, timeOfDay=afternoon, potBoiling=true, shaking=true, power=on)
     - The expected string is the S0 `prompt` from `pilot/実験0_状況を変える_2026-11-01_n3.json` (identical to `SITUATION_B`). Do not include or parse `pilot/index.php`: it runs a passphrase check and sends HTTP headers.
     - Assert `$generator->generate('robot_a', $world, []) === SITUATION_B` byte-for-byte

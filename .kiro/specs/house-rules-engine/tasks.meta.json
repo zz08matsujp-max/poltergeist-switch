@@ -129,6 +129,37 @@
         "chatSessionId": "sess_1e95056d-d3bd-463b-92cc-1b2e7195dfc1",
         "timestamp": 1794024679724
       }
+    ],
+    "4.1 Implement `SituationTextGenerator` in `src/Engine/SituationTextGenerator.php`:": [
+      {
+        "executionId": "36d5a3c9-67f1-4fa2-846f-9499519a6f7e",
+        "chatSessionId": "sess_de297f49-fdc4-4184-9baa-94e7ca1ca740",
+        "timestamp": 1794025484841
+      },
+      {
+        "executionId": "36d5a3c9-67f1-4fa2-846f-9499519a6f7e",
+        "chatSessionId": "sess_de297f49-fdc4-4184-9baa-94e7ca1ca740",
+        "timestamp": 1794025714043
+      }
+    ],
+    "4.2 Write the S0 golden test in `tests/Engine/SituationTextGeneratorTest.php`:": [
+      {
+        "executionId": "36d5a3c9-67f1-4fa2-846f-9499519a6f7e",
+        "chatSessionId": "sess_de297f49-fdc4-4184-9baa-94e7ca1ca740",
+        "timestamp": 1794025725537
+      },
+      {
+        "executionId": "36d5a3c9-67f1-4fa2-846f-9499519a6f7e",
+        "chatSessionId": "sess_de297f49-fdc4-4184-9baa-94e7ca1ca740",
+        "timestamp": 1794025855173
+      }
+    ],
+    "4. SituationTextGenerator — S0 golden test": [
+      {
+        "executionId": "36d5a3c9-67f1-4fa2-846f-9499519a6f7e",
+        "chatSessionId": "sess_de297f49-fdc4-4184-9baa-94e7ca1ca740",
+        "timestamp": 1794025855404
+      }
     ]
   }
 }
