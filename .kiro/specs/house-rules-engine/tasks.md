@@ -235,8 +235,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `possible=false` judgement → world state unchanged, returns `Outcome::failure()`
     - _Requirements: Req 5.1–5.4, Req 5.9–5.10_
 
-- [ ] 13. ActionExecutor — support and hand_over
-  - [ ] 13.1 Extend `ActionExecutor` with `support` and `hand_over` operations:
+- [x] 13. ActionExecutor — support and hand_over
+  - [x] 13.1 Extend `ActionExecutor` with `support` and `hand_over` operations:
     - `support`: set a two-turn support flag on the robot (`supportTurnsRemaining = 2`); actual resident room transfer happens on the second turn when the flag decrements to zero
     - `hand_over`: clear robot's `heldObjectId`; if object `isWaterContainer`, add `$config->waterDeltaHandover` to `residentState->water` (will be clamped at end of turn by `ResidentController`); assign object to resident
     - `hand_over` guards: if resident not in same room, or robot holds no object, leave world unchanged and return `Outcome::failure()` (double-check against `Judgement::possible` — the evaluator already covers these, but the executor enforces them independently per Req 5.11)
@@ -349,6 +349,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
       10. Build `TurnResult`, store in history, return
     - No exceptions propagate out of `applyTurn`; always returns a `TurnResult`
     - Each turn, set the four turn flags that `WorldModel` returns through `SituationView` (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`); task 7 left them as fixed defaults (`false` / `null`). Check that the text for both robots contains "The lights go out." at offset 2 and "The shaking has stopped." at offset 5 (added 2026-11-07)
+    - Count down each robot's `supportTurnsRemaining` (set by `support` in task 13); when it reaches 0, move the resident only if `ResidentController::evaluateRefusal()` accepts. Where the destination comes from is not fixed in the spec yet: ask the maintainer before implementing this part (added 2026-11-07)
     - _Requirements: Req 10.1–10.7_
   - [ ]* 18.2 Write unit tests in `tests/Engine/EngineIntegrationTest.php` (basic flow):
     - `applyTurn(0, [])` advances turn to 1 and returns a `TurnResult` for turn 0
