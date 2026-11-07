@@ -301,6 +301,7 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
 5. WHEN `applyTurn($turnNumber, $actions)` is called for a turn that `prepareTurn` has not prepared, THE Engine SHALL advance the earthquake world for that turn itself, so that `applyTurn` produces a correct result whether or not `prepareTurn` was called.
 6. THE Engine SHALL map the earthquake switch to a non-negative earthquake start turn such that the first robot prompt after the switch is earthquake offset 1, the first shaking turn whose shaking paragraph opens with "Suddenly the floor begins to shake hard."
 7. WHERE an episode does not call `prepareTurn`, THE Engine SHALL leave all existing turn results unchanged, so that every existing engine test continues to pass.
+8. THE Engine SHALL fix the resident's line for a turn when that turn is prepared, so that the line a robot reads in a turn's text is the line of that turn. A line produced while applying turn n (for example the refusal "I don't want to move from here.", Requirement 7.15) SHALL be carried into the text of turn n+1 and SHALL take priority over a scripted line on that turn. THE Engine SHALL NOT emit a line that no robot reads, and SHALL emit at most one resident line per turn. (Added by the maintainer on 2026-11-08.)
 
 ---
 

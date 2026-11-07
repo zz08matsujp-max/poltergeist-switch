@@ -467,7 +467,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Idempotent per turn: record the prepared turn in a `$preparedTurn` int marker; a second call for the same turn number does nothing
     - Never evaluate or execute actions, never advance the turn clock
     - Choose a clean earthquake-switch mapping with NO negative start turn, so the first robot prompt after the switch is offset 1 opening "Suddenly the floor begins to shake hard."
-    - _Requirements: Req 13.1–13.7_
+    - Resident line (Req 13.8, added 2026-11-08): one line per turn, fixed in `prepareTurn`; a refusal produced while applying turn n is carried into turn n+1's text and takes priority there; `applyTurn` must not emit a second line that no robot reads
+    - _Requirements: Req 13.1–13.8_
   - [ ] 28.2 Guard `applyTurn` step 2 on the `$preparedTurn` marker (Req 13):
     - If the turn was already prepared, skip the earthquake advance (it already happened in `prepareTurn`) and proceed to evaluation; otherwise advance the earthquake here as before, so `applyTurn` stays correct whether or not `prepareTurn` was called (backward compatible)
     - A `prepareTurn($n)` followed by `applyTurn($n, …)` must advance the earthquake exactly once
@@ -478,8 +479,9 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - A turn played WITHOUT `prepareTurn` yields the identical TurnResult as before this task (backward compatibility)
     - Property (Eris `limitTo(100)`): for any earthquake episode, `prepareTurn($n)` then `applyTurn($n, …)` equals `applyTurn($n, …)` alone in world snapshot and TurnResult (earthquake advanced exactly once)
     - The earthquake-switch mapping never produces a negative start turn
+    - The resident line: the earthquake shout appears in the first shaking turn's text; a refusal from turn n appears in turn n+1's text; no turn's line is lost or emitted twice (Req 13.8)
     - Run every existing engine test; update any test that assumed the old "applyTurn advances the earthquake before judging" ordering, and state in the task which tests changed
-    - _Requirements: Req 13.1–13.7, Req 11.4_
+    - _Requirements: Req 13.1–13.8, Req 11.4_
 
 - [ ] 29. Situation-text version (added 2026-11-08)
   - [ ] 29.1 Expose a situation-text version (Req 14):
