@@ -335,6 +335,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027916135
+      },
+      {
+        "executionId": "249be69d-fe7c-4ef6-9eb0-c61b5e60e99d",
+        "chatSessionId": "sess_e40eb78f-88f7-414d-be80-3cf02deeae85",
+        "timestamp": 1794038389099
+      },
+      {
+        "executionId": "249be69d-fe7c-4ef6-9eb0-c61b5e60e99d",
+        "chatSessionId": "sess_e40eb78f-88f7-414d-be80-3cf02deeae85",
+        "timestamp": 1794038494203
       }
     ],
     "17.1 Implement `evaluateRefusal(string $proposal, WorldModel $world, EpisodeConfig $config): bool` on `ResidentController`:": [
@@ -569,6 +579,37 @@
         "executionId": "c882251f-c298-4814-974e-0027fb541dc7",
         "chatSessionId": "sess_234497a9-ec2f-4e87-ae64-48e86a056805",
         "timestamp": 1794038069277
+      }
+    ],
+    "15.2 Write unit tests in `tests/Engine/ResidentControllerTest.php`:": [
+      {
+        "executionId": "ced25e90-de69-411f-9a01-298cf5d454d6",
+        "chatSessionId": "sess_35a440ed-2340-4333-80c6-807a84836f09",
+        "timestamp": 1794038193378
+      },
+      {
+        "executionId": "ced25e90-de69-411f-9a01-298cf5d454d6",
+        "chatSessionId": "sess_35a440ed-2340-4333-80c6-807a84836f09",
+        "timestamp": 1794038323100
+      }
+    ],
+    "16. ResidentController — emitDialogueLine": [
+      {
+        "executionId": "249be69d-fe7c-4ef6-9eb0-c61b5e60e99d",
+        "chatSessionId": "sess_e40eb78f-88f7-414d-be80-3cf02deeae85",
+        "timestamp": 1794038494329
+      }
+    ],
+    "16.2 Write unit tests extending `ResidentControllerTest.php`:": [
+      {
+        "executionId": "4c2cabec-d490-4669-a0f9-51a5cb0b76bb",
+        "chatSessionId": "sess_75e169cb-b763-4170-9945-7784808b6aee",
+        "timestamp": 1794038623101
+      },
+      {
+        "executionId": "4c2cabec-d490-4669-a0f9-51a5cb0b76bb",
+        "chatSessionId": "sess_75e169cb-b763-4170-9945-7784808b6aee",
+        "timestamp": 1794038929717
       }
     ]
   }

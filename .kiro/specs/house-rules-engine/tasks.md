@@ -287,7 +287,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Update `weakened` flag: set `true` when `bodyTemp >= config->weakenedThreshold`; set `false` when it drops below
     - All numeric constants read from `$config`; no literals in `ResidentController`
     - _Requirements: Req 6.1–6.11_
-  - [ ]* 15.2 Write unit tests in `tests/Engine/ResidentControllerTest.php`:
+  - [x] 15.2 Write unit tests in `tests/Engine/ResidentControllerTest.php`:
     - Injury delta applied when `shaking=true`, `fallingObjects=true` in resident's room
     - Injury delta is 0 when `residentCovered=true` (cover override)
     - Fear delta applied when `shaking=true`
@@ -302,8 +302,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Uses `->limitTo(100)`
     - _Requirements: Req 6.8, Req 11.2, Req 11.3_
 
-- [ ] 16. ResidentController — emitDialogueLine
-  - [ ] 16.1 Implement `emitDialogueLine(WorldModel $world, EpisodeConfig $config, int $turnNumber): ?string` on `ResidentController`:
+- [x] 16. ResidentController — emitDialogueLine
+  - [x] 16.1 Implement `emitDialogueLine(WorldModel $world, EpisodeConfig $config, int $turnNumber): ?string` on `ResidentController`:
     - Walk `$config->linePriority` in order; for each line key, check condition + cooldown (last delivery was more than `lineCooldownTurns` turns ago, or never); return the first line whose condition fires
     - `earthquake` line: fires when `turnNumber == earthquakeStartTurn`; no cooldown check; text: `"What's happening?!"`
     - `fear` line: fires when `residentState->fear >= fearSpeechThreshold`; text: `"I'm scared..."`
@@ -312,7 +312,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Record delivery turn in `residentState->lastLineDeliveredOn[line_key]`
     - No more than one line per turn (enforced by returning on first match)
     - _Requirements: Req 7.1–7.7_
-  - [ ]* 16.2 Write unit tests extending `ResidentControllerTest.php`:
+  - [x] 16.2 Write unit tests extending `ResidentControllerTest.php`:
     - Earthquake line fires on `earthquakeStartTurn` and ignores cooldown
     - Fear line fires when fear ≥ threshold; obeys cooldown (not re-emitted within 5 turns)
     - Water line fires when water ≤ threshold; obeys cooldown
