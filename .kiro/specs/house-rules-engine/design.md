@@ -492,6 +492,9 @@ class Engine {
 
     /** @param Action[] $actions  keyed by robot_id */
     public function applyTurn(int $turnNumber, array $actions): TurnResult;
+
+    /** Full situation text one robot reads on the next turn (Req 9.12–9.18). */
+    public function situationTextFor(string $robotId): string;
 }
 ```
 
@@ -506,7 +509,9 @@ class Engine {
 7. **Clear turn-scoped flags.** Clear `coverFlag` on both robots and on resident.
 8. **Check episode end.** Call `checkEpisodeEnd()`.
 9. **Advance turn clock.** `$world->currentTurn++`.
-10. **Build and store TurnResult.** Store in `$turnHistory[$turnNumber]`, return.
+10. **Build and store the turn record and result.** Build a `TurnRecord` for this turn — the two `Action`s (with their `words` and any reported speech), the `Outcome`s (carrying `whatHappenedText` and `seenByOtherText` from the ActionExecutor), the `residentLine`, the post-turn world snapshot, and `roomsAtStart` (each robot's room key captured at the *start* of the turn, before any move in step 4) — and append it to the per-turn `$turnRecords` history. Build the `TurnResult`, store it in `$turnHistory[$turnNumber]`, and return it. The error path (step 1 future-turn / a thrown exception) stores no `TurnRecord`.
+
+**`situationTextFor(string $robotId): string`.** Produces the text that robot reads on its next turn. It calls `$textGen->generate($robotId, $world, $recent)` where `$recent` is the last five `TurnRecord`s (oldest first), so the generator can build the "In the last 15 seconds:" block and the up-to-four earlier blocks under rule A (Req 9.16–9.18), the shaking paragraph ("The lights go out." at earthquake offset 2, "The shaking has stopped." at offset 5/13), and the resident line. The four per-turn `SituationView` flags set in step 10's neighbourhood (see §i) and the stored `TurnRecord`s are the only state this read needs; it never mutates the world. The observer/recorder layer calls `situationTextFor` for each robot between turns; the Engine itself never performs I/O.
 
 ---
 
@@ -563,6 +568,13 @@ class ActionExecutor {
 - **support:** Sets a two-turn support flag on robot; actual room transfer happens on the second turn.
 - **cover:** Set turn-scoped `coverFlag` on target (resident or robot itself).
 - **speak:** Append `{words}` to turn record. No world-model mutation.
+
+**Outcome text contract (Req 9.16, Req 12.3).** Every executed operation fills two fields on the `Outcome`:
+
+- `whatHappenedText` — second person, past tense, describing what this robot did and its immediate effect, e.g. `"You turned off the gas stove. The flame went out."` or `"You moved to the kitchen."`.
+- `seenByOtherText` — the same event from the other robot's viewpoint, starting with `"The other robot"`, e.g. `"The other robot turned off the gas stove. The flame went out."`. SituationTextGenerator only shows this when rule A says the two robots shared a room (Req 9.16, Property 11).
+
+`speak` and `unknown` produce **empty** `whatHappenedText` and `seenByOtherText`: a spoken line is carried by `Action.words` and delivered separately, and an `unknown` reading executes nothing (Req 12.3). A failed/impossible action also carries no event text.
 
 **Rollback pattern:**
 
@@ -669,6 +681,8 @@ Cooldown: line was not delivered in the last `$config->lineCooldownTurns` turns 
 ### i. SituationTextGenerator
 
 Produces the full text string for one robot on one turn. Ports all logic from `pilot/index.php`.
+
+`generate()` is called by `Engine::situationTextFor` (§d), which supplies the live `WorldModel` and the last five `TurnRecord`s (oldest first). The four per-turn `SituationView` flags the Engine sets each turn in step 10 — `wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine` — are what let the shaking paragraph open correctly, append "The lights go out." at earthquake offset 2, switch to "The shaking has stopped." at offset 5/13, and voice the resident. The recent-events section is built from the `TurnRecord`s' `Outcome` texts (`seenByOtherText` under rule A) and spoken `words`; this is why `situationTextFor` is the Engine's responsibility rather than the observer layer's (tasks 22–24 provide the generator; task 26 wires the Engine to it).
 
 ```php
 class SituationTextGenerator {

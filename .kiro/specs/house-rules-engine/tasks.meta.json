@@ -7,6 +7,10 @@
     "14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": {
       "status": "passed",
       "lastRunTimestamp": 1794037521616
+    },
+    "18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794040863367
     }
   },
   "executionHistory": {
@@ -352,6 +356,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027916250
+      },
+      {
+        "executionId": "289ef4c7-f58f-4dda-8565-03e4dd131397",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040196663
+      },
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040281976
       }
     ],
     "18.1 Implement `Engine` in `src/Engine/Engine.php`:": [
@@ -359,6 +373,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027916363
+      },
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040328969
+      },
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040740760
       }
     ],
     "18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:": [
@@ -366,6 +390,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027916534
+      },
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040746346
+      },
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040889251
       }
     ],
     "19.1 Implement `checkEpisodeEnd()` on `Engine`:": [
@@ -610,6 +644,49 @@
         "executionId": "4c2cabec-d490-4669-a0f9-51a5cb0b76bb",
         "chatSessionId": "sess_75e169cb-b763-4170-9945-7784808b6aee",
         "timestamp": 1794038929717
+      }
+    ],
+    "17. ResidentController — evaluateRefusal": [
+      {
+        "executionId": "7683355e-80b4-4781-b094-f8414303a4ce",
+        "chatSessionId": "sess_d659dfc4-604b-4a70-97ae-631cc8e29d7d",
+        "timestamp": 1794039190168
+      },
+      {
+        "executionId": "7683355e-80b4-4781-b094-f8414303a4ce",
+        "chatSessionId": "sess_d659dfc4-604b-4a70-97ae-631cc8e29d7d",
+        "timestamp": 1794039824847
+      }
+    ],
+    "17.2 Write unit tests extending `ResidentControllerTest.php`:": [
+      {
+        "executionId": "b00f7413-cadc-4bb9-9801-8dfc1d3f7793",
+        "chatSessionId": "sess_87cd6be6-0b02-4145-aca8-84f6f6abbcbc",
+        "timestamp": 1794039931385
+      },
+      {
+        "executionId": "b00f7413-cadc-4bb9-9801-8dfc1d3f7793",
+        "chatSessionId": "sess_87cd6be6-0b02-4145-aca8-84f6f6abbcbc",
+        "timestamp": 1794039987649
+      }
+    ],
+    "18.2 Write unit tests in `tests/Engine/EngineIntegrationTest.php` (basic flow):": [
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040747147
+      },
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040890223
+      }
+    ],
+    "18. Engine — applyTurn and idempotency": [
+      {
+        "executionId": "223fdf31-f92e-472a-aa7a-ca7ab80b751e",
+        "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
+        "timestamp": 1794040889495
       }
     ]
   }

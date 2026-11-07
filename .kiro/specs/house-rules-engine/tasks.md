@@ -333,8 +333,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `weakened=true` → always accept regardless of support/reason
     - _Requirements: Req 7.8–7.11_
 
-- [ ] 18. Engine — applyTurn and idempotency
-  - [ ] 18.1 Implement `Engine` in `src/Engine/Engine.php`:
+- [x] 18. Engine — applyTurn and idempotency
+  - [x] 18.1 Implement `Engine` in `src/Engine/Engine.php`:
     - Constructor: `WorldModel`, `EpisodeConfig`, `RulesEvaluator`, `ActionExecutor`, `EarthquakePhase`, `ResidentController`, `SituationTextGenerator`
     - `applyTurn(int $turnNumber, array $actions): TurnResult` following the processing order in design.md §d:
       1. Idempotency check (past turn → return stored; future turn → return error; current turn → proceed)
@@ -352,13 +352,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Count down each robot's `supportTurnsRemaining` (set by `support` in task 13); when it reaches 0, move the resident only if `ResidentController::evaluateRefusal()` accepts. Where the destination comes from is not fixed in the spec yet: ask the maintainer before implementing this part (added 2026-11-07)
     - Call `EarthquakePhase::captureStoveWasOn()` when `earthquakeStartTurn` is set, and `clearStoveWasOn()` when a `use` action turns the stove off, so the delayed stove hazard at offset 6 happens only if the flame is still on (added 2026-11-07)
     - _Requirements: Req 10.1–10.7_
-  - [ ]* 18.2 Write unit tests in `tests/Engine/EngineIntegrationTest.php` (basic flow):
+  - [x]* 18.2 Write unit tests in `tests/Engine/EngineIntegrationTest.php` (basic flow):
     - `applyTurn(0, [])` advances turn to 1 and returns a `TurnResult` for turn 0
     - Calling `applyTurn(0, [])` again returns the same stored `TurnResult` without re-applying actions
     - Calling `applyTurn(2, [])` when current turn is 0 returns `isError=true` and leaves turn at 0
     - Calling `applyTurn(0, [robotA: move to adjacent room])` updates robot_a's room in the returned snapshot
     - _Requirements: Req 10.1–10.5_
-  - [ ] 18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:
+  - [x] 18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:
     - **Property 4: applyTurn idempotency** — `forAll(int seed)`: call `applyTurn(n, actions)`, capture `TurnResult` and snapshot; call `applyTurn(n, actions)` again; assert both `TurnResult` values are equal and world snapshot is unchanged
     - Uses `->limitTo(100)`
     - _Requirements: Req 10.2–10.3, Req 11.4_
@@ -445,6 +445,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 - [ ] 25. Resident move via support (added 2026-11-07)
   - Decide with the maintainer where the destination comes from (a room, or a spot such as under the table), then move the resident when the support countdown reaches 0 and evaluateRefusal() accepts
   - _Requirements: Req 7.8–7.11_
+
+- [ ] 26. Engine — turn records and each robot's situation text (added 2026-11-07)
+  - [ ] 26.1 ActionExecutor: whatHappenedText in the second person, past tense, and seenByOtherText starting "The other robot", for every operation; both empty for speak and unknown (Req 9.16, Req 12.3)
+  - [ ] 26.2 Engine: store a TurnRecord for every applied turn (with roomsAtStart) and add `situationTextFor(string $robotId): string`, which calls SituationTextGenerator::generate() with the world and the last five TurnRecords
+  - [ ] 26.3 Tests: at earthquake offset 2 the text for both robots contains "The lights go out."; at offset 5 it contains "The shaking has stopped."; on the turn after a robot speaks, the other robot's text contains its line under "In the last 15 seconds:"
+  - _Requirements: Req 9.12–9.18, Req 10.1_
 
 ---
 
