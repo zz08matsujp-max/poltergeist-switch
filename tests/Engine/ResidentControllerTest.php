@@ -577,4 +577,117 @@ class ResidentControllerTest extends TestCase
         $this->assertArrayNotHasKey('water', $world->residentState->lastLineDeliveredOn);
         $this->assertArrayNotHasKey('darkness', $world->residentState->lastLineDeliveredOn);
     }
+
+    // ==================================================================
+    // evaluateRefusal (task 17.2) — the resident's move-refusal rule,
+    // Req 7.8–7.11. The proposal string carries the two per-turn facts the
+    // resident weighs: a `support` token means a robot supported him this
+    // turn, a `destination` token means a robot named where they are taking
+    // him. A weakened resident accepts any move regardless of those facts.
+    //   true  = refuse,  false = accept.
+    // ==================================================================
+
+    // ------------------------------------------------------------------
+    // 13. weakened=false, no support action → refuse (Req 7.8–7.9).
+    // ------------------------------------------------------------------
+
+    public function testRefusesMoveWhenNotWeakenedAndNoSupport(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->residentState->weakened = false;
+
+        $this->assertTrue(
+            (new ResidentController())->evaluateRefusal('move_resident', $world, $config),
+            'A move proposal without a support action is refused'
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // 14. weakened=false, support but no destination reason → refuse (Req 7.9).
+    // ------------------------------------------------------------------
+
+    public function testRefusesMoveWhenSupportButNoDestinationReason(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->residentState->weakened = false;
+
+        $this->assertTrue(
+            (new ResidentController())->evaluateRefusal('move_resident support', $world, $config),
+            'A supported move is still refused when no robot named the destination'
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // 15. weakened=false, support AND destination reason → accept (Req 7.10).
+    // ------------------------------------------------------------------
+
+    public function testAcceptsMoveWhenSupportedAndDestinationNamed(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->residentState->weakened = false;
+
+        $this->assertFalse(
+            (new ResidentController())->evaluateRefusal(
+                'move_resident support destination',
+                $world,
+                $config
+            ),
+            'A supported move with a named destination is accepted'
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // 16. weakened=true → always accept, overriding support/reason (Req 7.11).
+    // ------------------------------------------------------------------
+
+    public function testWeakenedResidentAlwaysAcceptsMove(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->residentState->weakened = true;
+
+        // Neither a support action nor a destination reason is present, yet a
+        // weakened resident accepts the move anyway (Req 7.11 overrides 9–10).
+        $this->assertFalse(
+            (new ResidentController())->evaluateRefusal('move_resident', $world, $config),
+            'A weakened resident accepts a move proposal regardless of support or reason'
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // 17. No move proposal → nothing to refuse (accept/no-op).
+    // ------------------------------------------------------------------
+
+    public function testNoRefusalWhenNoMoveProposed(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->residentState->weakened = false;
+
+        $this->assertFalse(
+            (new ResidentController())->evaluateRefusal('', $world, $config),
+            'With no move proposal there is nothing to refuse'
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // 18. The refusal line is the fixed English text (Req 7.9).
+    // ------------------------------------------------------------------
+
+    public function testRefusalLineText(): void
+    {
+        $this->assertSame(
+            "I don't want to move from here.",
+            (new ResidentController())->refusalLine(),
+            'The refusal line matches the scripted text in Req 7.9'
+        );
+    }
 }

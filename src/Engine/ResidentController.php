@@ -17,9 +17,9 @@ use PoltergeistSwitch\Engine\Values\TurnActions;
  * in this class (Req 6.1–6.11).
  *
  * Task 15.1 implements updateState only. Task 16.1 adds emitDialogueLine;
- * evaluateRefusal (task 17) is added later.
+ * task 17.1 adds evaluateRefusal.
  *
- * Requirements: Req 6.1–6.11, Req 7.1–7.7
+ * Requirements: Req 6.1–6.11, Req 7.1–7.12
  */
 class ResidentController
 {
@@ -171,6 +171,105 @@ class ResidentController
         }
 
         return null;
+    }
+
+    /**
+     * Decide whether the resident refuses a robot's proposal to move him this
+     * turn (design §h, Req 7.8–7.11). Returns true to refuse, false to accept.
+     *
+     * The method decides from three inputs:
+     *   - the weakened flag, read live from `$world->residentState->weakened`;
+     *   - whether a robot executed a `support` action targeting the resident
+     *     this turn;
+     *   - whether a robot emitted a dialogue event naming the destination room
+     *     this turn.
+     *
+     * The method signature carries only the `$proposal` string (design §h), so
+     * the two per-turn facts travel inside it. `$proposal` is a token string
+     * assembled by the caller (the Engine, task 18) from the turn's actions and
+     * dialogue events. Tokens are separated by any run of whitespace and/or
+     * commas, so order does not matter and the empty string is a valid "nothing
+     * proposed" value. Recognised tokens:
+     *   - `move_resident` — a robot proposed moving the resident this turn;
+     *   - `support`       — a robot executed a support action targeting the
+     *                       resident this turn;
+     *   - `destination`   — a robot emitted a dialogue event naming the
+     *                       destination room as the move's purpose this turn.
+     * Any other token is ignored.
+     *
+     * Decision (Req 7.8–7.11):
+     *   - No move proposal → nothing to refuse; return false (accept/no-op).
+     *   - `weakened=true` overrides everything: accept (return false), Req 7.11.
+     *   - `weakened=false`: accept only when BOTH a support action was executed
+     *     AND the destination was named this turn (Req 7.10); otherwise refuse
+     *     with "I don't want to move from here." (Req 7.8–7.9).
+     *
+     * Air conditioner refusal (Req 7.12) is NOT implemented here: it belongs to
+     * the heat-wave scenario, which is out of scope for this spec's tests. When
+     * that scenario is built, the air-conditioner proposal would be recognised
+     * here (e.g. an `activate_air_conditioner` token) and would accept only when
+     * the resident was told why the heat is dangerous this turn AND an
+     * alternative cooling device was prepared on an earlier turn, or when
+     * `weakened=true`; otherwise it refuses with "I hate the air conditioner."
+     *
+     * @param string $proposal token string describing the proposal and the
+     *                          turn's supporting facts (see above)
+     * @return bool true = refuse the proposal; false = accept it (or no move
+     *              proposal was made)
+     */
+    public function evaluateRefusal(
+        string $proposal,
+        WorldModel $world,
+        EpisodeConfig $config,
+    ): bool {
+        $tokens = $this->parseProposalTokens($proposal);
+
+        // Nothing to refuse unless a move of the resident was actually proposed.
+        if (!in_array('move_resident', $tokens, true)) {
+            return false;
+        }
+
+        // A weakened resident accepts any move proposal, overriding the support
+        // and destination-reason conditions entirely (Req 7.11).
+        if ($world->residentState->weakened) {
+            return false;
+        }
+
+        // Otherwise the resident moves only when a robot both supported him and
+        // named where they are taking him this turn (Req 7.10). Missing either
+        // fact is a refusal (Req 7.8–7.9).
+        $supported        = in_array('support', $tokens, true);
+        $destinationNamed = in_array('destination', $tokens, true);
+
+        return !($supported && $destinationNamed);
+    }
+
+    /**
+     * The fixed English line the resident speaks when he refuses a move
+     * proposal (Req 7.9). Kept as a named helper so the Engine (task 18) can
+     * surface it as the refusal dialogue event without duplicating the string.
+     */
+    public function refusalLine(): string
+    {
+        return "I don't want to move from here.";
+    }
+
+    /**
+     * Split a proposal token string into a list of tokens. Tokens are
+     * separated by any run of whitespace and/or commas; empty pieces are
+     * dropped, so the empty string yields an empty list.
+     *
+     * @return list<string>
+     */
+    private function parseProposalTokens(string $proposal): array
+    {
+        $pieces = preg_split('/[\s,]+/', trim($proposal));
+
+        if ($pieces === false) {
+            return [];
+        }
+
+        return array_values(array_filter($pieces, static fn (string $t): bool => $t !== ''));
     }
 
     /**
