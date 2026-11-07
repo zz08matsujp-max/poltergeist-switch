@@ -16,10 +16,10 @@ use PoltergeistSwitch\Engine\Values\TurnActions;
  * flag. Every numeric constant comes from EpisodeConfig — no literal appears
  * in this class (Req 6.1–6.11).
  *
- * Task 15.1 implements updateState only. emitDialogueLine (task 16) and
- * evaluateRefusal (task 17) are added later.
+ * Task 15.1 implements updateState only. Task 16.1 adds emitDialogueLine;
+ * evaluateRefusal (task 17) is added later.
  *
- * Requirements: Req 6.1–6.11
+ * Requirements: Req 6.1–6.11, Req 7.1–7.7
  */
 class ResidentController
 {
@@ -118,6 +118,118 @@ class ResidentController
         // 7. Refresh the weakened flag: set when body temperature reaches the
         //    threshold, cleared when it drops below (Req 6.10).
         $resident->weakened = $resident->bodyTemp >= $config->weakenedThreshold;
+    }
+
+    /**
+     * Emit at most one scripted dialogue line for the resident this turn, or
+     * null when no line fires (design §h, Req 7.1–7.7).
+     *
+     * The configured priority order (`$config->linePriority`) is walked in
+     * sequence; the first line whose condition holds and whose cooldown has
+     * expired is delivered. Returning on the first match guarantees no more
+     * than one line per turn (Req 7.7). The delivery turn is recorded in
+     * `residentState->lastLineDeliveredOn[$lineKey]` so the cooldown applies on
+     * later turns (Req 7.6).
+     *
+     * Line conditions:
+     *   earthquake — fires when `turnNumber == earthquakeStartTurn`; it is the
+     *                earthquake-start shout and carries no cooldown (Req 7.1).
+     *   fear       — fires when `fear >= fearSpeechThreshold` (Req 7.2–7.3).
+     *   water      — fires when `water <= waterSpeechThreshold` (Req 7.4).
+     *   darkness   — fires when the resident's room is dark (Req 7.5).
+     *
+     * Cooldown (Req 7.6): every line except the earthquake line is suppressed
+     * when it was delivered within the preceding `$config->lineCooldownTurns`
+     * turns; it may fire again once that many turns have passed, or if it has
+     * never been delivered.
+     *
+     * @return string|null the spoken line, or null when nothing fires
+     */
+    public function emitDialogueLine(
+        WorldModel $world,
+        EpisodeConfig $config,
+        int $turnNumber,
+    ): ?string {
+        $resident = $world->residentState;
+
+        foreach ($config->linePriority as $lineKey) {
+            if (!$this->lineConditionHolds($lineKey, $world, $config, $turnNumber)) {
+                continue;
+            }
+
+            // The earthquake-start shout ignores the cooldown; every other
+            // line must have expired its cooldown to fire again.
+            if ($lineKey !== 'earthquake'
+                && $this->lineOnCooldown($resident, $config, $lineKey, $turnNumber)
+            ) {
+                continue;
+            }
+
+            $resident->lastLineDeliveredOn[$lineKey] = $turnNumber;
+
+            return $this->lineText($lineKey);
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the condition for the given line key holds this turn (design §h).
+     * Unknown line keys never fire.
+     */
+    private function lineConditionHolds(
+        string $lineKey,
+        WorldModel $world,
+        EpisodeConfig $config,
+        int $turnNumber,
+    ): bool {
+        $resident = $world->residentState;
+
+        return match ($lineKey) {
+            'earthquake' => $world->earthquakeStartTurn !== null
+                && $turnNumber === $world->earthquakeStartTurn,
+            'fear'     => $resident->fear >= $config->fearSpeechThreshold,
+            'water'    => $resident->water <= $config->waterSpeechThreshold,
+            'darkness' => $world->getRoom($resident->room)->lightLevel === LightLevel::dark,
+            default    => false,
+        };
+    }
+
+    /**
+     * Whether the line is still within its cooldown window. A line is on
+     * cooldown when it was last delivered within the preceding
+     * `$config->lineCooldownTurns` turns (turn T−1 … T−cooldown inclusive); a
+     * line never delivered is never on cooldown (Req 7.6).
+     */
+    private function lineOnCooldown(
+        ResidentState $resident,
+        EpisodeConfig $config,
+        string $lineKey,
+        int $turnNumber,
+    ): bool {
+        if (!array_key_exists($lineKey, $resident->lastLineDeliveredOn)) {
+            return false;
+        }
+
+        $lastDelivered = $resident->lastLineDeliveredOn[$lineKey];
+
+        return ($turnNumber - $lastDelivered) <= $config->lineCooldownTurns;
+    }
+
+    /**
+     * The fixed English text for each scripted line key (Req 7.1–7.5).
+     */
+    private function lineText(string $lineKey): string
+    {
+        return match ($lineKey) {
+            'earthquake' => "What's happening?!",
+            'fear'       => "I'm scared...",
+            'water'      => 'Water... give me some water.',
+            'darkness'   => "I can't see anything.",
+            default      => throw new \InvalidArgumentException(
+                "Unknown dialogue line key: {$lineKey}"
+            ),
+        };
     }
 
     /**
