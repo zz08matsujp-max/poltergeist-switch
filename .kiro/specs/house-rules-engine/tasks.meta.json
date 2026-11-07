@@ -172,6 +172,215 @@
         "chatSessionId": "sess_2d8f2479-3182-4cb6-84f9-32cd0b229bb7",
         "timestamp": 1794026956970
       }
+    ],
+    "6.1 Implement `Room` class and `ObjectState` class in `src/Engine/` (or sub-namespaces):": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027914317
+      },
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027928086
+      },
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794028081857
+      }
+    ],
+    "6.2 Implement `WorldModel` in `src/Engine/WorldModel.php` — room and object initialization only (no `reset()` + `SituationSpec` application yet):": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027914500
+      },
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794028085739
+      },
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794028356192
+      }
+    ],
+    "7.1 Implement `reset(Seed $seed, ?SituationSpec $spec = null): void` on `WorldModel`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027914629
+      }
+    ],
+    "8.1 Implement `objects_visible_to(string $robotId, int $turn): array` on `WorldModel`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027914782
+      }
+    ],
+    "8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027914901
+      }
+    ],
+    "9.1 Implement `RulesEvaluator` in `src/Engine/RulesEvaluator.php` — `move` and `take` operations:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915014
+      }
+    ],
+    "10.1 Extend `RulesEvaluator` with `use`, `hand_over`, `support`, `cover`, `wait`, `speak` operations:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915123
+      }
+    ],
+    "11.1 Extend `RulesEvaluator` with danger code evaluation:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915295
+      }
+    ],
+    "12.1 Implement `ActionExecutor` in `src/Engine/ActionExecutor.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915412
+      }
+    ],
+    "13.1 Extend `ActionExecutor` with `support` and `hand_over` operations:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915519
+      }
+    ],
+    "14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915631
+      }
+    ],
+    "14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915751
+      }
+    ],
+    "15.1 Implement `ResidentController` in `src/Engine/ResidentController.php` — `updateState` method:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027915916
+      }
+    ],
+    "15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916028
+      }
+    ],
+    "16.1 Implement `emitDialogueLine(WorldModel $world, EpisodeConfig $config, int $turnNumber): ?string` on `ResidentController`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916135
+      }
+    ],
+    "17.1 Implement `evaluateRefusal(string $proposal, WorldModel $world, EpisodeConfig $config): bool` on `ResidentController`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916250
+      }
+    ],
+    "18.1 Implement `Engine` in `src/Engine/Engine.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916363
+      }
+    ],
+    "18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916534
+      }
+    ],
+    "19.1 Implement `checkEpisodeEnd()` on `Engine`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916650
+      }
+    ],
+    "20.1 Complete the property tests in `tests/Engine/Properties/`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916764
+      }
+    ],
+    "20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027916867
+      }
+    ],
+    "21.1 Implement the model solution integration test in `tests/Engine/EngineIntegrationTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027917035
+      }
+    ],
+    "21.2 Checkpoint — all tests pass": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027917138
+      }
+    ],
+    "24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: \"The floor is still shaking hard.\" when the previous turn was shaking, \"The lights go out.\" on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027917254
+      }
+    ],
+    "24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027917420
+      }
+    ],
+    "24.3 Checkpoint — all tests pass": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794027917537
+      }
+    ],
+    "6. WorldModel — rooms, adjacency, and object registry": [
+      {
+        "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
+        "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
+        "timestamp": 1794028356327
+      }
     ]
   }
 }

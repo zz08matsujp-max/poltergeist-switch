@@ -102,15 +102,15 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - All six golden prompts (S0-S5) include the shaking paragraph, so the world stub must have `shaking=true` in every situation.
     - _Requirements: Req 9.1–9.15, Req 11.9, Req 11.11_
 
-- [ ] 6. WorldModel — rooms, adjacency, and object registry
-  - [ ] 6.1 Implement `Room` class and `ObjectState` class in `src/Engine/` (or sub-namespaces):
+- [x] 6. WorldModel — rooms, adjacency, and object registry
+  - [x] 6.1 Implement `Room` class and `ObjectState` class in `src/Engine/` (or sub-namespaces):
     - `Room`: `key`, `displayName`, `adjacentRooms` (string[]), `lightLevel`, `temperature`, `hotWaterInjuryHazard`, `fixtureKeys`
     - `ObjectState`: all fields from design.md (`id`, `displayName`, `room`, `spot`, `on`, `open`, `contents`, `broken`, `fallen`, `breakable`, `isFireSource`, `isWaterContainer`, `isHeavy`, `isElectric`, `isLightSource`, `isProtective`, `isPot`)
     - `RobotState`: `id`, `room`, `spot`, `heldObjectId`, `coverFlag`
     - `ResidentState`: `bodyTemp`, `water`, `injury`, `fear`, `weakened`, `room`, `spot`, `activity`, `coverFlag`, `lastLineDeliveredOn`
     - `HouseState`: `power`, `gasMain`, `floorWaterLevel`, `shaking`, `fallingObjects`, `timeOfDay`
     - _Requirements: Req 2.1, Req 2.6, Req 2.7_
-  - [ ] 6.2 Implement `WorldModel` in `src/Engine/WorldModel.php` — room and object initialization only (no `reset()` + `SituationSpec` application yet):
+  - [x] 6.2 Implement `WorldModel` in `src/Engine/WorldModel.php` — room and object initialization only (no `reset()` + `SituationSpec` application yet):
     - Private method `initRooms(): void` — creates the six rooms with fixed adjacency: `living_room ↔ kitchen`, `living_room ↔ bedroom`, `living_room ↔ entrance`, `kitchen ↔ bathroom`, `kitchen ↔ storeroom`; no other links
     - Private method `initObjects(): void` — creates all ~20 objects in their canonical rooms in the fixed room order from Req 1.6; all flags false initially
     - `getRoom(string $key): Room` — throws `InvalidArgumentException` on unknown key
@@ -126,7 +126,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 1.4–1.6, Req 2.1–2.3_
 
 - [ ] 7. WorldModel: reset() and SituationSpec application
-  - [ ] 7.1 Implement `reset(Seed $seed, ?SituationSpec $spec = null): void` on `WorldModel`:
+  - [~] 7.1 Implement `reset(Seed $seed, ?SituationSpec $spec = null): void` on `WorldModel`:
     - If `$spec` is null, derive via `SituationSpec::fromSeed($seed)`; otherwise use `$spec` directly
     - Re-initialise all six rooms and all ~20 objects (call `initRooms()` and `initObjects()`)
     - Apply `HouseState`: `power=on`, `gasMain=open`, all room temperatures to 22.0 °C, all room light levels to `LightLevel::normal`, `floorWaterLevel=0`, `shaking=false`, `fallingObjects=false`
@@ -144,7 +144,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 1.7–1.11, Req 8.7–8.8_
 
 - [ ] 8. WorldModel: objects_visible_to() and one-room property
-  - [ ] 8.1 Implement `objects_visible_to(string $robotId, int $turn): array` on `WorldModel`:
+  - [~] 8.1 Implement `objects_visible_to(string $robotId, int $turn): array` on `WorldModel`:
     - Look up robot's current room
     - If room `lightLevel === LightLevel::dark`, return `[]`
     - Return objects whose `room` matches the robot's room in the fixed room order defined in Req 1.6; exclude fixtures
@@ -155,13 +155,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Fixtures are never included in the returned list
     - After moving an object to a different room (mutate directly in test), it no longer appears in the original room's list
     - _Requirements: Req 2.3–2.4, Req 1.12_
-  - [ ] 8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
+  - [~] 8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 2: One-room invariant** — `forAll(int seed)`: after `reset(seed)`, every `ObjectState` in `$world->objects` appears in exactly one room (cross-check: count objects per room key matches total object count)
     - Uses `Eris\TestTrait`, `->withMinSuccesses(100)`
     - _Requirements: Req 2.1–2.2, Req 11.1_
 
 - [ ] 9. RulesEvaluator — move and take operations
-  - [ ] 9.1 Implement `RulesEvaluator` in `src/Engine/RulesEvaluator.php` — `move` and `take` operations:
+  - [~] 9.1 Implement `RulesEvaluator` in `src/Engine/RulesEvaluator.php` — `move` and `take` operations:
     - `evaluate(Action $action, WorldModel $world, EpisodeConfig $config, array $allActions): Judgement`
     - `move`: returns `possible=false, reason="not_adjacent"` when target room is not adjacent; returns `possible=true` when adjacent and no danger condition applies
     - `take`: returns `possible=false, reason="hands_full"` when robot already holds an object; returns `possible=false, reason="object_not_in_room"` when target object is not in robot's room
@@ -178,7 +178,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 4.2–4.3, Req 4.7, Req 4.12_
 
 - [ ] 10. RulesEvaluator — remaining operations
-  - [ ] 10.1 Extend `RulesEvaluator` with `use`, `hand_over`, `support`, `cover`, `wait`, `speak` operations:
+  - [~] 10.1 Extend `RulesEvaluator` with `use`, `hand_over`, `support`, `cover`, `wait`, `speak` operations:
     - `use`: returns `possible=false, reason="object_not_in_room"` when target object not in robot's room
     - `hand_over`: returns `possible=false, reason="no_object_held"` when robot holds nothing; `possible=false, reason="not_in_same_room"` when resident is not in robot's room
     - `support`: returns `possible=true, duration=2` when resident is in robot's room; `possible=false, reason="not_in_same_room"` otherwise
@@ -194,7 +194,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 4.4–4.6_
 
 - [ ] 11. RulesEvaluator — danger codes R1, R2, R3, and priority conflict
-  - [ ] 11.1 Extend `RulesEvaluator` with danger code evaluation:
+  - [~] 11.1 Extend `RulesEvaluator` with danger code evaluation:
     - R1: while `shaking=true`, `move` targeting a window spot → `dangerous=true, dangerCode="R1"`; if also impossible for another reason, both `possible=false` (with reason) and `dangerous=true, dangerCode="R1"` are set simultaneously
     - R2a: while `shaking=true`, `move` places robot on gas stove spot → always records `dangerCode="R2a"`; `dangerous` flag is set per `$config->r2aIsDangerous`
     - R2b: while `shaking=true`, `use` targeting gas stove → always records `dangerCode="R2b"`; `dangerous` flag is set per `$config->r2bIsDangerous`
@@ -211,7 +211,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 4.8–4.13_
 
 - [ ] 12. ActionExecutor — move, take, use, speak, cover, and rollback
-  - [ ] 12.1 Implement `ActionExecutor` in `src/Engine/ActionExecutor.php`:
+  - [~] 12.1 Implement `ActionExecutor` in `src/Engine/ActionExecutor.php`:
     - `execute(Action $action, Judgement $judgement, WorldModel $world, EpisodeConfig $config): Outcome`
     - If `$judgement->possible === false`, return `Outcome::failure()` without mutating world state
     - Snapshot/restore rollback pattern (see design.md §f)
@@ -235,7 +235,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 5.1–5.4, Req 5.9–5.10_
 
 - [ ] 13. ActionExecutor — support and hand_over
-  - [ ] 13.1 Extend `ActionExecutor` with `support` and `hand_over` operations:
+  - [~] 13.1 Extend `ActionExecutor` with `support` and `hand_over` operations:
     - `support`: set a two-turn support flag on the robot (`supportTurnsRemaining = 2`); actual resident room transfer happens on the second turn when the flag decrements to zero
     - `hand_over`: clear robot's `heldObjectId`; if object `isWaterContainer`, add `$config->waterDeltaHandover` to `residentState->water` (will be clamped at end of turn by `ResidentController`); assign object to resident
     - `hand_over` guards: if resident not in same room, or robot holds no object, leave world unchanged and return `Outcome::failure()` (double-check against `Judgement::possible` — the evaluator already covers these, but the executor enforces them independently per Req 5.11)
@@ -249,7 +249,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 5.5–5.6, Req 5.11_
 
 - [ ] 14. EarthquakePhase
-  - [ ] 14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:
+  - [~] 14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:
     - `advanceTurn(WorldModel $world, Seed $seed, int $turnOffset): void`
     - Sets `houseState->shaking` per the offset table: `true` at offsets 1–4 and 12; `false` at all others (0, 5–11, 13)
     - At offset 2: set `power = PowerState::outage`; call `updateLightLevels()`
@@ -270,13 +270,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `disasterSubsided=true` at offset 13
     - Same seed produces identical fallen-object sets across two separate runs
     - _Requirements: Req 3.1–3.8_
-  - [ ] 14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
+  - [~] 14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 5: Earthquake determinism** — `forAll(int seed)`: run the earthquake phase (offsets 1–13) twice on two separate `WorldModel` instances reset with the same seed and no robot actions; fallen object sets per offset are identical
     - Uses `->withMinSuccesses(100)`
     - _Requirements: Req 3.4, Req 3.8, Req 8.5, Req 11.5_
 
 - [ ] 15. ResidentController — updateState
-  - [ ] 15.1 Implement `ResidentController` in `src/Engine/ResidentController.php` — `updateState` method:
+  - [~] 15.1 Implement `ResidentController` in `src/Engine/ResidentController.php` — `updateState` method:
     - `updateState(WorldModel $world, EpisodeConfig $config, TurnActions $turnActions): void`
     - Apply deltas in the order specified in design.md §h: injury from falling objects (if `shaking && fallingObjects` in resident's room AND `!residentState->coverFlag`, add `injuryDeltaFalling`); fear from shaking (`fearDeltaShaking`); fear from darkness (`fearDeltaDark`); fear reduction from same-room speech (`fearDeltaSpeakSameRoom`); fear reduction from other-room speech (`fearDeltaSpeakOtherRoom`)
     - Cover override: if `coverFlag` is set on resident, injury increment from falling objects is 0 for this turn
@@ -294,13 +294,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - All resident state values clamped to their ranges after update
     - `weakened` flag set when `bodyTemp >= weakenedThreshold`; cleared when `bodyTemp` drops below
     - _Requirements: Req 6.1–6.11_
-  - [ ] 15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
+  - [~] 15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 3: Resident state range** — `forAll(int seed)`: after any sequence of `applyTurn` calls (up to 13 turns, no robot actions), all `ResidentState` values remain within their clamped ranges
     - Uses `->withMinSuccesses(100)`
     - _Requirements: Req 6.8, Req 11.2, Req 11.3_
 
 - [ ] 16. ResidentController — emitDialogueLine
-  - [ ] 16.1 Implement `emitDialogueLine(WorldModel $world, EpisodeConfig $config, int $turnNumber): ?string` on `ResidentController`:
+  - [~] 16.1 Implement `emitDialogueLine(WorldModel $world, EpisodeConfig $config, int $turnNumber): ?string` on `ResidentController`:
     - Walk `$config->linePriority` in order; for each line key, check condition + cooldown (last delivery was more than `lineCooldownTurns` turns ago, or never); return the first line whose condition fires
     - `earthquake` line: fires when `turnNumber == earthquakeStartTurn`; no cooldown check; text: `"What's happening?!"`
     - `fear` line: fires when `residentState->fear >= fearSpeechThreshold`; text: `"I'm scared..."`
@@ -318,7 +318,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 7.1–7.7_
 
 - [ ] 17. ResidentController — evaluateRefusal
-  - [ ] 17.1 Implement `evaluateRefusal(string $proposal, WorldModel $world, EpisodeConfig $config): bool` on `ResidentController`:
+  - [~] 17.1 Implement `evaluateRefusal(string $proposal, WorldModel $world, EpisodeConfig $config): bool` on `ResidentController`:
     - Returns `true` (refuse) when: robot proposes moving the resident AND `weakened=false` AND (no robot has executed a `support` action targeting the resident this turn OR no robot has given a destination reason this turn); text: `"I don't want to move from here."`
     - Returns `false` (accept) when: `weakened=true` (overrides all other conditions); OR (robot has executed `support` action AND at least one robot emitted a dialogue event naming the destination this turn)
     - Air conditioner refusal (Req 7.12) is documented as out of scope for this spec's tests; include a stub or comment indicating the condition but mark it unimplemented
@@ -331,7 +331,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 7.8–7.11_
 
 - [ ] 18. Engine — applyTurn and idempotency
-  - [ ] 18.1 Implement `Engine` in `src/Engine/Engine.php`:
+  - [~] 18.1 Implement `Engine` in `src/Engine/Engine.php`:
     - Constructor: `WorldModel`, `EpisodeConfig`, `RulesEvaluator`, `ActionExecutor`, `EarthquakePhase`, `ResidentController`, `SituationTextGenerator`
     - `applyTurn(int $turnNumber, array $actions): TurnResult` following the processing order in design.md §d:
       1. Idempotency check (past turn → return stored; future turn → return error; current turn → proceed)
@@ -352,13 +352,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Calling `applyTurn(2, [])` when current turn is 0 returns `isError=true` and leaves turn at 0
     - Calling `applyTurn(0, [robotA: move to adjacent room])` updates robot_a's room in the returned snapshot
     - _Requirements: Req 10.1–10.5_
-  - [ ] 18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:
+  - [~] 18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:
     - **Property 4: applyTurn idempotency** — `forAll(int seed)`: call `applyTurn(n, actions)`, capture `TurnResult` and snapshot; call `applyTurn(n, actions)` again; assert both `TurnResult` values are equal and world snapshot is unchanged
     - Uses `->withMinSuccesses(100)`
     - _Requirements: Req 10.2–10.3, Req 11.4_
 
 - [ ] 19. Engine — episode-end conditions
-  - [ ] 19.1 Implement `checkEpisodeEnd()` on `Engine`:
+  - [~] 19.1 Implement `checkEpisodeEnd()` on `Engine`:
     - Mark episode as ended when turn count reaches `$config->maxTurns` (40)
     - Track stability: per turn, check all four conditions (fear < `fearStableThreshold`, water > `waterStableThreshold`, bodyTemp < `tempStableThreshold`, injury not greater than injury from the immediately preceding turn)
     - If all four hold for `$config->stableRunLength` (5) consecutive turns AND `disasterSubsided=true`, mark episode ended
@@ -372,20 +372,20 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 10.6_
 
 - [ ] 20. Engine — full property-based test suite
-  - [ ] 20.1 Complete the property tests in `tests/Engine/Properties/`:
+  - [~] 20.1 Complete the property tests in `tests/Engine/Properties/`:
     - **Property 1: Reset reproducibility** in `WorldModelPropertyTest.php` — `forAll(int seed)`: call `reset(seed)` twice; assert all observable fields are identical (snapshot equality) — Validates: Req 1.11, Req 8.5
     - **Property 8: cooking→potBoiling** in `EnginePropertyTest.php` — `forAll(SituationSpec with manActivity=cooking)`: assert `potBoiling=true` always — Validates: Req 8.2
     - **Property 9: Scripted line cooldown** in `EnginePropertyTest.php` — `forAll(int seed, int turnCount 1–40)`: run turns, collect resident lines, assert no line (other than earthquake-start) appears more than once within any window of `lineCooldownTurns` consecutive turns — Validates: Req 7.6–7.7
     - **Property 10: floor_water_level ≥ 0** in `WorldModelPropertyTest.php` — `forAll(int seed)`: run earthquake turns with no robot actions, assert `floorWaterLevel >= 0` after each turn — Validates: Req 11.2
     - _Requirements: Req 11.1–11.5_
-  - [ ] 20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:
+  - [~] 20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:
     - **Property 6: Banned words absent** — `forAll(int seed)`: after `reset(seed)`, generate situation text for both `robot_a` and `robot_b`; extract fixed body, fixed house, "Right now:" paragraph, and shaking paragraph; assert none of the 13 banned words appear in those sections — Validates: Req 9.15, Req 11.7
     - **Property 7: Fixed sections identical** — `forAll(int seed)`: generate for both robots; assert fixed body + fixed house sections are byte-for-byte equal — Validates: Req 9.2, Req 11.8
     - Both use `->withMinSuccesses(100)`
     - _Requirements: Req 9.2, Req 9.15, Req 11.7–11.8_
 
 - [ ] 21. Model solution integration test
-  - [ ] 21.1 Implement the model solution integration test in `tests/Engine/EngineIntegrationTest.php`:
+  - [~] 21.1 Implement the model solution integration test in `tests/Engine/EngineIntegrationTest.php`:
     - Use three explicit `SituationSpec` instances (not seed-derived) as documented in design.md §Testing Strategy:
       - S0: `(afternoon, kitchen, bedroom, sitting_at_table, potBoiling=true)`
       - S2: `(night, living_room, kitchen, asleep_in_futon, potBoiling=false)`
@@ -396,7 +396,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
       - `fear <= $config->modelSolutionFearThreshold`
       - `water >= $config->modelSolutionWaterThreshold`
     - _Requirements: Req 11.6_
-  - [ ] 21.2 Checkpoint — all tests pass
+  - [~] 21.2 Checkpoint — all tests pass
     - Ensure all tests pass (unit tests, golden tests, property tests, integration tests); ask the user if questions arise.
 
 - [x] 22. Value objects for turn 2 and later (added 2026-11-02)
@@ -420,20 +420,20 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Property 12 with Eris (`withMinSuccesses(100)`): substrings of a generated reply pass, non-substrings fail
     - _Requirements: Req 11.14, Req 12.2–12.4_
 
-- [ ] 24. SituationTextGenerator — turn 2 and later, rule A (added 2026-11-02)
-  - [ ] 24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: "The floor is still shaking hard." when the previous turn was shaking, "The lights go out." on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn
+- [x] 24. SituationTextGenerator — turn 2 and later, rule A (added 2026-11-02)
+  - [~] 24.1 Implement `buildRecentEvents()` (Req 9.16) and the shaking-paragraph changes (Req 9.14: "The floor is still shaking hard." when the previous turn was shaking, "The lights go out." on the turn power goes out); `generate()` includes the recent-events section from the robot's second turn
     - Shared room = same room at the start (`roomsAtStart`) or at the end (`snapshot`) of the previous turn
     - The S0–S5 golden tests (turn 1) must still pass unchanged
     - From the third turn: up to four earlier turns as blocks headed `15 to 30 seconds ago:` … `60 to 75 seconds ago:`, oldest first, rule A per turn, empty blocks omitted (Req 9.17)
     - On the turn the shaking stops (offsets 5 and 13): the paragraph "The shaking has stopped." + the resident line, if any (Req 9.18)
     - _Requirements: Req 9.1, Req 9.12, Req 9.14, Req 9.16, Req 9.17, Req 9.18_
-  - [ ] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
+  - [~] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
     - For each of the 18 runs in `pilot/予備実験_2手目_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
     - Assert that the "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt` (checked by hand on 2026-11-02: all 18 match these rules)
     - Property 11 with Eris (`withMinSuccesses(100)`)
     - A hand-written example of a robot's sixth turn (five blocks, oldest first, one turn in a shared room and one not), and the property of Req 11.15
     - _Requirements: Req 11.12, Req 11.13, Req 11.15, Req 9.17_
-  - [ ] 24.3 Checkpoint — all tests pass
+  - [~] 24.3 Checkpoint — all tests pass
     - Ensure all tests pass; ask the user if questions arise.
 
 ---
