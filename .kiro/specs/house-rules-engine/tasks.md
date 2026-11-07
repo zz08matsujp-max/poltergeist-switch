@@ -320,13 +320,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - At most one line per turn even when multiple conditions are satisfied; the highest-priority line is returned
     - _Requirements: Req 7.1–7.7_
 
-- [ ] 17. ResidentController — evaluateRefusal
-  - [ ] 17.1 Implement `evaluateRefusal(string $proposal, WorldModel $world, EpisodeConfig $config): bool` on `ResidentController`:
+- [x] 17. ResidentController — evaluateRefusal
+  - [x] 17.1 Implement `evaluateRefusal(string $proposal, WorldModel $world, EpisodeConfig $config): bool` on `ResidentController`:
     - Returns `true` (refuse) when: robot proposes moving the resident AND `weakened=false` AND (no robot has executed a `support` action targeting the resident this turn OR no robot has given a destination reason this turn); text: `"I don't want to move from here."`
     - Returns `false` (accept) when: `weakened=true` (overrides all other conditions); OR (robot has executed `support` action AND at least one robot emitted a dialogue event naming the destination this turn)
     - Air conditioner refusal (Req 7.12) is documented as out of scope for this spec's tests; include a stub or comment indicating the condition but mark it unimplemented
     - _Requirements: Req 7.8–7.12_
-  - [ ]* 17.2 Write unit tests extending `ResidentControllerTest.php`:
+  - [x] 17.2 Write unit tests extending `ResidentControllerTest.php`:
     - `weakened=false`, no support action → refuse
     - `weakened=false`, support action but no destination reason → refuse
     - `weakened=false`, support action AND destination reason → accept
@@ -441,6 +441,10 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 11.12, Req 11.13, Req 11.15, Req 9.17_
   - [x] 24.3 Checkpoint — all tests pass
     - Ensure all tests pass; ask the user if questions arise.
+
+- [ ] 25. Resident move via support (added 2026-11-07)
+  - Decide with the maintainer where the destination comes from (a room, or a spot such as under the table), then move the resident when the support countdown reaches 0 and evaluateRefusal() accepts
+  - _Requirements: Req 7.8–7.11_
 
 ---
 
