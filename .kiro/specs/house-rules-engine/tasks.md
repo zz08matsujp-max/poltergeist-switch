@@ -410,12 +410,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 5.12, Req 9.16, Req 12.1_
 
 - [x] 23. EvidenceCheck (added 2026-11-02)
-  - [ ] 23.1 Implement `EvidenceCheck::verify(string $reply, Action $action): Action` in `src/Engine/EvidenceCheck.php`:
+  - [x] 23.1 Implement `EvidenceCheck::verify(string $reply, Action $action): Action` in `src/Engine/EvidenceCheck.php`:
     - Byte-for-byte `str_contains`, no trimming or normalisation
     - Missing or failed `actionQuote` → operation `unknown`, target `null`; a failed spoken line or reported-speech quote → dropped, the rest kept
     - `RulesEvaluator` / `ActionExecutor`: `unknown` is possible, executes nothing, and gives empty `whatHappenedText` and `seenByOtherText`
     - _Requirements: Req 12.2–12.4_
-  - [ ] 23.2 Write tests in `tests/Engine/EvidenceCheckTest.php`:
+  - [x] 23.2 Write tests in `tests/Engine/EvidenceCheckTest.php`:
     - Every quote in the 18 readings of `pilot/予備実験_2手目_2026-11-02_n3.json` (`reading.quote`, `reading.words`, `reading.indirect[].quote`) passes against `turn1.reply`; hand-made failing quotes become `unknown` or are dropped
     - Property 12 with Eris (`withMinSuccesses(100)`): substrings of a generated reply pass, non-substrings fail
     - _Requirements: Req 11.14, Req 12.2–12.4_
