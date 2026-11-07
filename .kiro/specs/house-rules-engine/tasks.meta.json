@@ -301,6 +301,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027915916
+      },
+      {
+        "executionId": "c882251f-c298-4814-974e-0027fb541dc7",
+        "chatSessionId": "sess_234497a9-ec2f-4e87-ae64-48e86a056805",
+        "timestamp": 1794037872927
+      },
+      {
+        "executionId": "c882251f-c298-4814-974e-0027fb541dc7",
+        "chatSessionId": "sess_234497a9-ec2f-4e87-ae64-48e86a056805",
+        "timestamp": 1794037975508
       }
     ],
     "15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": [
@@ -308,6 +318,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027916028
+      },
+      {
+        "executionId": "c882251f-c298-4814-974e-0027fb541dc7",
+        "chatSessionId": "sess_234497a9-ec2f-4e87-ae64-48e86a056805",
+        "timestamp": 1794037980175
+      },
+      {
+        "executionId": "c882251f-c298-4814-974e-0027fb541dc7",
+        "chatSessionId": "sess_234497a9-ec2f-4e87-ae64-48e86a056805",
+        "timestamp": 1794038069079
       }
     ],
     "16.1 Implement `emitDialogueLine(WorldModel $world, EpisodeConfig $config, int $turnNumber): ?string` on `ResidentController`:": [
@@ -542,6 +562,13 @@
         "executionId": "c56b9695-c350-4bfe-bcb2-ecb06ff6532a",
         "chatSessionId": "sess_6468bba6-7bfd-42b9-ba7e-9bb30e8c576a",
         "timestamp": 1794037793557
+      }
+    ],
+    "15. ResidentController — updateState": [
+      {
+        "executionId": "c882251f-c298-4814-974e-0027fb541dc7",
+        "chatSessionId": "sess_234497a9-ec2f-4e87-ae64-48e86a056805",
+        "timestamp": 1794038069277
       }
     ]
   }

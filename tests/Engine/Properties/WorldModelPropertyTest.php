@@ -8,7 +8,10 @@ use Eris\Generators;
 use Eris\TestTrait;
 use PHPUnit\Framework\TestCase;
 use PoltergeistSwitch\Engine\EarthquakePhase;
+use PoltergeistSwitch\Engine\EpisodeConfig;
+use PoltergeistSwitch\Engine\ResidentController;
 use PoltergeistSwitch\Engine\Seed;
+use PoltergeistSwitch\Engine\Values\TurnActions;
 use PoltergeistSwitch\Engine\WorldModel;
 
 /**
@@ -18,6 +21,13 @@ use PoltergeistSwitch\Engine\WorldModel;
  *   For any seed, after reset() every ObjectState lives in exactly one room.
  *   Cross-check: summing the per-room object counts equals the total object
  *   count, which can only hold when no object is double-counted or missing.
+ *
+ * Property 3 — Resident state range (Req 6.8, Req 11.2, Req 11.3):
+ *   For any seed, after any sequence of turn applications (up to 13 turns with
+ *   no robot actions) every ResidentState numeric field stays within its
+ *   configured clamped range. The earthquake phase piles on injury, fear and
+ *   darkness deltas while no speech ever pulls fear back down, so this
+ *   exercises the controller's clamping under sustained upward pressure.
  *
  * NOTE: this Eris release (giorgiosironi/eris ^1.3) controls the number of
  * iterations with `limitTo()`; the default is already 100, and limitTo(100)
@@ -65,6 +75,86 @@ class WorldModelPropertyTest extends TestCase
                     array_sum($perRoom),
                     "Per-room object counts must sum to the total (seed {$seedValue})"
                 );
+            });
+    }
+
+    /**
+     * Property 3: Resident state range.
+     *
+     * For any seed, driving the earthquake phase and the resident controller
+     * across offsets 1–13 with no robot actions must never push any
+     * ResidentState field outside its configured range, after every turn.
+     *
+     * Validates: Requirements 6.8, 11.2, 11.3
+     */
+    public function testResidentStateStaysWithinClampedRanges(): void
+    {
+        $this->limitTo(100)
+            ->forAll(Generators::int())
+            ->then(function (int $seedValue): void {
+                $seed = Seed::fromInt($seedValue);
+
+                $world = new WorldModel();
+                $world->reset($seed);
+
+                $config = new EpisodeConfig();
+                $controller = new ResidentController();
+                $phase = new EarthquakePhase();
+
+                // No robot actions this run: no robot speaks and no robot
+                // covers the resident, so fear only ever climbs.
+                $noActions = new TurnActions([], [], false);
+
+                for ($offset = 1; $offset <= 13; $offset++) {
+                    $phase->advanceTurn($world, $seed, $offset);
+                    $controller->updateState($world, $config, $noActions);
+
+                    $resident = $world->residentState;
+
+                    $this->assertGreaterThanOrEqual(
+                        $config->bodyTempMin,
+                        $resident->bodyTemp,
+                        "bodyTemp below min at offset {$offset} (seed {$seedValue})"
+                    );
+                    $this->assertLessThanOrEqual(
+                        $config->bodyTempMax,
+                        $resident->bodyTemp,
+                        "bodyTemp above max at offset {$offset} (seed {$seedValue})"
+                    );
+
+                    $this->assertGreaterThanOrEqual(
+                        $config->waterMin,
+                        $resident->water,
+                        "water below min at offset {$offset} (seed {$seedValue})"
+                    );
+                    $this->assertLessThanOrEqual(
+                        $config->waterMax,
+                        $resident->water,
+                        "water above max at offset {$offset} (seed {$seedValue})"
+                    );
+
+                    $this->assertGreaterThanOrEqual(
+                        $config->injuryMin,
+                        $resident->injury,
+                        "injury below min at offset {$offset} (seed {$seedValue})"
+                    );
+                    $this->assertLessThanOrEqual(
+                        $config->injuryMax,
+                        $resident->injury,
+                        "injury above max at offset {$offset} (seed {$seedValue})"
+                    );
+
+                    $this->assertGreaterThanOrEqual(
+                        $config->fearMin,
+                        $resident->fear,
+                        "fear below min at offset {$offset} (seed {$seedValue})"
+                    );
+                    $this->assertLessThanOrEqual(
+                        $config->fearMax,
+                        $resident->fear,
+                        "fear above max at offset {$offset} (seed {$seedValue})"
+                    );
+                }
             });
     }
 

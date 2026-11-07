@@ -278,8 +278,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Uses `->limitTo(100)`
     - _Requirements: Req 3.4, Req 3.8, Req 8.5, Req 11.5_
 
-- [ ] 15. ResidentController — updateState
-  - [ ] 15.1 Implement `ResidentController` in `src/Engine/ResidentController.php` — `updateState` method:
+- [x] 15. ResidentController — updateState
+  - [x] 15.1 Implement `ResidentController` in `src/Engine/ResidentController.php` — `updateState` method:
     - `updateState(WorldModel $world, EpisodeConfig $config, TurnActions $turnActions): void`
     - Apply deltas in the order specified in design.md §h: injury from falling objects (if `shaking && fallingObjects` in resident's room AND `!residentState->coverFlag`, add `injuryDeltaFalling`); fear from shaking (`fearDeltaShaking`); fear from darkness (`fearDeltaDark`); fear reduction from same-room speech (`fearDeltaSpeakSameRoom`); fear reduction from other-room speech (`fearDeltaSpeakOtherRoom`)
     - Cover override: if `coverFlag` is set on resident, injury increment from falling objects is 0 for this turn
@@ -297,7 +297,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - All resident state values clamped to their ranges after update
     - `weakened` flag set when `bodyTemp >= weakenedThreshold`; cleared when `bodyTemp` drops below
     - _Requirements: Req 6.1–6.11_
-  - [ ] 15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
+  - [x] 15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 3: Resident state range** — `forAll(int seed)`: after any sequence of `applyTurn` calls (up to 13 turns, no robot actions), all `ResidentState` values remain within their clamped ranges
     - Uses `->limitTo(100)`
     - _Requirements: Req 6.8, Req 11.2, Req 11.3_
