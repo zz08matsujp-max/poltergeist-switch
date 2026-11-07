@@ -219,6 +219,70 @@ class RulesEvaluatorTest extends TestCase
         $this->assertSame('object_not_in_room', $judgement->reason);
     }
 
+    public function testUseOnObjectInRoomIsPossible(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_b is in the kitchen where the flashlight lives; using it there
+        // is plainly possible (Req 4.6).
+        $action = new Action(
+            robotId: 'robot_b',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertNull($judgement->reason);
+    }
+
+    public function testUseOnHeldObjectIsPossible(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_a holds the flashlight: `take` parks a held object by setting
+        // its room to the robot's id, so it no longer stands in any room. A use
+        // targeting the held light source must still be possible (Req 4.6).
+        $world->objects['flashlight']->room = 'robot_a';
+        $world->objects['flashlight']->spot = null;
+        $world->robotStates['robot_a']->heldObjectId = 'flashlight';
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertNull($judgement->reason);
+    }
+
+    public function testUseOnObjectNotInRoomAndHeldByOtherRobotIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_b holds the flashlight (parked on robot_b); robot_a, in the
+        // living room, neither has it in its room nor holds it, so a use is
+        // object_not_in_room (Req 4.6).
+        $world->objects['flashlight']->room = 'robot_b';
+        $world->objects['flashlight']->spot = null;
+        $world->robotStates['robot_b']->heldObjectId = 'flashlight';
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('object_not_in_room', $judgement->reason);
+    }
+
     // ------------------------------------------------------------------
     // hand_over
     // ------------------------------------------------------------------

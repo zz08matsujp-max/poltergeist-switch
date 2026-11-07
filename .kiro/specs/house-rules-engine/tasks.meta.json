@@ -754,6 +754,92 @@
         "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
         "timestamp": 1794060943498
       }
+    ],
+    "25.1 Destination on the support action (Req 7.13): `RulesEvaluator` checks `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key), else `possible=false`, `reason=\"no_destination\"`; add `ManActivity::standing`": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061362763
+      }
+    ],
+    "25.2 Engine (Req 7.14–7.15): build the proposal tokens from the support action and both robots' spoken lines; call `evaluateRefusal()` on the support turn; on refusal deliver \"I don't want to move from here.\" as the resident's line and end the support; on acceptance move the resident when the countdown reaches 0. Remove the task-18 TODO": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061362898
+      }
+    ],
+    "25.3 `ResidentController`: no falling-object injury while the spot is `under_table` (Req 7.16). `SituationTextGenerator`: describe the resident by spot or `standing` (Req 7.17); the S0–S5 and turn-2 golden tests must still pass unchanged": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061363082
+      }
+    ],
+    "25.4 Tests: an accepted move to `under_table` happens on the second turn; a support with no destination word is refused with the refusal line; a weakened resident accepts; `under_table` blocks falling-object injury; a move to an adjacent room sets the room, spot `null` and activity `standing`": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061363209
+      }
+    ],
+    "27.1 RulesEvaluator: `use` is possible when the target object is in the robot's room OR held by the robot (Req 4.6)": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061363342
+      },
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061374732
+      },
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061521550
+      }
+    ],
+    "27.2 Light rule: a lit flashlight or candle lights the room of whoever holds it (a robot or the resident). Recompute the light of both rooms when a holder moves, and when a lit light is handed over. `EarthquakePhase::recomputeRoomLightLevel()` stays the one place for the rule (Req 2.4–2.5)": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061363465
+      },
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061526405
+      },
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061841642
+      }
+    ],
+    "27.3 Model solution test: assert that every planned action is judged possible, and in S2 that the bedroom is not dark on turns T5–T11": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061363647
+      },
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794061845615
+      },
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794062047653
+      }
+    ],
+    "27. Held light sources (added 2026-11-07)": [
+      {
+        "executionId": "9c2ac909-ef02-480d-84b3-d1b2649dce37",
+        "chatSessionId": "sess_649c2122-26ed-430c-bf8e-261ed9f63a60",
+        "timestamp": 1794062047766
+      }
     ]
   }
 }

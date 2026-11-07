@@ -121,8 +121,18 @@ class ActionExecutor
         // Validate the room exists; getRoom() throws on an unknown key.
         $room = $world->getRoom($destination);
 
+        $origin = $robot->room;
+
         $robot->room = $destination;
         $robot->spot = $action->targetSpot;
+
+        // A lit light source held by the robot travels with it: the room left
+        // behind may go dark and the room entered may become lit, so both are
+        // recomputed through the shared light rule (design §f/§g, Req 2.5).
+        if ($this->holdsLitLightSource($robot, $world)) {
+            EarthquakePhase::recomputeRoomLightLevel($world, $origin);
+            EarthquakePhase::recomputeRoomLightLevel($world, $destination);
+        }
 
         return [
             "You moved to the {$room->displayName}.",
@@ -141,11 +151,21 @@ class ActionExecutor
         $robot = $this->robot($action, $world);
         $object = $this->object($action, $world);
 
+        // Remember where the object stood so a lit light source recomputes the
+        // room it leaves. After `take` the robot stays in that same room, so
+        // the light simply continues to light it (design §f/§g).
+        $originRoom = $object->room;
+        $wasLitLight = $object->isLightSource && $object->on;
+
         $robot->heldObjectId = $object->id;
         // Held objects live "on" the robot, not in any room, so they drop out
         // of objects_visible_to()/visibleObjectPhrases() for that room.
         $object->room = $robot->id;
         $object->spot = null;
+
+        if ($wasLitLight) {
+            EarthquakePhase::recomputeRoomLightLevel($world, $originRoom);
+        }
 
         return [
             "You picked up {$object->displayName}.",
@@ -191,10 +211,15 @@ class ActionExecutor
 
         // Lighting a flashlight or candle switches it on and can push a dark
         // room back to lit, so the room's light level is recomputed through the
-        // shared light rule that EarthquakePhase owns (see §g).
+        // shared light rule that EarthquakePhase owns (see §g). A held light
+        // parks `room` on the holder's id, which is not a real room key, so the
+        // room to recompute is the holder's current room, not $object->room.
         if ($object->isLightSource) {
             $object->on = true;
-            EarthquakePhase::recomputeRoomLightLevel($world, $object->room);
+            EarthquakePhase::recomputeRoomLightLevel(
+                $world,
+                $this->lightSourceRoom($object, $world),
+            );
 
             return [
                 "You switched on {$object->displayName}.",
@@ -303,6 +328,8 @@ class ActionExecutor
             throw new \InvalidArgumentException("Unknown held object id: {$robot->heldObjectId}");
         }
 
+        $wasLitLight = $object->isLightSource && $object->on;
+
         $robot->heldObjectId = null;
         // Park the object on the resident, mirroring how `take` parks a held
         // object on the robot, so it stays in exactly one place.
@@ -314,10 +341,61 @@ class ActionExecutor
             $resident->water += $config->waterDeltaHandover;
         }
 
+        // A lit light handed to the resident now lights the resident's room
+        // (design §f/§g, Req 2.5).
+        if ($wasLitLight) {
+            EarthquakePhase::recomputeRoomLightLevel($world, $resident->room);
+        }
+
         return [
             "You handed {$object->displayName} to the man.",
             "The other robot handed {$object->displayName} to the man.",
         ];
+    }
+
+    /**
+     * Whether the given robot is currently holding a lit light source. Used by
+     * `move` to decide whether a carried light must follow the robot between
+     * rooms (design §f/§g, Req 2.5).
+     */
+    private function holdsLitLightSource(RobotState $robot, WorldModel $world): bool
+    {
+        if ($robot->heldObjectId === null) {
+            return false;
+        }
+
+        $held = $world->objects[$robot->heldObjectId] ?? null;
+
+        return $held !== null && $held->isLightSource && $held->on;
+    }
+
+    /**
+     * The real room key a light source should recompute when it is switched on.
+     * A light standing in a room returns that room; a held light parks its
+     * `room` on the holder's id, so this resolves to the holder's current room
+     * (a robot or the resident) instead of the agent id (Req 2.5, Req 4.6).
+     */
+    private function lightSourceRoom(ObjectState $object, WorldModel $world): string
+    {
+        // Standing in a real room: light that room directly.
+        if (array_key_exists($object->room, $world->rooms)) {
+            return $object->room;
+        }
+
+        // Held by a robot: the robot's current room.
+        $holder = $world->robotStates[$object->room] ?? null;
+        if ($holder !== null) {
+            return $holder->room;
+        }
+
+        // Held by the resident (`hand_over` parks room == resident id).
+        if ($object->room === self::RESIDENT_ID) {
+            return $world->residentState->room;
+        }
+
+        // Fallback: treat the stored value as a room key so getRoom() surfaces
+        // a clear error rather than silently mis-lighting.
+        return $object->room;
     }
 
     /**

@@ -9,6 +9,7 @@ use PoltergeistSwitch\Engine\ActionExecutor;
 use PoltergeistSwitch\Engine\EarthquakePhase;
 use PoltergeistSwitch\Engine\Engine;
 use PoltergeistSwitch\Engine\EpisodeConfig;
+use PoltergeistSwitch\Engine\Enums\LightLevel;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\ResidentController;
 use PoltergeistSwitch\Engine\ResidentState;
@@ -315,7 +316,14 @@ class EngineIntegrationTest extends TestCase
     public function testModelSolutionKeepsResidentSafe(): void
     {
         foreach ($this->modelSolutionScenarios() as $name => [$spec, $plan]) {
-            $state = $this->runModelSolution($spec, $plan);
+            $run = $this->runModelSolution($spec, $plan);
+
+            /** @var ResidentState $state */
+            $state = $run['residentState'];
+            /** @var array<int,TurnResult> $results */
+            $results = $run['results'];
+            /** @var WorldModel $world */
+            $world = $run['world'];
 
             $this->assertLessThanOrEqual(
                 $this->config->modelSolutionInjuryThreshold,
@@ -332,20 +340,116 @@ class EngineIntegrationTest extends TestCase
                 $state->water,
                 "Scenario {$name}: resident water must stay at or above the model-solution threshold.",
             );
+
+            // Task 27.3: every planned physical action must be judged possible.
+            $this->assertEveryPlannedActionPossible($name, $plan, $results);
+
+            // Task 27.3: in S2 the carried lit flashlight keeps the bedroom lit
+            // from the time it arrives (T4) onward. Assert it is not dark on
+            // turns T5 through T11 inclusive. The room light lives on the live
+            // WorldModel (the snapshot carries no rooms), so runModelSolution
+            // samples the bedroom light level right after each turn completes.
+            if ($name === 'S2') {
+                /** @var array<int,LightLevel> $bedroomLight */
+                $bedroomLight = $run['bedroomLight'];
+                $this->assertS2BedroomLitThroughQuietTurns($bedroomLight);
+            }
+        }
+    }
+
+    /**
+     * Physical operations that actually change the world and therefore must be
+     * judged possible when they appear in a plan. `wait` and `speak` carry no
+     * physical action, so a turn with only those has nothing to check.
+     */
+    private const PHYSICAL_OPERATIONS = ['move', 'take', 'use', 'cover', 'hand_over', 'support'];
+
+    /**
+     * Assert that for every turn in the plan, each robot's planned physical
+     * action was judged possible (possible=true, reason=null). Fails with a
+     * message naming the scenario, turn, robot, and the engine's reason.
+     *
+     * @param array<int,array<string,Action>> $plan
+     * @param array<int,TurnResult>           $results turn number => result
+     */
+    private function assertEveryPlannedActionPossible(
+        string $scenario,
+        array $plan,
+        array $results,
+    ): void {
+        foreach ($plan as $turn => $actions) {
+            foreach ($actions as $robotId => $action) {
+                if (!in_array($action->operation, self::PHYSICAL_OPERATIONS, true)) {
+                    continue;
+                }
+
+                $result = $results[$turn];
+                $this->assertArrayHasKey(
+                    $robotId,
+                    $result->judgements,
+                    "Scenario {$scenario}, turn {$turn}: no judgement recorded for {$robotId}'s "
+                        . "{$action->operation} action.",
+                );
+
+                $judgement = $result->judgements[$robotId];
+                $this->assertTrue(
+                    $judgement->possible,
+                    "Scenario {$scenario}, turn {$turn}: {$robotId}'s {$action->operation} action "
+                        . 'was judged impossible'
+                        . ($judgement->reason !== null ? " (reason: {$judgement->reason})." : '.'),
+                );
+                $this->assertNull(
+                    $judgement->reason,
+                    "Scenario {$scenario}, turn {$turn}: {$robotId}'s {$action->operation} action "
+                        . "carried an impossibility reason: {$judgement->reason}.",
+                );
+            }
+        }
+    }
+
+    /**
+     * Assert the bedroom light level is normal (not dark) on turns T5 through
+     * T11 inclusive — the carried lit flashlight keeps the dark bedroom lit
+     * across the quiet turns.
+     *
+     * @param array<int,LightLevel> $bedroomLight turn number => bedroom light
+     */
+    private function assertS2BedroomLitThroughQuietTurns(array $bedroomLight): void
+    {
+        for ($turn = 5; $turn <= 11; $turn++) {
+            $this->assertArrayHasKey(
+                $turn,
+                $bedroomLight,
+                "Scenario S2: no bedroom light level recorded for turn {$turn}.",
+            );
+            $this->assertSame(
+                LightLevel::normal,
+                $bedroomLight[$turn],
+                "Scenario S2: the carried lit flashlight must keep the bedroom lit on turn {$turn} "
+                    . "(it was {$bedroomLight[$turn]->value}).",
+            );
         }
     }
 
     /**
      * Reset a world with the given explicit SituationSpec, start the
      * earthquake on turn 0, and drive turns 0..13 through applyTurn using the
-     * supplied plan. Returns the resident state captured in the final turn's
-     * result.
+     * supplied plan. Returns the final resident state, every turn's result
+     * keyed by turn number, and the live WorldModel so callers can inspect
+     * per-turn judgements and current room light levels.
      *
      * @param array<int,array<string,Action>> $plan turn number => actions keyed
      *                                               by robot id (turns 1..13;
      *                                               turn 0 is always quiet)
+     *
+     * @return array{
+     *     residentState:ResidentState,
+     *     results:array<int,TurnResult>,
+     *     world:WorldModel,
+     *     bedroomLight:array<int,LightLevel>
+     * }
      */
-    private function runModelSolution(SituationSpec $spec, array $plan): ResidentState
+    private function runModelSolution(SituationSpec $spec, array $plan): array
     {
         $world = new WorldModel($this->config);
         $world->reset(Seed::fromInt(1), $spec);
@@ -364,13 +468,25 @@ class EngineIntegrationTest extends TestCase
             new SituationTextGenerator(),
         );
 
-        $result = $engine->applyTurn(0, []);
+        $results = [];
+        $bedroomLight = [];
+
+        $results[0] = $engine->applyTurn(0, []);
+        $bedroomLight[0] = $world->getRoom('bedroom')->lightLevel;
         for ($turn = 1; $turn <= 13; $turn++) {
             $actions = $plan[$turn] ?? [];
-            $result = $engine->applyTurn($turn, $actions);
+            $results[$turn] = $engine->applyTurn($turn, $actions);
+            // Sample the live bedroom light right after the turn completes; the
+            // snapshot carries no rooms, so this is the only place to read it.
+            $bedroomLight[$turn] = $world->getRoom('bedroom')->lightLevel;
         }
 
-        return $result->residentState;
+        return [
+            'residentState' => $results[13]->residentState,
+            'results' => $results,
+            'world' => $world,
+            'bedroomLight' => $bedroomLight,
+        ];
     }
 
     /**

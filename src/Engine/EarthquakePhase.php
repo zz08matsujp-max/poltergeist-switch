@@ -53,6 +53,13 @@ class EarthquakePhase
     private const KITCHEN_ROOM = 'kitchen';
 
     /**
+     * Holder id a `hand_over` parks an object on; it mirrors
+     * ActionExecutor::RESIDENT_ID so a lit light handed to the resident
+     * resolves to the resident's current room (Req 2.5, Req 4.6).
+     */
+    private const RESIDENT_HOLDER_ID = 'resident';
+
+    /**
      * Whether the stove flame was lit when the earthquake began. Captured by
      * `captureStoveWasOn()` at the moment `earthquakeStartTurn` is set, and
      * cleared by `clearStoveWasOn()` when any ActionExecutor call turns the
@@ -238,16 +245,58 @@ class EarthquakePhase
     }
 
     /**
-     * Whether the given room contains a lit light source (flashlight or candle).
+     * Whether the given room is illuminated by a lit light source (flashlight
+     * or candle). A lit light source counts for a room when it stands in that
+     * room OR when it is held by an agent — a robot or the resident — whose
+     * current room is that room (Req 2.4–2.5, Req 4.6).
+     *
+     * A held object parks its `room` on the holder's id (`take` sets it to the
+     * robot id; `hand_over` sets it to the resident id), so a held light does
+     * not stand in any real room. For each lit light source we therefore
+     * resolve the room it illuminates — its own room when it stands in a room,
+     * otherwise the current room of the holder it is parked on — and compare
+     * that to the target room key.
      */
     private static function roomHasLitLight(WorldModel $world, string $roomKey): bool
     {
         foreach ($world->objects as $object) {
-            if ($object->room === $roomKey && $object->isLightSource && $object->on) {
+            if (!$object->isLightSource || !$object->on) {
+                continue;
+            }
+
+            if (self::litLightRoom($world, $object) === $roomKey) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * The room a lit light source illuminates: its own room when it stands in a
+     * real room, otherwise the current room of the agent holding it (a robot or
+     * the resident). Returns null when the light is parked on an id that is
+     * neither a known room nor a known holder (should not happen in practice).
+     */
+    private static function litLightRoom(WorldModel $world, ObjectState $object): ?string
+    {
+        // A light standing in a real room illuminates that room.
+        if (array_key_exists($object->room, $world->rooms)) {
+            return $object->room;
+        }
+
+        // Otherwise it is parked on a holder: a robot or the resident. Resolve
+        // to that holder's current room so the light follows whoever carries it.
+        $holder = $world->robotStates[$object->room] ?? null;
+        if ($holder !== null) {
+            return $holder->room;
+        }
+
+        // `hand_over` parks a held object on the resident with room == 'resident'.
+        if ($object->room === self::RESIDENT_HOLDER_ID) {
+            return $world->residentState->room;
+        }
+
+        return null;
     }
 }

@@ -354,6 +354,208 @@ class ActionExecutorTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Held light sources follow their holder (Req 2.4–2.5, Req 4.6)
+    // ------------------------------------------------------------------
+
+    /**
+     * A night world with the power out and every non-afternoon room dark.
+     * robot_a is in the kitchen, robot_b and the resident in the living room.
+     */
+    private function makeDarkWorld(): WorldModel
+    {
+        $world = new WorldModel($this->config);
+        $world->reset(
+            Seed::fromInt(1),
+            new SituationSpec(
+                time: 'night',
+                robotARoom: 'kitchen',
+                robotBRoom: 'living_room',
+                manActivity: 'sitting_at_table', // resident in the living room
+                potBoiling: false,
+            )
+        );
+
+        // Fail the power and darken the house through the single light rule.
+        $world->houseState->power = \PoltergeistSwitch\Engine\Enums\PowerState::outage;
+        foreach ($world->rooms as $room) {
+            \PoltergeistSwitch\Engine\EarthquakePhase::recomputeRoomLightLevel($world, $room->key);
+        }
+
+        return $world;
+    }
+
+    /**
+     * Lighting a held flashlight via `use` lights the holder's current room,
+     * not the agent id its `room` is parked on (fixes the $object->room bug;
+     * Req 2.5, Req 4.6).
+     */
+    public function testUseLightsHeldFlashlightInHoldersRoom(): void
+    {
+        $world = $this->makeDarkWorld();
+        $this->giveRobotHeldObject($world, 'robot_a', 'flashlight'); // parked on robot_a (kitchen)
+
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::dark,
+            $world->getRoom('kitchen')->lightLevel
+        );
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertTrue($world->objects['flashlight']->on);
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::normal,
+            $world->getRoom('kitchen')->lightLevel,
+            'Lighting a held flashlight lights the holder\'s room'
+        );
+    }
+
+    /**
+     * Picking up a lit flashlight standing in a dark room keeps the room lit:
+     * the robot stays in the room, so the carried light still lights it. The
+     * `take` recompute must resolve to the real room, not throw on the robot id.
+     */
+    public function testTakeLitFlashlightKeepsHoldersRoomLit(): void
+    {
+        $world = $this->makeDarkWorld();
+        // A lit flashlight stands in the kitchen; robot_a is in the kitchen.
+        $world->objects['flashlight']->on = true;
+        \PoltergeistSwitch\Engine\EarthquakePhase::recomputeRoomLightLevel($world, 'kitchen');
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::normal,
+            $world->getRoom('kitchen')->lightLevel
+        );
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::take->value,
+            targetId: 'flashlight',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('robot_a', $world->objects['flashlight']->room);
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::normal,
+            $world->getRoom('kitchen')->lightLevel,
+            'The room stays lit by the flashlight the robot now holds'
+        );
+    }
+
+    /**
+     * When a robot carrying a lit flashlight moves to an adjacent dark room,
+     * the room left behind goes dark and the room entered becomes lit (Req 2.5).
+     */
+    public function testMoveCarriesLitLightBetweenRooms(): void
+    {
+        $world = $this->makeDarkWorld();
+        // robot_a holds a lit flashlight in the kitchen.
+        $world->objects['flashlight']->on = true;
+        $this->giveRobotHeldObject($world, 'robot_a', 'flashlight');
+        \PoltergeistSwitch\Engine\EarthquakePhase::recomputeRoomLightLevel($world, 'kitchen');
+
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::normal,
+            $world->getRoom('kitchen')->lightLevel
+        );
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::dark,
+            $world->getRoom('living_room')->lightLevel
+        );
+
+        // kitchen ↔ living_room are adjacent.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::dark,
+            $world->getRoom('kitchen')->lightLevel,
+            'The room left behind goes dark once the carried light leaves'
+        );
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::normal,
+            $world->getRoom('living_room')->lightLevel,
+            'The entered room becomes lit as the carried light arrives'
+        );
+    }
+
+    /**
+     * Handing a lit flashlight to the resident lights the resident's room
+     * (Req 2.5, Req 4.6).
+     */
+    public function testHandOverLitLightLightsResidentsRoom(): void
+    {
+        $world = $this->makeDarkWorld();
+        // robot_b and the resident share the living room; give robot_b a lit light.
+        $world->objects['flashlight']->on = true;
+        $this->giveRobotHeldObject($world, 'robot_b', 'flashlight');
+        // robot_b carried a lit light into its own (living) room; recompute it.
+        \PoltergeistSwitch\Engine\EarthquakePhase::recomputeRoomLightLevel($world, 'living_room');
+        $this->assertSame('living_room', $world->residentState->room);
+
+        $action = new Action(
+            robotId: 'robot_b',
+            operation: Operation::hand_over->value,
+            targetId: 'resident',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_b'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('resident', $world->objects['flashlight']->room);
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::normal,
+            $world->getRoom('living_room')->lightLevel,
+            'A lit light handed to the resident lights the resident\'s room'
+        );
+    }
+
+    /**
+     * An unlit held light leaves the holder's room dark: moving it between dark
+     * rooms lights neither (Req 2.4–2.5).
+     */
+    public function testUnlitHeldLightDoesNotLightOnMove(): void
+    {
+        $world = $this->makeDarkWorld();
+        // robot_a holds an UNLIT flashlight in the kitchen.
+        $this->giveRobotHeldObject($world, 'robot_a', 'flashlight');
+        $world->objects['flashlight']->on = false;
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::dark,
+            $world->getRoom('kitchen')->lightLevel,
+            'An unlit carried light leaves the room behind dark'
+        );
+        $this->assertSame(
+            \PoltergeistSwitch\Engine\Enums\LightLevel::dark,
+            $world->getRoom('living_room')->lightLevel,
+            'An unlit carried light leaves the entered room dark'
+        );
+    }
+
+    // ------------------------------------------------------------------
     // rollback (Req 5.10)
     // ------------------------------------------------------------------
 

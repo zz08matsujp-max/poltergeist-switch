@@ -443,10 +443,10 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Ensure all tests pass; ask the user if questions arise.
 
 - [ ] 25. Resident move via support (added 2026-11-07; destination decided by the maintainer on 2026-11-07)
-  - [ ] 25.1 Destination on the support action (Req 7.13): `RulesEvaluator` checks `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key), else `possible=false`, `reason="no_destination"`; add `ManActivity::standing`
-  - [ ] 25.2 Engine (Req 7.14–7.15): build the proposal tokens from the support action and both robots' spoken lines; call `evaluateRefusal()` on the support turn; on refusal deliver "I don't want to move from here." as the resident's line and end the support; on acceptance move the resident when the countdown reaches 0. Remove the task-18 TODO
-  - [ ] 25.3 `ResidentController`: no falling-object injury while the spot is `under_table` (Req 7.16). `SituationTextGenerator`: describe the resident by spot or `standing` (Req 7.17); the S0–S5 and turn-2 golden tests must still pass unchanged
-  - [ ] 25.4 Tests: an accepted move to `under_table` happens on the second turn; a support with no destination word is refused with the refusal line; a weakened resident accepts; `under_table` blocks falling-object injury; a move to an adjacent room sets the room, spot `null` and activity `standing`
+  - [~] 25.1 Destination on the support action (Req 7.13): `RulesEvaluator` checks `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key), else `possible=false`, `reason="no_destination"`; add `ManActivity::standing`
+  - [~] 25.2 Engine (Req 7.14–7.15): build the proposal tokens from the support action and both robots' spoken lines; call `evaluateRefusal()` on the support turn; on refusal deliver "I don't want to move from here." as the resident's line and end the support; on acceptance move the resident when the countdown reaches 0. Remove the task-18 TODO
+  - [~] 25.3 `ResidentController`: no falling-object injury while the spot is `under_table` (Req 7.16). `SituationTextGenerator`: describe the resident by spot or `standing` (Req 7.17); the S0–S5 and turn-2 golden tests must still pass unchanged
+  - [~] 25.4 Tests: an accepted move to `under_table` happens on the second turn; a support with no destination word is refused with the refusal line; a weakened resident accepts; `under_table` blocks falling-object injury; a move to an adjacent room sets the room, spot `null` and activity `standing`
   - _Requirements: Req 6.3, Req 7.8–7.17_
 
 - [x] 26. Engine — turn records and each robot's situation text (added 2026-11-07)
@@ -455,10 +455,10 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 26.3 Tests: at earthquake offset 2 the text for both robots contains "The lights go out."; at offset 5 it contains "The shaking has stopped."; on the turn after a robot speaks, the other robot's text contains its line under "In the last 15 seconds:"
   - _Requirements: Req 9.12–9.18, Req 10.1_
 
-- [ ] 27. Held light sources (added 2026-11-07)
-  - [ ] 27.1 RulesEvaluator: `use` is possible when the target object is in the robot's room OR held by the robot (Req 4.6)
-  - [ ] 27.2 Light rule: a lit flashlight or candle lights the room of whoever holds it (a robot or the resident). Recompute the light of both rooms when a holder moves, and when a lit light is handed over. `EarthquakePhase::recomputeRoomLightLevel()` stays the one place for the rule (Req 2.4–2.5)
-  - [ ] 27.3 Model solution test: assert that every planned action is judged possible, and in S2 that the bedroom is not dark on turns T5–T11
+- [x] 27. Held light sources (added 2026-11-07)
+  - [x] 27.1 RulesEvaluator: `use` is possible when the target object is in the robot's room OR held by the robot (Req 4.6)
+  - [x] 27.2 Light rule: a lit flashlight or candle lights the room of whoever holds it (a robot or the resident). Recompute the light of both rooms when a holder moves, and when a lit light is handed over. `EarthquakePhase::recomputeRoomLightLevel()` stays the one place for the rule (Req 2.4–2.5)
+  - [x] 27.3 Model solution test: assert that every planned action is judged possible, and in S2 that the bedroom is not dark on turns T5–T11
   - _Requirements: Req 2.4–2.5, Req 4.6, Req 11.6_
 
 ---

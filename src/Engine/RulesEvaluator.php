@@ -178,8 +178,12 @@ class RulesEvaluator
     }
 
     /**
-     * use: the target object must be in the robot's current room
-     * (`object_not_in_room`, Req 4.6).
+     * use: the target object must be present to the robot — either standing in
+     * the robot's current room, or held by the robot itself (`object_not_in_room`
+     * otherwise, Req 4.6). A held object's `room` is set to the robot's id by
+     * `take`, so it never matches the room comparison; the held-slot check below
+     * covers lighting a held flashlight or candle on the same terms as one in
+     * the room.
      *
      * R2b (Req 4.10): using the gas stove while shaking always records
      * `dangerCode="R2b"`; the `dangerous` flag follows `$config->r2bIsDangerous`.
@@ -191,7 +195,9 @@ class RulesEvaluator
         $robot = $world->robotStates[$action->robotId];
 
         $target = $world->objects[$action->targetId] ?? null;
-        $possible = $target !== null && $target->room === $robot->room;
+        $inRoom = $target !== null && $target->room === $robot->room;
+        $heldByRobot = $target !== null && $robot->heldObjectId === $target->id;
+        $possible = $inRoom || $heldByRobot;
         $reason = $possible ? null : 'object_not_in_room';
 
         $dangerous = false;

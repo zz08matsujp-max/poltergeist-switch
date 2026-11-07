@@ -159,6 +159,126 @@ class EarthquakePhaseTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Held lit light sources follow their holder (Req 2.4–2.5, Req 4.6).
+    // ------------------------------------------------------------------
+
+    /**
+     * A lit flashlight held by a robot lights that robot's current room after
+     * the power fails at night. The flashlight is parked on the robot id, yet
+     * the room the robot stands in stays lit (Req 2.4–2.5, Req 4.6).
+     */
+    public function testHeldLitFlashlightLightsHoldersRoom(): void
+    {
+        $phase = new EarthquakePhase();
+        $seed  = Seed::fromInt(3);
+        $world = $this->makeWorld('night', 'sitting_at_table'); // robot_a in kitchen
+
+        // robot_a holds a lit flashlight (parked on the robot, as `take` does).
+        $flashlight = $world->objects['flashlight'];
+        $flashlight->on = true;
+        $flashlight->room = 'robot_a';
+        $world->robotStates['robot_a']->heldObjectId = 'flashlight';
+
+        $phase->advanceTurn($world, $seed, 2); // power fails
+
+        $this->assertSame(
+            LightLevel::normal,
+            $world->getRoom('kitchen')->lightLevel,
+            'The holder\'s room stays lit by the carried flashlight'
+        );
+    }
+
+    /**
+     * When the holder of a lit flashlight moves to an adjacent dark room, the
+     * light must follow: the room left behind goes dark and the entered room
+     * becomes lit. This drives the move through recomputeRoomLightLevel on both
+     * rooms (Req 2.5).
+     */
+    public function testCarriedLitLightFollowsHolderBetweenRooms(): void
+    {
+        $phase = new EarthquakePhase();
+        $seed  = Seed::fromInt(3);
+        $world = $this->makeWorld('night', 'sitting_at_table'); // robot_a in kitchen
+
+        $flashlight = $world->objects['flashlight'];
+        $flashlight->on = true;
+        $flashlight->room = 'robot_a';
+        $world->robotStates['robot_a']->heldObjectId = 'flashlight';
+
+        $phase->advanceTurn($world, $seed, 2); // power fails; kitchen lit, living_room dark
+
+        $this->assertSame(LightLevel::normal, $world->getRoom('kitchen')->lightLevel);
+        $this->assertSame(LightLevel::dark, $world->getRoom('living_room')->lightLevel);
+
+        // The robot walks to the adjacent living room; recompute both rooms.
+        $world->robotStates['robot_a']->room = 'living_room';
+        EarthquakePhase::recomputeRoomLightLevel($world, 'kitchen');
+        EarthquakePhase::recomputeRoomLightLevel($world, 'living_room');
+
+        $this->assertSame(
+            LightLevel::dark,
+            $world->getRoom('kitchen')->lightLevel,
+            'The room left behind goes dark once the carried light leaves'
+        );
+        $this->assertSame(
+            LightLevel::normal,
+            $world->getRoom('living_room')->lightLevel,
+            'The entered room becomes lit as the carried light arrives'
+        );
+    }
+
+    /**
+     * A lit light handed to the resident (parked on room == 'resident') lights
+     * the resident's current room (Req 2.5, Req 4.6).
+     */
+    public function testHeldLitLightLightsResidentsRoom(): void
+    {
+        $phase = new EarthquakePhase();
+        $seed  = Seed::fromInt(3);
+        // Resident sits in the living room; robots kept out of the bathroom.
+        $world = $this->makeWorld('night', 'sitting_at_table');
+
+        $this->assertSame('living_room', $world->residentState->room);
+
+        $flashlight = $world->objects['flashlight'];
+        $flashlight->on = true;
+        $flashlight->room = 'resident';
+
+        $phase->advanceTurn($world, $seed, 2); // power fails
+
+        $this->assertSame(
+            LightLevel::normal,
+            $world->getRoom('living_room')->lightLevel,
+            'A lit light held by the resident lights the resident\'s room'
+        );
+    }
+
+    /**
+     * An unlit held light does not light any room: with the flashlight off and
+     * parked on the robot, the holder's room still goes dark at the outage
+     * (Req 2.4–2.5).
+     */
+    public function testUnlitHeldLightDoesNotLightRoom(): void
+    {
+        $phase = new EarthquakePhase();
+        $seed  = Seed::fromInt(3);
+        $world = $this->makeWorld('night', 'sitting_at_table'); // robot_a in kitchen
+
+        $flashlight = $world->objects['flashlight'];
+        $flashlight->on = false;
+        $flashlight->room = 'robot_a';
+        $world->robotStates['robot_a']->heldObjectId = 'flashlight';
+
+        $phase->advanceTurn($world, $seed, 2); // power fails
+
+        $this->assertSame(
+            LightLevel::dark,
+            $world->getRoom('kitchen')->lightLevel,
+            'An unlit carried light leaves the holder\'s room dark'
+        );
+    }
+
+    // ------------------------------------------------------------------
     // Delayed stove hazard at offset 6 (Req 3.5).
     // ------------------------------------------------------------------
 
