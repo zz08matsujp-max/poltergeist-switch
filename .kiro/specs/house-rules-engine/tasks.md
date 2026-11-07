@@ -125,8 +125,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Fixtures (counter, window, wall, doorway) are present in room but not returned by the object list helper
     - _Requirements: Req 1.4–1.6, Req 2.1–2.3_
 
-- [ ] 7. WorldModel: reset() and SituationSpec application
-  - [~] 7.1 Implement `reset(Seed $seed, ?SituationSpec $spec = null): void` on `WorldModel`:
+- [x] 7. WorldModel: reset() and SituationSpec application
+  - [x] 7.1 Implement `reset(Seed $seed, ?SituationSpec $spec = null): void` on `WorldModel`:
     - WorldModel implements SituationView
     - If `$spec` is null, derive via `SituationSpec::fromSeed($seed)`; otherwise use `$spec` directly
     - Re-initialise all six rooms and all ~20 objects (call `initRooms()` and `initObjects()`)
@@ -347,6 +347,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
       9. Advance turn clock
       10. Build `TurnResult`, store in history, return
     - No exceptions propagate out of `applyTurn`; always returns a `TurnResult`
+    - Each turn, set the four turn flags that `WorldModel` returns through `SituationView` (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`); task 7 left them as fixed defaults (`false` / `null`). Check that the text for both robots contains "The lights go out." at offset 2 and "The shaking has stopped." at offset 5 (added 2026-11-07)
     - _Requirements: Req 10.1–10.7_
   - [ ]* 18.2 Write unit tests in `tests/Engine/EngineIntegrationTest.php` (basic flow):
     - `applyTurn(0, [])` advances turn to 1 and returns a `TurnResult` for turn 0

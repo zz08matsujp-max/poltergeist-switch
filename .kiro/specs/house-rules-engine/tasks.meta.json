@@ -212,6 +212,16 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794027914629
+      },
+      {
+        "executionId": "022c8008-e279-427a-a988-baa76abeed6e",
+        "chatSessionId": "sess_6b73b0ee-5769-4630-8009-eb61a1ab2135",
+        "timestamp": 1794030241653
+      },
+      {
+        "executionId": "022c8008-e279-427a-a988-baa76abeed6e",
+        "chatSessionId": "sess_6b73b0ee-5769-4630-8009-eb61a1ab2135",
+        "timestamp": 1794030467708
       }
     ],
     "8.1 Implement `objects_visible_to(string $robotId, int $turn): array` on `WorldModel`:": [
@@ -410,6 +420,13 @@
         "executionId": "2d4129a2-11e6-4211-b024-43e24da2d9a9",
         "chatSessionId": "sess_56d75ef1-f54e-4f0c-ae71-6343108fceb9",
         "timestamp": 1794028356327
+      }
+    ],
+    "7. WorldModel: reset() and SituationSpec application": [
+      {
+        "executionId": "022c8008-e279-427a-a988-baa76abeed6e",
+        "chatSessionId": "sess_6b73b0ee-5769-4630-8009-eb61a1ab2135",
+        "timestamp": 1794030467898
       }
     ]
   }
