@@ -559,12 +559,12 @@ class ActionExecutor {
 
 **Per-operation mutations:**
 
-- **move:** `$world->robotStates[$rid]->room = $action->targetRoom`.
-- **take:** Move object from room to robot's `heldObjectId`.
-- **hand_over:** Clear robot's `heldObjectId`. If object `isWaterContainer`, add `$config->waterDeltaHandover` to `residentState->water` (clamped by ResidentController at end of turn). Assign object to resident.
+- **move:** `$world->robotStates[$rid]->room = $action->targetRoom`. If the robot holds a lit light source, call `EarthquakePhase::recomputeRoomLightLevel()` for the room left behind and the room entered (Req 2.5).
+- **take:** Move object from room to robot's `heldObjectId`. If the object is a lit light source, call `EarthquakePhase::recomputeRoomLightLevel()` for that room (the light now travels with the robot).
+- **hand_over:** Clear robot's `heldObjectId`. If object `isWaterContainer`, add `$config->waterDeltaHandover` to `residentState->water` (clamped by ResidentController at end of turn). Assign object to resident. If the object is a lit light source, call `EarthquakePhase::recomputeRoomLightLevel()` for the room (the resident now holds the light; Req 2.5).
 - **use (stove off):** Set `objectState->on = false`. Do not touch `gasMain`.
 - **use (gas main close):** Set `houseState->gasMain = GasState::closed`. Cancels delayed stove hazard if offset < 6.
-- **use (flashlight/candle on):** Set `objectState->on = true`. Trigger light-level recalculation for that room.
+- **use (flashlight/candle on):** Set `objectState->on = true`. A held light source is lit the same way (Req 4.6). Call `EarthquakePhase::recomputeRoomLightLevel()` for the holder's room (or the object's room if it stands in a room).
 - **support:** Sets a two-turn support flag on robot; actual room transfer happens on the second turn. The destination is the support action's `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key; Req 7.13). The Engine judges the proposal on the support turn with `ResidentController::evaluateRefusal()` (tokens built from the support action and both robots' spoken lines, Req 7.14) and moves the resident when the countdown reaches 0 (Req 7.15). `under_table` blocks falling-object injury (Req 7.16). Decided by the maintainer on 2026-11-07.
 - **cover:** Set turn-scoped `coverFlag` on target (resident or robot itself).
 - **speak:** Append `{words}` to turn record. No world-model mutation.
@@ -625,7 +625,9 @@ Each fallen object has its `broken=true` set and is placed in the same room (it 
 
 **`updateLightLevels(WorldModel, string $timeOfDay): void`**
 
-Called after `power=outage` is set. Only changes levels if `timeOfDay !== 'afternoon'`. For each room: if no lit flashlight or lit candle in the room, set `lightLevel = LightLevel::dark`.
+Called after `power=outage` is set. Only changes levels if `timeOfDay !== 'afternoon'`. For each room: if the room has no lit light source, set `lightLevel = LightLevel::dark`.
+
+`recomputeRoomLightLevel(WorldModel, string $roomKey): void` is the single place that decides a room's light. A room has a lit light source when a lit flashlight or lit candle stands in the room OR is held by an agent (a robot or the resident) whose current room is that room (Req 2.4-2.5, Req 4.6). ActionExecutor calls it whenever a lit light source changes room: a holder moving (move), a light source being picked up or handed over (take, hand_over), or a held light being switched on (use).
 
 ---
 
@@ -1292,7 +1294,7 @@ Every plan uses exactly one action per robot per turn and only objects that are 
 2. T2 (outage; night, so rooms go dark): Robot_A: cover resident. Robot_B: use flashlight on.
 3. T3: Robot_A: cover resident. Robot_B: move to living_room.
 4. T4: Robot_A: cover resident. Robot_B: move to bedroom.
-5. T5-T11: Robot_A: speak to resident. Robot_B: wait (the flashlight lights the bedroom).
+5. T5-T11: Robot_A: speak to resident. Robot_B: wait. (Robot_B carries the lit flashlight, so from T4 on the dark bedroom is lit; Req 2.4-2.5, 4.6.)
 6. T12 (aftershock): Robot_A: cover resident. Robot_B: wait.
 7. T13: Robot_A: speak to resident. Robot_B: wait.
 

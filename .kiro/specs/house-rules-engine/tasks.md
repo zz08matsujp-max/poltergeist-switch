@@ -455,6 +455,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 26.3 Tests: at earthquake offset 2 the text for both robots contains "The lights go out."; at offset 5 it contains "The shaking has stopped."; on the turn after a robot speaks, the other robot's text contains its line under "In the last 15 seconds:"
   - _Requirements: Req 9.12–9.18, Req 10.1_
 
+- [ ] 27. Held light sources (added 2026-11-07)
+  - [ ] 27.1 RulesEvaluator: `use` is possible when the target object is in the robot's room OR held by the robot (Req 4.6)
+  - [ ] 27.2 Light rule: a lit flashlight or candle lights the room of whoever holds it (a robot or the resident). Recompute the light of both rooms when a holder moves, and when a lit light is handed over. `EarthquakePhase::recomputeRoomLightLevel()` stays the one place for the rule (Req 2.4–2.5)
+  - [ ] 27.3 Model solution test: assert that every planned action is judged possible, and in S2 that the bedroom is not dark on turns T5–T11
+  - _Requirements: Req 2.4–2.5, Req 4.6, Req 11.6_
+
 ---
 
 ## Notes
@@ -497,7 +503,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 17, "tasks": ["17.2", "18.1"] },
     { "id": 18, "tasks": ["18.2", "18.3", "19.1"] },
     { "id": 19, "tasks": ["19.2", "20.1", "20.2"] },
-    { "id": 20, "tasks": ["21.1", "21.2"] }
+    { "id": 20, "tasks": ["21.1", "21.2"] },
+    { "id": 21, "tasks": ["27.1", "27.2", "27.3"] }
   ]
 }
 ```
