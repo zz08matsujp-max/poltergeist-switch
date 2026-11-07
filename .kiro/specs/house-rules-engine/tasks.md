@@ -377,14 +377,14 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Episode does NOT end early when stability holds for 5 turns but `disasterSubsided=false`
     - _Requirements: Req 10.6_
 
-- [ ] 20. Engine — full property-based test suite
-  - [ ] 20.1 Complete the property tests in `tests/Engine/Properties/`:
+- [x] 20. Engine — full property-based test suite
+  - [x] 20.1 Complete the property tests in `tests/Engine/Properties/`:
     - **Property 1: Reset reproducibility** in `WorldModelPropertyTest.php` — `forAll(int seed)`: call `reset(seed)` twice; assert all observable fields are identical (snapshot equality) — Validates: Req 1.11, Req 8.5
     - **Property 8: cooking→potBoiling** in `EnginePropertyTest.php` — `forAll(SituationSpec with manActivity=cooking)`: assert `potBoiling=true` always — Validates: Req 8.2
     - **Property 9: Scripted line cooldown** in `EnginePropertyTest.php` — `forAll(int seed, int turnCount 1–40)`: run turns, collect resident lines, assert no line (other than earthquake-start) appears more than once within any window of `lineCooldownTurns` consecutive turns — Validates: Req 7.6–7.7
     - **Property 10: floor_water_level ≥ 0** in `WorldModelPropertyTest.php` — `forAll(int seed)`: run earthquake turns with no robot actions, assert `floorWaterLevel >= 0` after each turn — Validates: Req 11.2
     - _Requirements: Req 11.1–11.5_
-  - [ ] 20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:
+  - [x] 20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:
     - **Property 6: Banned words absent** — `forAll(int seed)`: after `reset(seed)`, generate situation text for both `robot_a` and `robot_b`; extract fixed body, fixed house, "Right now:" paragraph, and shaking paragraph; assert none of the 13 banned words appear in those sections — Validates: Req 9.15, Req 11.7
     - **Property 7: Fixed sections identical** — `forAll(int seed)`: generate for both robots; assert fixed body + fixed house sections are byte-for-byte equal — Validates: Req 9.2, Req 11.8
     - Both use `->limitTo(100)`
@@ -442,9 +442,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 24.3 Checkpoint — all tests pass
     - Ensure all tests pass; ask the user if questions arise.
 
-- [ ] 25. Resident move via support (added 2026-11-07)
-  - Decide with the maintainer where the destination comes from (a room, or a spot such as under the table), then move the resident when the support countdown reaches 0 and evaluateRefusal() accepts
-  - _Requirements: Req 7.8–7.11_
+- [ ] 25. Resident move via support (added 2026-11-07; destination decided by the maintainer on 2026-11-07)
+  - [ ] 25.1 Destination on the support action (Req 7.13): `RulesEvaluator` checks `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key), else `possible=false`, `reason="no_destination"`; add `ManActivity::standing`
+  - [ ] 25.2 Engine (Req 7.14–7.15): build the proposal tokens from the support action and both robots' spoken lines; call `evaluateRefusal()` on the support turn; on refusal deliver "I don't want to move from here." as the resident's line and end the support; on acceptance move the resident when the countdown reaches 0. Remove the task-18 TODO
+  - [ ] 25.3 `ResidentController`: no falling-object injury while the spot is `under_table` (Req 7.16). `SituationTextGenerator`: describe the resident by spot or `standing` (Req 7.17); the S0–S5 and turn-2 golden tests must still pass unchanged
+  - [ ] 25.4 Tests: an accepted move to `under_table` happens on the second turn; a support with no destination word is refused with the refusal line; a weakened resident accepts; `under_table` blocks falling-object injury; a move to an adjacent room sets the room, spot `null` and activity `standing`
+  - _Requirements: Req 6.3, Req 7.8–7.17_
 
 - [x] 26. Engine — turn records and each robot's situation text (added 2026-11-07)
   - [x] 26.1 ActionExecutor: whatHappenedText in the second person, past tense, and seenByOtherText starting "The other robot", for every operation; both empty for speak and unknown (Req 9.16, Req 12.3)

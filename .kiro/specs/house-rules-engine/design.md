@@ -565,7 +565,7 @@ class ActionExecutor {
 - **use (stove off):** Set `objectState->on = false`. Do not touch `gasMain`.
 - **use (gas main close):** Set `houseState->gasMain = GasState::closed`. Cancels delayed stove hazard if offset < 6.
 - **use (flashlight/candle on):** Set `objectState->on = true`. Trigger light-level recalculation for that room.
-- **support:** Sets a two-turn support flag on robot; actual room transfer happens on the second turn.
+- **support:** Sets a two-turn support flag on robot; actual room transfer happens on the second turn. The destination is the support action's `targetSpot` (`under_table`, `beside_futon`, or an adjacent room key; Req 7.13). The Engine judges the proposal on the support turn with `ResidentController::evaluateRefusal()` (tokens built from the support action and both robots' spoken lines, Req 7.14) and moves the resident when the countdown reaches 0 (Req 7.15). `under_table` blocks falling-object injury (Req 7.16). Decided by the maintainer on 2026-11-07.
 - **cover:** Set turn-scoped `coverFlag` on target (resident or robot itself).
 - **speak:** Append `{words}` to turn record. No world-model mutation.
 

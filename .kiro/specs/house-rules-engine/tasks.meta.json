@@ -11,6 +11,14 @@
     "18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:": {
       "status": "passed",
       "lastRunTimestamp": 1794040863367
+    },
+    "20.1 Complete the property tests in `tests/Engine/Properties/`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794060197285
+    },
+    "20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794060198067
     }
   },
   "executionHistory": {
@@ -706,6 +714,18 @@
         "executionId": "bcea3934-e212-4c31-8a78-0fc4afdf62a3",
         "chatSessionId": "sess_a76f9d2c-ab2a-4490-8304-78b71f9163dc",
         "timestamp": 1794058898480
+      }
+    ],
+    "20. Engine — full property-based test suite": [
+      {
+        "executionId": "f668614f-4428-4e9c-8776-b4246c693e92",
+        "chatSessionId": "sess_7d68af9f-ba03-4cfb-b7fb-f7d2c34d6b83",
+        "timestamp": 1794059580508
+      },
+      {
+        "executionId": "f668614f-4428-4e9c-8776-b4246c693e92",
+        "chatSessionId": "sess_7d68af9f-ba03-4cfb-b7fb-f7d2c34d6b83",
+        "timestamp": 1794060370516
       }
     ]
   }
