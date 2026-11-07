@@ -95,6 +95,37 @@ class Engine
      */
     private ?int $previousInjury = null;
 
+    /**
+     * Turn number whose world has already been advanced by prepareTurn, or null
+     * when no turn is prepared ahead of applyTurn (Req 13.3). applyTurn consults
+     * this marker so the earthquake world is advanced exactly once for a turn:
+     * when it equals the turn being applied, applyTurn skips its own earthquake
+     * advance (design §d step 2). prepareTurn itself is idempotent per turn — a
+     * second call for the same turn number does nothing.
+     */
+    private ?int $preparedTurn = null;
+
+    /**
+     * The resident line fixed for the prepared turn (Req 13.8). prepareTurn
+     * computes the line the robots will read this turn — a refusal carried from
+     * the previous turn, otherwise the scripted line — and stores it here so
+     * applyTurn emits exactly that line instead of calling emitDialogueLine a
+     * second time (which no robot would read, and which would double-record the
+     * line's cooldown). Null when the prepared turn has no line.
+     */
+    private ?string $preparedResidentLine = null;
+
+    /**
+     * A resident line produced while applying a turn (the support refusal
+     * "I don't want to move from here.", Req 7.15) that no robot has read yet,
+     * held so the NEXT prepareTurn carries it into that turn's text with
+     * priority over any scripted line (Req 13.8). Consumed (set back to null)
+     * the moment prepareTurn uses it. Written by applyTurn but only ever read by
+     * prepareTurn, so an episode that never calls prepareTurn is unaffected
+     * (Req 13.7).
+     */
+    private ?string $pendingResidentLine = null;
+
     public function __construct(
         private WorldModel $world,
         private EpisodeConfig $config,
@@ -165,6 +196,102 @@ class Engine
     }
 
     /**
+     * Advance the earthquake world to the turn about to be played WITHOUT
+     * judging, so a following situationTextFor renders that same turn's world
+     * (Req 13.1–13.2, Req 13.8).
+     *
+     * prepareTurn performs only the world-advancing, text-facing part of a
+     * turn: it captures the stove-was-on flag on the earthquake-start
+     * transition, advances the earthquake phase by this turn's offset with the
+     * same EarthquakePhase::advanceTurn call applyTurn uses (which selects the
+     * falling objects on a shaking turn), fixes the resident line for the turn,
+     * and sets the four per-turn SituationView flags the text needs. It never
+     * evaluates or executes actions, never updates resident state beyond the
+     * line it fixes, and never advances the turn clock — applyTurn still owns
+     * all of that (design §d).
+     *
+     * Idempotent per turn (Req 13.3): a $preparedTurn marker records the turn
+     * already prepared; a second call for the same turn number returns at once
+     * without advancing the earthquake world again. A call for anything other
+     * than the engine's current turn is ignored, because only the current turn
+     * can be prepared before it is applied.
+     *
+     * Because applyTurn consults $preparedTurn (step 2), calling
+     * prepareTurn($turnNumber) and then applyTurn($turnNumber, …) advances the
+     * earthquake exactly once (Req 13.4). An episode that never calls
+     * prepareTurn advances it inside applyTurn exactly as before (Req 13.5,
+     * Req 13.7).
+     *
+     * Earthquake-switch mapping (Req 13.6): the observer layer sets
+     * earthquakeStartTurn to a non-negative turn T; the first turn played after
+     * the switch is offset 1, the first shaking turn, whose paragraph opens
+     * "Suddenly the floor begins to shake hard." There is no negative start
+     * turn.
+     */
+    public function prepareTurn(int $turnNumber): void
+    {
+        // Idempotent per turn: a second call for the same turn does nothing.
+        if ($this->preparedTurn === $turnNumber) {
+            return;
+        }
+
+        // Only the engine's current turn can be prepared ahead of applyTurn;
+        // ignore any other turn number without touching the world.
+        if ($turnNumber !== $this->world->currentTurn) {
+            return;
+        }
+
+        // Capture the stove flame once, on the turn the earthquake becomes
+        // active (Req 3.5), exactly as applyTurn step 2 would.
+        $this->captureStoveOnEarthquakeStart();
+
+        // Advance the earthquake phase by this turn's offset — the same call
+        // applyTurn makes — so the shaking, power and falling-object state is
+        // the turn's state (Req 13.2). selectFallingObjects runs inside
+        // advanceTurn on a shaking turn.
+        $offset = null;
+        if ($this->world->earthquakeStartTurn !== null) {
+            $offset = $turnNumber - $this->world->earthquakeStartTurn;
+            $this->earthquake->advanceTurn($this->world, $this->world->seed, $offset);
+        }
+
+        // Fix the resident line for this turn (Req 13.8): a refusal produced
+        // while applying the previous turn is carried here and takes priority
+        // over any scripted line; otherwise emit the scripted line. The line is
+        // decided once, in prepareTurn, so the line the robots read in the text
+        // is the line of this turn.
+        $residentLine = $this->takePendingResidentLine()
+            ?? $this->resident->emitDialogueLine(
+                $this->world,
+                $this->config,
+                $turnNumber,
+            );
+        $this->preparedResidentLine = $residentLine;
+
+        // Set the four per-turn SituationView flags so the next situation text
+        // shows the earthquake and resident-speech cues for this turn.
+        $this->setSituationFlags($offset, $residentLine);
+
+        // Mark the turn prepared so applyTurn skips its own earthquake advance
+        // and reuses the fixed line (Req 13.3, Req 13.4).
+        $this->preparedTurn = $turnNumber;
+    }
+
+    /**
+     * Return and consume any resident line carried from the previous turn (a
+     * support refusal that no robot has read yet, Req 13.8). Returns null when
+     * nothing is pending. Consuming it here, in prepareTurn, is what makes the
+     * refusal surface in turn n+1's text and nowhere else.
+     */
+    private function takePendingResidentLine(): ?string
+    {
+        $line = $this->pendingResidentLine;
+        $this->pendingResidentLine = null;
+
+        return $line;
+    }
+
+    /**
      * Process the current turn (steps 2–10 of design §d). Called only when the
      * idempotency check has confirmed `$turnNumber === currentTurn`.
      *
@@ -185,12 +312,25 @@ class Engine
         //    earthquakeStartTurn on the world; the Engine captures the stove
         //    flame the first turn it sees it set (Req 3.5), then advances the
         //    phase by the current offset every turn until the phase ends.
-        $this->captureStoveOnEarthquakeStart();
+        //
+        //    When prepareTurn already prepared this turn (Req 13.4), the
+        //    earthquake world was advanced there, so skip the advance here to
+        //    avoid doing it twice; still compute the offset so the later
+        //    SituationView flags are correct. An unprepared turn advances the
+        //    phase here exactly as before, keeping applyTurn correct whether or
+        //    not prepareTurn was called (Req 13.5, Req 13.7).
+        $turnWasPrepared = $this->preparedTurn === $turnNumber;
 
         $offset = null;
         if ($this->world->earthquakeStartTurn !== null) {
             $offset = $turnNumber - $this->world->earthquakeStartTurn;
-            $this->earthquake->advanceTurn($this->world, $this->world->seed, $offset);
+        }
+
+        if (!$turnWasPrepared) {
+            $this->captureStoveOnEarthquakeStart();
+            if ($offset !== null) {
+                $this->earthquake->advanceTurn($this->world, $this->world->seed, $offset);
+            }
         }
 
         // 3. Evaluate both actions in the fixed robot_a → robot_b order.
@@ -210,19 +350,35 @@ class Engine
         $this->resident->updateState($this->world, $this->config, $turnActions);
 
         // 5b. Resolve any support proposal made this turn: the resident decides
-        //     on the turn of the support action (Req 7.15). A refusal both ends
-        //     the support and overrides this turn's scripted line with
-        //     "I don't want to move from here." (Req 7.9, Req 7.15).
+        //     on the turn of the support action (Req 7.15). A refusal ends the
+        //     support; the refusal line is produced here, after the robots have
+        //     already acted this turn, so no robot reads it this turn — it is
+        //     carried into the next turn's text by prepareTurn (Req 13.8).
         $refusalLine = $this->resolveSupportProposals($allActions, $outcomes);
 
-        // 6. Emit at most one scripted resident line for this turn, unless a
-        //    support refusal already claimed the line (Req 7.15).
-        $residentLine = $refusalLine
-            ?? $this->resident->emitDialogueLine(
-                $this->world,
-                $this->config,
-                $turnNumber,
-            );
+        // 6. Fix this turn's single resident line. When prepareTurn prepared
+        //    this turn it already decided the line (a refusal carried from the
+        //    previous turn, or the scripted line); reuse it so applyTurn does
+        //    not emit a second line that no robot reads and does not
+        //    double-record the line's cooldown (Req 13.8). An unprepared turn
+        //    keeps the original behaviour (Req 13.7): a refusal produced this
+        //    turn claims the line, else the scripted line is emitted now.
+        if ($turnWasPrepared) {
+            $residentLine = $this->preparedResidentLine;
+        } else {
+            $residentLine = $refusalLine
+                ?? $this->resident->emitDialogueLine(
+                    $this->world,
+                    $this->config,
+                    $turnNumber,
+                );
+        }
+
+        // Carry any refusal produced this turn into the next turn's text; it is
+        // consumed by the next prepareTurn and takes priority there (Req 13.8).
+        if ($refusalLine !== null) {
+            $this->pendingResidentLine = $refusalLine;
+        }
 
         // Count down each robot's support timer (task 13 set it to 2 on a
         // support action) and move the resident when a countdown reaches 0
