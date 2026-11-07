@@ -249,9 +249,9 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `hand_over` when robot holds nothing: world unchanged, `Outcome::failure()`
     - _Requirements: Req 5.5–5.6, Req 5.11_
 
-- [ ] 14. EarthquakePhase
-  - [ ] 14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:
-    - EarthquakePhase sets the flags that SituationView reads (still shaking, lights go out, shaking stopped)
+- [x] 14. EarthquakePhase
+  - [x] 14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:
+    - The flags that SituationView reads (still shaking, lights go out, shaking stopped) follow this offset table; the Engine sets them on `WorldModel` each turn (task 18.1)
     - Make `updateLightLevels()` the one place for the light rule: `ActionExecutor` (task 12) has a private `recomputeLightLevel()` for flashlight/candle lighting; move that logic here or into a shared helper so both use the same code (added 2026-11-07)
     - `advanceTurn(WorldModel $world, Seed $seed, int $turnOffset): void`
     - Sets `houseState->shaking` per the offset table: `true` at offsets 1–4 and 12; `false` at all others (0, 5–11, 13)
@@ -264,7 +264,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `selectFallingObjects(WorldModel, Seed, int $offset): array` — uses `crc32("{$seed->value}:fall:{$offset}")` to seed a fresh `\Random\Randomizer`; each breakable object in kitchen and living_room has a 1-in-3 chance; marks fallen objects `broken=true`
     - `updateLightLevels(WorldModel $world, string $timeOfDay): void` — if `timeOfDay !== 'afternoon'`, set rooms without a lit flashlight or lit candle to `LightLevel::dark`
     - _Requirements: Req 3.1–3.8, Req 2.5_
-  - [ ]* 14.2 Write unit tests in `tests/Engine/EarthquakePhaseTest.php`:
+  - [x] 14.2 Write unit tests in `tests/Engine/EarthquakePhaseTest.php`:
     - Shaking flag is true at offsets 1, 2, 3, 4, 12 and false at 5, 6, 7, 8, 9, 10, 11, 13
     - Power outage set at offset 2; `power` remains `outage` through offset 13
     - Light levels set to `dark` for non-afternoon time when power fails at offset 2 (and not changed for afternoon)
@@ -273,7 +273,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `disasterSubsided=true` at offset 13
     - Same seed produces identical fallen-object sets across two separate runs
     - _Requirements: Req 3.1–3.8_
-  - [ ] 14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
+  - [x] 14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 5: Earthquake determinism** — `forAll(int seed)`: run the earthquake phase (offsets 1–13) twice on two separate `WorldModel` instances reset with the same seed and no robot actions; fallen object sets per offset are identical
     - Uses `->limitTo(100)`
     - _Requirements: Req 3.4, Req 3.8, Req 8.5, Req 11.5_
@@ -350,6 +350,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - No exceptions propagate out of `applyTurn`; always returns a `TurnResult`
     - Each turn, set the four turn flags that `WorldModel` returns through `SituationView` (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`); task 7 left them as fixed defaults (`false` / `null`). Check that the text for both robots contains "The lights go out." at offset 2 and "The shaking has stopped." at offset 5 (added 2026-11-07)
     - Count down each robot's `supportTurnsRemaining` (set by `support` in task 13); when it reaches 0, move the resident only if `ResidentController::evaluateRefusal()` accepts. Where the destination comes from is not fixed in the spec yet: ask the maintainer before implementing this part (added 2026-11-07)
+    - Call `EarthquakePhase::captureStoveWasOn()` when `earthquakeStartTurn` is set, and `clearStoveWasOn()` when a `use` action turns the stove off, so the delayed stove hazard at offset 6 happens only if the flame is still on (added 2026-11-07)
     - _Requirements: Req 10.1–10.7_
   - [ ]* 18.2 Write unit tests in `tests/Engine/EngineIntegrationTest.php` (basic flow):
     - `applyTurn(0, [])` advances turn to 1 and returns a `TurnResult` for turn 0

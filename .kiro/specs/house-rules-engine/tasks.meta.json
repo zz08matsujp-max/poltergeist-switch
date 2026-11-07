@@ -3,6 +3,10 @@
     "8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": {
       "status": "passed",
       "lastRunTimestamp": 1794030919756
+    },
+    "14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794037521616
     }
   },
   "executionHistory": {
@@ -514,6 +518,30 @@
         "executionId": "93b1e378-ae8f-44ad-a18b-3216d2b967c3",
         "chatSessionId": "sess_dee4eb5d-ec56-4044-94d2-9ee211f452a6",
         "timestamp": 1794034961109
+      }
+    ],
+    "14. EarthquakePhase": [
+      {
+        "executionId": "549c04e3-8f75-47e2-ab6a-5f059b777e90",
+        "chatSessionId": "sess_a46af08c-8d0c-4feb-a759-a87a93efbbb7",
+        "timestamp": 1794037336670
+      },
+      {
+        "executionId": "549c04e3-8f75-47e2-ab6a-5f059b777e90",
+        "chatSessionId": "sess_a46af08c-8d0c-4feb-a759-a87a93efbbb7",
+        "timestamp": 1794037543879
+      }
+    ],
+    "14.2 Write unit tests in `tests/Engine/EarthquakePhaseTest.php`:": [
+      {
+        "executionId": "c56b9695-c350-4bfe-bcb2-ecb06ff6532a",
+        "chatSessionId": "sess_6468bba6-7bfd-42b9-ba7e-9bb30e8c576a",
+        "timestamp": 1794037665651
+      },
+      {
+        "executionId": "c56b9695-c350-4bfe-bcb2-ecb06ff6532a",
+        "chatSessionId": "sess_6468bba6-7bfd-42b9-ba7e-9bb30e8c576a",
+        "timestamp": 1794037793557
       }
     ]
   }
