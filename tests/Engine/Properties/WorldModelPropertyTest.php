@@ -39,6 +39,71 @@ class WorldModelPropertyTest extends TestCase
     use TestTrait;
 
     /**
+     * Property 1: Reset reproducibility.
+     *
+     * For any seed, calling reset() twice on independent WorldModel instances
+     * must leave them in byte-for-byte identical observable state: the same
+     * situation layout, the same objects in the same rooms with the same flags,
+     * the same robots, the same resident, the same house flags, and the same
+     * per-room light/temperature/hazard state. This is the determinism
+     * guarantee the whole replay/compare feature rests on (Req 1.11, Req 8.5).
+     *
+     * Validates: Requirements 1.11, 8.5
+     */
+    public function testResetWithTheSameSeedIsReproducible(): void
+    {
+        $this->limitTo(100)
+            ->forAll(Generators::int())
+            ->then(function (int $seedValue): void {
+                $worldA = new WorldModel();
+                $worldA->reset(Seed::fromInt($seedValue));
+
+                $worldB = new WorldModel();
+                $worldB->reset(Seed::fromInt($seedValue));
+
+                $this->assertSame(
+                    $this->describeWorld($worldA),
+                    $this->describeWorld($worldB),
+                    "reset() with seed {$seedValue} must be reproducible"
+                );
+            });
+    }
+
+    /**
+     * Property 10: floor_water_level never negative.
+     *
+     * For any seed, driving the earthquake phase across offsets 1–13 with no
+     * robot actions must never leave the house's floor water level below zero
+     * after any turn. A water level is a physical quantity that can only ever
+     * be zero or positive (Req 11.2).
+     *
+     * Validates: Requirements 11.2
+     */
+    public function testFloorWaterLevelStaysNonNegative(): void
+    {
+        $this->limitTo(100)
+            ->forAll(Generators::int())
+            ->then(function (int $seedValue): void {
+                $seed = Seed::fromInt($seedValue);
+
+                $world = new WorldModel();
+                $world->reset($seed);
+
+                $phase = new EarthquakePhase();
+
+                for ($offset = 1; $offset <= 13; $offset++) {
+                    $phase->advanceTurn($world, $seed, $offset);
+
+                    $this->assertGreaterThanOrEqual(
+                        0.0,
+                        $world->houseState->floorWaterLevel,
+                        "floorWaterLevel must stay >= 0 at offset {$offset} (seed {$seedValue})"
+                    );
+                }
+            });
+    }
+
+    /**
      * Property 2: One-room invariant.
      *
      * Validates: Requirements 2.1, 2.2
@@ -212,6 +277,99 @@ class WorldModelPropertyTest extends TestCase
         }
 
         return $perOffset;
+    }
+
+    /**
+     * Reduce a whole WorldModel to a plain, order-stable array of every
+     * observable field so two resets can be compared with assertSame. This
+     * covers more than snapshot() does: it also includes the situation layout
+     * and the per-room light/temperature/hazard state, which reset() sets but
+     * which snapshot() does not carry. Object and robot keys are sorted so the
+     * comparison does not depend on iteration order.
+     *
+     * @return array<string,mixed>
+     */
+    private function describeWorld(WorldModel $world): array
+    {
+        $objects = [];
+        foreach ($world->objects as $id => $object) {
+            $objects[$id] = [
+                'displayName' => $object->displayName,
+                'room' => $object->room,
+                'spot' => $object->spot,
+                'on' => $object->on,
+                'open' => $object->open,
+                'contents' => $object->contents,
+                'broken' => $object->broken,
+                'fallen' => $object->fallen,
+            ];
+        }
+        ksort($objects);
+
+        $robots = [];
+        foreach ($world->robotStates as $id => $robot) {
+            $robots[$id] = [
+                'room' => $robot->room,
+                'spot' => $robot->spot,
+                'heldObjectId' => $robot->heldObjectId,
+                'coverFlag' => $robot->coverFlag,
+                'supportTurnsRemaining' => $robot->supportTurnsRemaining,
+            ];
+        }
+        ksort($robots);
+
+        $rooms = [];
+        foreach ($world->rooms as $key => $room) {
+            $rooms[$key] = [
+                'lightLevel' => $room->lightLevel->value,
+                'temperature' => $room->temperature,
+                'hotWaterInjuryHazard' => $room->hotWaterInjuryHazard,
+            ];
+        }
+        ksort($rooms);
+
+        $resident = $world->residentState;
+        $house = $world->houseState;
+        $spec = $world->situationSpec;
+
+        return [
+            'situation' => [
+                'time' => $spec->time,
+                'robotARoom' => $spec->robotARoom,
+                'robotBRoom' => $spec->robotBRoom,
+                'manActivity' => $spec->manActivity,
+                'potBoiling' => $spec->potBoiling,
+            ],
+            'objects' => $objects,
+            'robots' => $robots,
+            'rooms' => $rooms,
+            'resident' => [
+                'bodyTemp' => $resident->bodyTemp,
+                'water' => $resident->water,
+                'injury' => $resident->injury,
+                'fear' => $resident->fear,
+                'weakened' => $resident->weakened,
+                'room' => $resident->room,
+                'spot' => $resident->spot,
+                'activity' => $resident->activity,
+                'coverFlag' => $resident->coverFlag,
+                'lastLineDeliveredOn' => $resident->lastLineDeliveredOn,
+            ],
+            'house' => [
+                'power' => $house->power->value,
+                'gasMain' => $house->gasMain->value,
+                'floorWaterLevel' => $house->floorWaterLevel,
+                'shaking' => $house->shaking,
+                'fallingObjects' => $house->fallingObjects,
+                'timeOfDay' => $house->timeOfDay,
+            ],
+            'counters' => [
+                'currentTurn' => $world->currentTurn,
+                'earthquakeStartTurn' => $world->earthquakeStartTurn,
+                'episodeEnded' => $world->episodeEnded,
+                'disasterSubsided' => $world->disasterSubsided,
+            ],
+        ];
     }
 
     /**

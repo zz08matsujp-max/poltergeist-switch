@@ -10,11 +10,13 @@ use PHPUnit\Framework\TestCase;
 use PoltergeistSwitch\Engine\ActionExecutor;
 use PoltergeistSwitch\Engine\EarthquakePhase;
 use PoltergeistSwitch\Engine\Engine;
+use PoltergeistSwitch\Engine\Enums\ManActivity;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\EpisodeConfig;
 use PoltergeistSwitch\Engine\ResidentController;
 use PoltergeistSwitch\Engine\RulesEvaluator;
 use PoltergeistSwitch\Engine\Seed;
+use PoltergeistSwitch\Engine\SituationSpec;
 use PoltergeistSwitch\Engine\SituationTextGenerator;
 use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\Values\TurnResult;
@@ -38,6 +40,137 @@ use PoltergeistSwitch\Engine\WorldModel;
 class EnginePropertyTest extends TestCase
 {
     use TestTrait;
+
+    /** The resident's earthquake-start shout, exempt from the cooldown (Req 7.1). */
+    private const EARTHQUAKE_LINE = "What's happening?!";
+
+    /**
+     * Property 8: cooking always means the pot is boiling.
+     *
+     * For any starting layout whose manActivity is `cooking`, the resolved
+     * SituationSpec and the reset world must both report a boiling pot. The
+     * SituationSpec constructor forces potBoiling=true when cooking regardless
+     * of the flag passed in, and reset() lights the stove and places the pot
+     * accordingly (Req 8.2).
+     *
+     * The three free fields (time and the two robot rooms) are drawn by Eris;
+     * the bathroom is allowed because the activity is cooking, not bathing.
+     *
+     * Validates: Requirements 8.2
+     */
+    public function testCookingAlwaysForcesPotBoiling(): void
+    {
+        $rooms = ['living_room', 'kitchen', 'bathroom', 'bedroom', 'entrance', 'storeroom'];
+        $times = ['morning', 'afternoon', 'night'];
+
+        $this->limitTo(100)
+            ->forAll(
+                Generators::elements($times),
+                Generators::elements($rooms),
+                Generators::elements($rooms),
+                // The incoming potBoiling flag must be ignored for cooking, so
+                // draw it freely to prove it is overridden either way.
+                Generators::bool(),
+            )
+            ->then(function (string $time, string $roomA, string $roomB, bool $flag): void {
+                $spec = new SituationSpec($time, $roomA, $roomB, ManActivity::cooking->value, $flag);
+
+                $this->assertTrue(
+                    $spec->potBoiling,
+                    "cooking must force SituationSpec.potBoiling=true (incoming flag "
+                        . var_export($flag, true) . ")"
+                );
+
+                $world = new WorldModel();
+                $world->reset(Seed::fromInt(0), $spec);
+
+                $this->assertTrue(
+                    $world->situationSpec->potBoiling,
+                    'reset world must keep potBoiling=true for cooking'
+                );
+                $this->assertTrue(
+                    $world->isPotBoiling(),
+                    'reset world must report a boiling pot for cooking'
+                );
+            });
+    }
+
+    /**
+     * Property 9: scripted line cooldown.
+     *
+     * For any seed and any run length of 1–40 turns driven by an active
+     * earthquake, no scripted resident line other than the earthquake-start
+     * shout may appear more than once within any window of `lineCooldownTurns`
+     * consecutive turns (Req 7.6, Req 7.7). The earthquake line is exempt
+     * because it fires exactly once, on the start turn, ignoring the cooldown
+     * (Req 7.1).
+     *
+     * The earthquake starts on turn 0 (earthquakeStartTurn set before the first
+     * applyTurn), so the fear/water/darkness lines actually get a chance to
+     * fire as shaking, darkness and thirst build. Each turn's residentLine is
+     * collected, then every window of `lineCooldownTurns` consecutive turns is
+     * checked for a repeated non-earthquake line.
+     *
+     * Validates: Requirements 7.6, 7.7
+     */
+    public function testScriptedLinesObeyCooldownWithinAnyWindow(): void
+    {
+        $this->limitTo(100)
+            ->forAll(
+                Generators::int(),
+                Generators::choose(1, 40),
+            )
+            ->then(function (int $seedValue, int $turnCount): void {
+                $seed = Seed::fromInt($seedValue);
+
+                $engine = $this->buildEngine($seed, $world);
+
+                // Trigger the earthquake from turn 0 so scripted lines can fire.
+                $world->earthquakeStartTurn = 0;
+
+                $config = new EpisodeConfig();
+                $cooldown = $config->lineCooldownTurns;
+
+                // Collect each turn's line (or null) in turn order.
+                $lines = [];
+                for ($turn = 0; $turn < $turnCount; $turn++) {
+                    $result = $engine->applyTurn($turn, []);
+
+                    // Stop collecting once the episode ends: no further turns
+                    // are processed, so trailing turns carry no new lines.
+                    if ($result->isError) {
+                        break;
+                    }
+
+                    $lines[$turn] = $result->residentLine;
+
+                    if ($result->episodeEnded) {
+                        break;
+                    }
+                }
+
+                // For every window of `cooldown` consecutive turns, each
+                // non-earthquake line may appear at most once.
+                $maxTurn = $turnCount - 1;
+                for ($start = 0; $start <= $maxTurn; $start++) {
+                    $seen = [];
+                    for ($t = $start; $t < $start + $cooldown && $t <= $maxTurn; $t++) {
+                        $line = $lines[$t] ?? null;
+                        if ($line === null || $line === self::EARTHQUAKE_LINE) {
+                            continue;
+                        }
+
+                        $this->assertArrayNotHasKey(
+                            $line,
+                            $seen,
+                            "Line '{$line}' repeated within a {$cooldown}-turn window "
+                                . "starting at turn {$start} (seed {$seedValue}, turnCount {$turnCount})"
+                        );
+                        $seen[$line] = true;
+                    }
+                }
+            });
+    }
 
     /**
      * Property 4: applyTurn idempotency.
@@ -104,7 +237,7 @@ class EnginePropertyTest extends TestCase
      * how the production layers assemble the engine (design §d). All of the
      * collaborators are no-argument plain classes.
      */
-    private function buildEngine(Seed $seed): Engine
+    private function buildEngine(Seed $seed, ?WorldModel &$world = null): Engine
     {
         $config = new EpisodeConfig();
 
