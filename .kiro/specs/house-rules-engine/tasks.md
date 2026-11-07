@@ -178,8 +178,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `take` of broken object when holding protective item → `dangerous=false, dangerCode=null`
     - _Requirements: Req 4.2–4.3, Req 4.7, Req 4.12_
 
-- [ ] 10. RulesEvaluator — remaining operations
-  - [ ] 10.1 Extend `RulesEvaluator` with `use`, `hand_over`, `support`, `cover`, `wait`, `speak` operations:
+- [x] 10. RulesEvaluator — remaining operations
+  - [x] 10.1 Extend `RulesEvaluator` with `use`, `hand_over`, `support`, `cover`, `wait`, `speak` operations:
     - `use`: returns `possible=false, reason="object_not_in_room"` when target object not in robot's room
     - `hand_over`: returns `possible=false, reason="no_object_held"` when robot holds nothing; `possible=false, reason="not_in_same_room"` when resident is not in robot's room
     - `support`: returns `possible=true, duration=2` when resident is in robot's room; `possible=false, reason="not_in_same_room"` otherwise
