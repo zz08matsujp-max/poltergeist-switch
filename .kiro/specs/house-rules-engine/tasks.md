@@ -89,8 +89,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Assert `$generator->generate('robot_a', $world, []) === SITUATION_B` byte-for-byte
     - _Requirements: Req 9.1–9.15, Req 11.9, Req 11.10_
 
-- [ ] 5. Golden tests S1–S5
-  - [ ] 5.1 Extend `SituationTextGeneratorTest.php` with S1–S5 golden tests:
+- [x] 5. Golden tests S1–S5
+  - [x] 5.1 Extend `SituationTextGeneratorTest.php` with S1–S5 golden tests:
     - Load `pilot/実験0_状況を変える_2026-11-01_n3.json`, index entries by `sid`, take first occurrence of each sid as the authoritative prompt string
     - Construct a `SituationSpec` for each situation using the key mapping from design.md (pilot `you` key → `robotARoom`, `other` key → `robotBRoom`; `man` key lookup: `table`→`sitting_at_table`, `futon`→`asleep_in_futon`, `bath`→`bathing`, `cooking`→`cooking`; pilot room abbreviations → full room keys: `living`→`living_room`, `bath`→`bathroom`, `store`→`storeroom`)
     - S1: `(afternoon, kitchen, bedroom, sitting_at_table, false)`

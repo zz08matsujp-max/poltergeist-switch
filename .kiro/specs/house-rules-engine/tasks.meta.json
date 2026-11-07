@@ -160,6 +160,18 @@
         "chatSessionId": "sess_de297f49-fdc4-4184-9baa-94e7ca1ca740",
         "timestamp": 1794025855404
       }
+    ],
+    "5. Golden tests S1–S5": [
+      {
+        "executionId": "159d4f02-6005-4a18-90ed-f900322c1903",
+        "chatSessionId": "sess_2d8f2479-3182-4cb6-84f9-32cd0b229bb7",
+        "timestamp": 1794026666703
+      },
+      {
+        "executionId": "159d4f02-6005-4a18-90ed-f900322c1903",
+        "chatSessionId": "sess_2d8f2479-3182-4cb6-84f9-32cd0b229bb7",
+        "timestamp": 1794026956970
+      }
     ]
   }
 }
