@@ -18,7 +18,7 @@ use PoltergeistSwitch\Engine\Values\WorldSnapshot;
  * Task 6.2 implemented room/object initialisation and snapshot/restore.
  * Task 7.1 adds `reset()` with SituationSpec application and makes WorldModel
  * implement SituationView so SituationTextGenerator can read from the live
- * world. `objects_visible_to()` (task 8) is added later.
+ * world. Task 8.1 adds `objects_visible_to()`.
  *
  * Requirements: Req 1.1–1.12, Req 2.1–2.2, Req 8.5–8.9
  */
@@ -339,6 +339,48 @@ class WorldModel implements SituationView
         }
 
         return $this->rooms[$key];
+    }
+
+    /**
+     * Objects a robot can currently perceive in its own room (Req 2.3, Req 2.4).
+     *
+     * Steps (design §a):
+     *   1. look up the robot's current room;
+     *   2. if that room is dark, the robot sees nothing → return [];
+     *   3. otherwise collect every ObjectState whose current room matches, in
+     *      the fixed room order of Req 1.6.
+     *
+     * Fixtures (window, counter, wall, doorway) are never registered in
+     * `$this->objects`; they live only in `Room::fixtureKeys`, so filtering the
+     * object registry by room already excludes them. Objects iterate in
+     * registration order (initObjects()), which is the fixed room order, so a
+     * straight filter preserves that order. The `$turn` parameter is accepted
+     * for interface symmetry with the per-turn callers and is not used here.
+     *
+     * @return ObjectState[] visible objects in fixed room order (may be empty)
+     */
+    public function objects_visible_to(string $robotId, int $turn): array
+    {
+        // 1. the robot's current room.
+        if (!array_key_exists($robotId, $this->robotStates)) {
+            throw new InvalidArgumentException("Unknown robot id: {$robotId}");
+        }
+        $roomKey = $this->robotStates[$robotId]->room;
+
+        // 2. a dark room hides everything (Req 2.4).
+        if ($this->getRoom($roomKey)->lightLevel === LightLevel::dark) {
+            return [];
+        }
+
+        // 3. objects in that room, in registration (fixed room) order.
+        $visible = [];
+        foreach ($this->objects as $object) {
+            if ($object->room === $roomKey) {
+                $visible[] = $object;
+            }
+        }
+
+        return $visible;
     }
 
     /**
