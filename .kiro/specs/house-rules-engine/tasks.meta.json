@@ -688,6 +688,18 @@
         "chatSessionId": "sess_8d63e573-8fd7-4380-97cf-f3b68275f8ff",
         "timestamp": 1794040889495
       }
+    ],
+    "19. Engine — episode-end conditions": [
+      {
+        "executionId": "b7183837-c77a-441a-b307-9f3512622bc2",
+        "chatSessionId": "sess_8fa2cc97-b87a-45cb-ae4e-f4b89b116509",
+        "timestamp": 1794041388940
+      },
+      {
+        "executionId": "b7183837-c77a-441a-b307-9f3512622bc2",
+        "chatSessionId": "sess_8fa2cc97-b87a-45cb-ae4e-f4b89b116509",
+        "timestamp": 1794041563303
+      }
     ]
   }
 }

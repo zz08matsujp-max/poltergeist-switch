@@ -363,15 +363,15 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Uses `->limitTo(100)`
     - _Requirements: Req 10.2–10.3, Req 11.4_
 
-- [ ] 19. Engine — episode-end conditions
-  - [ ] 19.1 Implement `checkEpisodeEnd()` on `Engine`:
+- [x] 19. Engine — episode-end conditions
+  - [x] 19.1 Implement `checkEpisodeEnd()` on `Engine`:
     - Mark episode as ended when turn count reaches `$config->maxTurns` (40)
     - Track stability: per turn, check all four conditions (fear < `fearStableThreshold`, water > `waterStableThreshold`, bodyTemp < `tempStableThreshold`, injury not greater than injury from the immediately preceding turn)
     - If all four hold for `$config->stableRunLength` (5) consecutive turns AND `disasterSubsided=true`, mark episode ended
     - Set `worldModel->episodeEnded=true`; `TurnResult->episodeEnded` reflects this
     - All thresholds and run lengths read from `EpisodeConfig`
     - _Requirements: Req 10.6_
-  - [ ]* 19.2 Write unit tests extending `EngineIntegrationTest.php`:
+  - [x]* 19.2 Write unit tests extending `EngineIntegrationTest.php`:
     - Episode ends after 40 turns when stability is never reached
     - Episode ends early when stability conditions hold for 5 consecutive turns after `disasterSubsided=true`
     - Episode does NOT end early when stability holds for 5 turns but `disasterSubsided=false`
