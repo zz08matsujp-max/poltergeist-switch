@@ -211,8 +211,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Priority conflict: both robots target same object, losing robot gets `possible=false, reason="priority_conflict"`
     - _Requirements: Req 4.8–4.13_
 
-- [ ] 12. ActionExecutor — move, take, use, speak, cover, and rollback
-  - [ ] 12.1 Implement `ActionExecutor` in `src/Engine/ActionExecutor.php`:
+- [x] 12. ActionExecutor — move, take, use, speak, cover, and rollback
+  - [x] 12.1 Implement `ActionExecutor` in `src/Engine/ActionExecutor.php`:
     - `execute(Action $action, Judgement $judgement, WorldModel $world, EpisodeConfig $config): Outcome`
     - If `$judgement->possible === false`, return `Outcome::failure()` without mutating world state
     - Snapshot/restore rollback pattern (see design.md §f)
@@ -252,6 +252,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 - [ ] 14. EarthquakePhase
   - [ ] 14.1 Implement `EarthquakePhase` in `src/Engine/EarthquakePhase.php`:
     - EarthquakePhase sets the flags that SituationView reads (still shaking, lights go out, shaking stopped)
+    - Make `updateLightLevels()` the one place for the light rule: `ActionExecutor` (task 12) has a private `recomputeLightLevel()` for flashlight/candle lighting; move that logic here or into a shared helper so both use the same code (added 2026-11-07)
     - `advanceTurn(WorldModel $world, Seed $seed, int $turnOffset): void`
     - Sets `houseState->shaking` per the offset table: `true` at offsets 1–4 and 12; `false` at all others (0, 5–11, 13)
     - At offset 2: set `power = PowerState::outage`; call `updateLightLevels()`
