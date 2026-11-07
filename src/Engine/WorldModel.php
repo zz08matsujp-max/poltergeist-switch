@@ -55,6 +55,21 @@ class WorldModel implements SituationView
     public SituationSpec $situationSpec;
 
     /**
+     * Per-turn flags the Engine (task 18) sets each turn so SituationView can
+     * report them. They are not part of the physical world state and are not
+     * snapshotted; the Engine recomputes them from the earthquake offset and
+     * the resident's dialogue every turn, and reset() returns them to their
+     * fixed defaults (false / null) for turn 0.
+     */
+    public bool $turnWasShakingPreviousTurn = false;
+
+    public bool $turnDidLightsGoOut = false;
+
+    public bool $turnResidentSpeaks = false;
+
+    public ?string $turnResidentLine = null;
+
+    /**
      * EpisodeConfig supplies the resident's initial state values. It is held as
      * a dependency because reset()'s signature (per design §a) takes only a
      * Seed and an optional SituationSpec, so the config cannot be passed in per
@@ -166,6 +181,13 @@ class WorldModel implements SituationView
         $this->earthquakeStartTurn = null;
         $this->episodeEnded = false;
         $this->disasterSubsided = false;
+
+        // Per-turn SituationView flags start at their fixed defaults; the
+        // Engine recomputes them each turn (task 18).
+        $this->turnWasShakingPreviousTurn = false;
+        $this->turnDidLightsGoOut = false;
+        $this->turnResidentSpeaks = false;
+        $this->turnResidentLine = null;
     }
 
     /**
@@ -497,27 +519,40 @@ class WorldModel implements SituationView
     }
 
     /**
-     * Whether the previous turn was also shaking. The engine (task 18) sets the
-     * flags SituationView reads; until it owns a dedicated previous-turn flag,
-     * this is false. Tracked via EarthquakePhase offsets in later tasks.
+     * Whether the previous turn was also shaking. The Engine (task 18) sets
+     * this each turn from the earthquake offset so the shaking paragraph can
+     * open with "The floor is still shaking hard." on a continuing quake.
      */
     public function wasShakingPreviousTurn(): bool
     {
-        return false;
+        return $this->turnWasShakingPreviousTurn;
     }
 
+    /**
+     * True on the single turn the power changes to an outage (earthquake
+     * offset 2), so the shaking paragraph appends "The lights go out."; set by
+     * the Engine each turn (task 18).
+     */
     public function didLightsGoOutThisTurn(): bool
     {
-        return false;
+        return $this->turnDidLightsGoOut;
     }
 
+    /**
+     * True when the resident delivers a line this turn; set by the Engine from
+     * ResidentController::emitDialogueLine (task 18).
+     */
     public function residentSpeaksThisTurn(): bool
     {
-        return false;
+        return $this->turnResidentSpeaks;
     }
 
+    /**
+     * The resident's spoken line this turn, or null when he says nothing; set
+     * by the Engine alongside residentSpeaksThisTurn (task 18).
+     */
     public function residentLine(): ?string
     {
-        return null;
+        return $this->turnResidentLine;
     }
 }
