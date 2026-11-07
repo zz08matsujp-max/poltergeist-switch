@@ -207,7 +207,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - R1 + impossible: non-adjacent window spot while shaking → `possible=false` AND `dangerous=true, dangerCode="R1"`
     - R2a: `move` to gas stove spot while shaking → `dangerCode="R2a"`; `dangerous` mirrors `r2aIsDangerous` config flag
     - R2b: `use` gas stove while shaking → `dangerCode="R2b"`; `dangerous` mirrors `r2bIsDangerous` config flag
-    - R3: `move` that displaces resident without concurrent support → `dangerous=true, dangerCode="R3"`
+    - R3: `move` targeting the resident himself (targetId `"resident"`) without a concurrent `support` targeting him → `dangerous=true, dangerCode="R3"`; a `move` that merely leaves the resident's room is not R3
     - Priority conflict: both robots target same object, losing robot gets `possible=false, reason="priority_conflict"`
     - _Requirements: Req 4.8–4.13_
 
