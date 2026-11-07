@@ -160,7 +160,7 @@ The following are explicitly out of scope for this spec:
 
 1. THE Turn_Loop SHALL store episode data in MySQL tables using the utf8mb4 character set, so that multibyte text is stored without loss.
 2. THE Turn_Loop SHALL define tables for episodes, turns, prompts, responses, recordings, and actions as a subset of product brief §13, with their definitions in SQL files under `sql/`.
-3. WHEN a prompt sent to a robot is stored, THE prompts table SHALL store the full prompt text together with the situation-text version in effect when that text was built, so that every stored prompt carries its text version as required by the robot-input steering rules.
+3. WHEN a prompt sent to a robot is stored, THE prompts table SHALL store the full prompt text together with the situation-text version returned by `Engine::situationTextVersion()` in effect when that text was built, so that every stored prompt carries its text version as required by the robot-input steering rules.
 4. WHEN a robot reply is stored, THE responses table SHALL store the full reply text, the input tokens and output tokens as non-negative integers, the seconds elapsed, the cost, and the unanswered flag and the truncated flag as booleans.
 5. WHEN a reading is stored, THE recordings table SHALL store the recorder JSON, the unknown flag as a boolean, and the recorder prompt version.
 6. WHEN an applied turn's records are stored, THE actions table SHALL store the judgement and the outcome per robot per applied turn.
@@ -213,8 +213,8 @@ The following are explicitly out of scope for this spec:
 2. THE Turn_Loop SHALL consume the engine's `TurnRecord`, `TurnResult`, `Action`, `Judgement`, and `Outcome` value objects without mutating them.
 3. IF a consumed engine value object is missing a field the Turn_Loop needs, THEN THE Turn_Loop SHALL treat the affected reading or action as `unknown` rather than fail the turn.
 4. IF the Turn_Loop requires behaviour that the `house-rules-engine` spec does not provide, THEN THE Turn_Loop SHALL record a written, human-readable gap entry naming the missing engine behaviour and the dependent turn-loop behaviour, and SHALL require a change to the `house-rules-engine` spec to be proposed before that behaviour is relied upon.
-5. Gap A — same-world text and judgement (Requirement 12): the text a robot reads for a turn and the world its action is judged in must be the same turn's world, but today `Engine::applyTurn(n)` advances the earthquake world internally before judging while `Engine::situationTextFor` renders the world left by the previous `applyTurn`, so the first shaking text would arrive one turn late and an offset-5 "still shaking" read would be judged after the shaking has stopped. IF this ordering is required, THEN THE Turn_Loop SHALL require as the smallest proposed change to the `house-rules-engine` spec a step — for example an engine method — that advances the earthquake world to the turn about to be played BEFORE `situationTextFor` builds that turn's text, so that the text and the judgement see the same earthquake step and resident line, where flipping the earthquake switch sets the earthquake start turn T such that the next turn played is offset 1, the first shaking turn; and THE Turn_Loop SHALL NOT rely on this behaviour until that proposed change to the `house-rules-engine` spec is resolved.
-6. Gap B — situation-text version (Requirement 8.3): storing the situation-text version with every prompt requires the engine to expose a situation-text version, but the engine has no situation-text version constant today. IF this field is required, THEN THE Turn_Loop SHALL require as a proposed change to the `house-rules-engine` spec that the engine expose a situation-text version — a constant bumped whenever the fixed text or the generator changes — and THE Turn_Loop SHALL NOT populate the stored situation-text version field from the engine until that proposed change to the `house-rules-engine` spec is resolved.
+5. WHEN the Turn_Loop plays a turn, THE Turn_Loop SHALL call `Engine::prepareTurn($turnNumber)` once before building either robot's situation text for that turn, so that the text a robot reads and the world its action is judged in by the following `Engine::applyTurn($turnNumber, …)` are the same turn's world, relying on `house-rules-engine` Requirement 13, accepted 2026-11-08, and THE Turn_Loop SHALL map the earthquake switch to a non-negative earthquake start turn so that the first robot prompt after the switch is the first shaking turn whose shaking paragraph opens with "Suddenly the floor begins to shake hard.".
+6. THE Turn_Loop SHALL read the situation-text version from `Engine::situationTextVersion()` and SHALL store that version with every stored prompt, relying on `house-rules-engine` Requirement 14, accepted 2026-11-08.
 
 ### Requirement 12: Same World for Text and Judgement
 
@@ -225,9 +225,20 @@ The following are explicitly out of scope for this spec:
 1. THE text a robot receives for a turn SHALL describe the same world — house state, earthquake step, and resident line — in which that robot's action for the same turn is judged by `Engine::applyTurn`.
 2. WHEN the earthquake switch has been flipped, THE first earthquake prompt a robot receives SHALL be the first shaking turn, whose shaking paragraph opens with "Suddenly the floor begins to shake hard." as in the S0 pilot text.
 3. THE Turn_Loop SHALL use the engine's own turn numbers, whose first turn is 0.
-4. IF the same-world ordering of criterion 1 cannot be achieved with the engine as it currently stands, THEN THE Turn_Loop SHALL treat the shortfall as the gap recorded in Requirement 11 criterion 5 and SHALL NOT rely on the ordering until the proposed change to the `house-rules-engine` spec is resolved.
+4. WHEN the Turn_Loop plays a turn, THE Turn_Loop SHALL call `Engine::prepareTurn($turnNumber)` before `Engine::situationTextFor`, so that the same-world guarantee of criterion 1 holds, relying on `house-rules-engine` Requirement 13.
 
-### Requirement 13: Tests
+### Requirement 13: Engine Rehydration by Replay
+
+**User Story:** As a developer, I want the engine rebuilt per request by replaying the episode, so that each fresh PHP process holds the correct world without keeping an engine in memory between requests.
+
+#### Acceptance Criteria
+
+1. THE Turn_Loop SHALL rebuild an episode's Engine on each HTTP request by replaying the episode from its stored state, because each request starts a fresh PHP process that holds no engine in memory.
+2. WHEN the Turn_Loop rebuilds an episode's Engine, THE Turn_Loop SHALL reset the engine from the episode's stored seed, apply the stored earthquake start turn, and replay every applied turn in order by calling `Engine::applyTurn($turnNumber, $actions)` with the exact actions that were passed to `applyTurn` for that turn, namely the actions as verified by EvidenceCheck and stored.
+3. WHEN an applied turn's records are stored, THE actions table SHALL store, per robot per applied turn, the exact action passed to `Engine::applyTurn` after EvidenceCheck as JSON in an `action_json` column, so that the engine can be replayed deterministically.
+4. WHEN an episode's Engine has been rebuilt by replay, THE rebuilt Engine SHALL hold the same world state as the Engine that played those turns live.
+
+### Requirement 14: Tests
 
 **User Story:** As a developer, I want the turn loop verified without touching real APIs, so that idempotency and the four-layer contract hold across many inputs and one full episode.
 
@@ -241,6 +252,8 @@ The following are explicitly out of scope for this spec:
 6. THE test suite SHALL include one end-to-end test, using fake Robot_Clients and a fake Recorder_Client, that drives one earthquake episode through repeated `ask` and `apply` calls until `Engine::applyTurn` reports the episode ended, and SHALL assert that the episode is marked ended and that every turn taken is in Turn_State `applied`.
 7. THE end-to-end test SHALL terminate within 100 applied turns, and IF the episode has not reported ended by then, THEN the test SHALL fail.
 8. THE test suite SHALL run `php -l` with no reported error on every PHP file changed by this spec, and SHALL use only PHP 8.2 language features, excluding features introduced after PHP 8.2.
+9. THE test suite SHALL include an Eris property test, configured with `limitTo(100)`, verifying that for any sequence of applied turns, an Engine rebuilt by replay from the stored seed, the stored earthquake start turn, and the stored per-turn actions yields the same world snapshot and the same `Engine::situationTextFor` output for both Robot_A and Robot_B as the Engine that played those turns live.
+10. THE test suite SHALL include a test asserting Property 15, same world for text and judgement, verifying that for a played turn the world described by `Engine::situationTextFor` matches the world in which `Engine::applyTurn` judges that turn's actions, relying on `Engine::prepareTurn`.
 
 ## Open Questions
 

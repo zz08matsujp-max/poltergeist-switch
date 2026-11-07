@@ -490,18 +490,24 @@ class Engine {
         private SituationTextGenerator $textGen,
     ) {}
 
+    /** Advance the world to $turnNumber without judging, so a following situationTextFor renders it (Req 13). */
+    public function prepareTurn(int $turnNumber): void;
+
     /** @param Action[] $actions  keyed by robot_id */
     public function applyTurn(int $turnNumber, array $actions): TurnResult;
 
     /** Full situation text one robot reads on the next turn (Req 9.12–9.18). */
     public function situationTextFor(string $robotId): string;
+
+    /** Version string identifying the fixed text and generator output format (Req 14). */
+    public function situationTextVersion(): string;
 }
 ```
 
 **`applyTurn` turn processing order:**
 
 1. **Idempotency check.** If `$turnNumber < $world->currentTurn`, return stored `$turnHistory[$turnNumber]`. If `$turnNumber > $world->currentTurn`, return error `TurnResult` without mutating state. If `$turnNumber == $world->currentTurn`, proceed.
-2. **Advance earthquake phase.** If `earthquakeStartTurn !== null`, compute `$offset = $turnNumber - $earthquakeStartTurn`. Call `$earthquake->advanceTurn($world, $seed, $offset)`.
+2. **Advance earthquake phase** — but ONLY if this turn was not already prepared by `prepareTurn` (guarded by the `$preparedTurn` marker). If the turn was prepared (`$preparedTurn === $turnNumber`), skip the earthquake advance (it already happened in `prepareTurn`) and proceed to evaluation. If the turn was not prepared, advance it here as before: if `earthquakeStartTurn !== null`, compute `$offset = $turnNumber - $earthquakeStartTurn` and call `$earthquake->advanceTurn($world, $seed, $offset)`. This keeps `applyTurn` correct whether or not `prepareTurn` was called (backward compatible); existing episodes that never call `prepareTurn` get identical results.
 3. **Evaluate both actions.** Call `$evaluator->evaluate(action, $world, $config, allActions)` for each robot in `robot_a`, `robot_b` order. Collect `Judgement[]`.
 4. **Execute possible actions in priority order.** Priority robot for this turn: robot whose slot index satisfies `$turnNumber % 2 == 0` → `robot_a` first, else `robot_b` first. For each robot in priority order: if `$judgement->possible`, call `$executor->execute(action, judgement, $world, $config)`.
 5. **Update resident state.** Call `$resident->updateState($world, $config, $turnActions)` (where `$turnActions` carries which robots spoke and whether cover was used).
@@ -512,6 +518,10 @@ class Engine {
 10. **Build and store the turn record and result.** Build a `TurnRecord` for this turn — the two `Action`s (with their `words` and any reported speech), the `Outcome`s (carrying `whatHappenedText` and `seenByOtherText` from the ActionExecutor), the `residentLine`, the post-turn world snapshot, and `roomsAtStart` (each robot's room key captured at the *start* of the turn, before any move in step 4) — and append it to the per-turn `$turnRecords` history. Build the `TurnResult`, store it in `$turnHistory[$turnNumber]`, and return it. The error path (step 1 future-turn / a thrown exception) stores no `TurnRecord`.
 
 **`situationTextFor(string $robotId): string`.** Produces the text that robot reads on its next turn. It calls `$textGen->generate($robotId, $world, $recent)` where `$recent` is the last five `TurnRecord`s (oldest first), so the generator can build the "In the last 15 seconds:" block and the up-to-four earlier blocks under rule A (Req 9.16–9.18), the shaking paragraph ("The lights go out." at earthquake offset 2, "The shaking has stopped." at offset 5/13), and the resident line. The four per-turn `SituationView` flags set in step 10's neighbourhood (see §i) and the stored `TurnRecord`s are the only state this read needs; it never mutates the world. The observer/recorder layer calls `situationTextFor` for each robot between turns; the Engine itself never performs I/O.
+
+**`prepareTurn(int $turnNumber): void` (Req 13, added 2026-11-08).** Advances the earthquake world to the turn about to be played *without judging*, so a following `situationTextFor` renders that same turn's world. It performs the world-advancing part of a turn only: capture the stove-was-on flag on the earthquake-start transition, advance the earthquake phase by that turn's offset — the same `$earthquake->advanceTurn($world, $seed, $offset)` call that `applyTurn` step 2 performs — select the falling objects on a shaking turn, and set the four `SituationView` flags (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`) and the resident line that the text needs. It is **idempotent per turn**: a `$preparedTurn` marker (an int on the Engine) records the turn already prepared; a second call for the same `$turnNumber` does nothing. It **never** evaluates or executes actions, **never** updates resident state beyond setting the per-turn `SituationView` flags/line it needs for the text, and **never** advances the turn clock (`$world->currentTurn` is left for `applyTurn`). Because `applyTurn` step 2 consults the `$preparedTurn` marker, calling `prepareTurn($turnNumber)` and then `applyTurn($turnNumber, …)` advances the earthquake exactly once. Earthquake-switch mapping: flipping the switch sets `earthquakeStartTurn = T` (non-negative) so the next turn played is offset 1, the first shaking turn opening "Suddenly the floor begins to shake hard." There is no negative start turn. *(Accepted by the maintainer on 2026-11-08; see the turn-loop spec Gap A.)*
+
+**`situationTextVersion(): string` (Req 14, added 2026-11-08).** Returns a version string identifying the fixed body text, the fixed house text, and the `SituationTextGenerator` output format. The engine bumps it whenever any of those change. A caller (the turn loop) stores this version with every prompt so each stored text carries the version that produced it. The version lives as a plain `const` string on `SituationTextGenerator` (PHP 8.2 compatible — a plain class constant, not a typed class constant) that the Engine surfaces through this method. *(Accepted by the maintainer on 2026-11-08; see the turn-loop spec Gap B.)*
 
 ---
 

@@ -461,6 +461,36 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 27.3 Model solution test: assert that every planned action is judged possible, and in S2 that the bedroom is not dark on turns T5–T11
   - _Requirements: Req 2.4–2.5, Req 4.6, Req 11.6_
 
+- [ ] 28. Engine::prepareTurn — same-world turn preparation (added 2026-11-08)
+  - [ ] 28.1 Implement `prepareTurn(int $turnNumber): void` on `Engine` (Req 13):
+    - Advance the earthquake world to the turn about to be played WITHOUT judging: capture the stove-was-on flag on the earthquake-start transition (call `EarthquakePhase::captureStoveWasOn()` when `earthquakeStartTurn` is set), advance the earthquake phase by that turn's offset via the same `EarthquakePhase::advanceTurn($world, $seed, $offset)` call `applyTurn` uses, select falling objects on a shaking turn, and set the four SituationView flags (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`) and the resident line
+    - Idempotent per turn: record the prepared turn in a `$preparedTurn` int marker; a second call for the same turn number does nothing
+    - Never evaluate or execute actions, never advance the turn clock
+    - Choose a clean earthquake-switch mapping with NO negative start turn, so the first robot prompt after the switch is offset 1 opening "Suddenly the floor begins to shake hard."
+    - _Requirements: Req 13.1–13.7_
+  - [ ] 28.2 Guard `applyTurn` step 2 on the `$preparedTurn` marker (Req 13):
+    - If the turn was already prepared, skip the earthquake advance (it already happened in `prepareTurn`) and proceed to evaluation; otherwise advance the earthquake here as before, so `applyTurn` stays correct whether or not `prepareTurn` was called (backward compatible)
+    - A `prepareTurn($n)` followed by `applyTurn($n, …)` must advance the earthquake exactly once
+    - _Requirements: Req 13.4, Req 13.5_
+  - [ ] 28.3 Tests in `tests/Engine/EngineIntegrationTest.php` and the property suite:
+    - After `prepareTurn($n)`, `situationTextFor()` for both robots renders turn $n's world (e.g. the first shaking turn after the switch opens "Suddenly the floor begins to shake hard."; an offset-5 turn shows "The shaking has stopped." consistently with the judgement)
+    - `prepareTurn($n)` is idempotent: calling it twice then `applyTurn($n, …)` gives the same TurnResult and snapshot as calling it once
+    - A turn played WITHOUT `prepareTurn` yields the identical TurnResult as before this task (backward compatibility)
+    - Property (Eris `limitTo(100)`): for any earthquake episode, `prepareTurn($n)` then `applyTurn($n, …)` equals `applyTurn($n, …)` alone in world snapshot and TurnResult (earthquake advanced exactly once)
+    - The earthquake-switch mapping never produces a negative start turn
+    - Run every existing engine test; update any test that assumed the old "applyTurn advances the earthquake before judging" ordering, and state in the task which tests changed
+    - _Requirements: Req 13.1–13.7, Req 11.4_
+
+- [ ] 29. Situation-text version (added 2026-11-08)
+  - [ ] 29.1 Expose a situation-text version (Req 14):
+    - Add a plain PHP 8.2 `const` string version on `SituationTextGenerator` (not a typed class constant) identifying the fixed body text, fixed house text, and generator output format; bump it whenever any of those change
+    - Add `Engine::situationTextVersion(): string` surfacing that constant
+    - _Requirements: Req 14.1–14.3_
+  - [ ] 29.2 Tests:
+    - `Engine::situationTextVersion()` returns the `SituationTextGenerator` version constant
+    - A documented check/reminder that the version must be bumped when the fixed text or generator output format changes (e.g. the S0 golden test and the version constant are noted as coupled)
+    - _Requirements: Req 14.1–14.3_
+
 ---
 
 ## Notes
@@ -475,6 +505,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 - Property tests use `giorgiosironi/eris` with `Eris\TestTrait` and `->limitTo(100)` on each property.
 - The R2 open question (dangerous flag for R2a/R2b) is governed by `EpisodeConfig::r2aIsDangerous` and `r2bIsDangerous`; the danger codes are always recorded regardless of those flags.
 - Speaking does not use the action (decided by the maintainer on 2026-11-01): at most one physical action per robot per turn, with spoken words (`Action.words`) delivered in parallel; `EpisodeConfig::speakConsumesAction` stays `false` (Req 5.12).
+- Tasks 28–29 (added 2026-11-08) implement the accepted Gap A (prepareTurn: same world for text and judgement) and Gap B (situation-text version); the turn-loop spec depends on both.
 
 ---
 
@@ -504,7 +535,9 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 18, "tasks": ["18.2", "18.3", "19.1"] },
     { "id": 19, "tasks": ["19.2", "20.1", "20.2"] },
     { "id": 20, "tasks": ["21.1", "21.2"] },
-    { "id": 21, "tasks": ["27.1", "27.2", "27.3"] }
+    { "id": 21, "tasks": ["27.1", "27.2", "27.3"] },
+    { "id": 22, "tasks": ["28.1", "28.2", "29.1"] },
+    { "id": 23, "tasks": ["28.3", "29.2"] }
   ]
 }
 ```

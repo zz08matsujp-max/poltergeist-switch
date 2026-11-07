@@ -286,6 +286,38 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
 
 ---
 
+### Requirement 13: Same-world turn preparation (prepareTurn)
+
+**User Story:** As the rules engine, I want to advance the world to the turn about to be played before its situation text is built, so that the text a robot reads and the world its action is judged in are the same turn's world.
+
+(Decided by the maintainer on 2026-11-08: prepareTurn separates earthquake advancement from judgement so that text and judgement see the same turn's world; see the turn-loop spec Gap A.)
+
+#### Acceptance Criteria
+
+1. THE Engine SHALL expose `prepareTurn(int $turnNumber): void`.
+2. WHEN `prepareTurn($turnNumber)` is called for the engine's current turn, THE Engine SHALL advance the earthquake world for that turn — capturing the stove-was-on flag on the earthquake-start transition, advancing the earthquake phase by that turn's offset, selecting falling objects on a shaking turn, and setting the four SituationView flags (wasShakingPreviousTurn, didLightsGoOutThisTurn, residentSpeaksThisTurn, residentLine) and the resident line — so that a following `situationTextFor` renders that same turn's world.
+3. THE Engine SHALL make `prepareTurn` idempotent for a given turn number; IF `prepareTurn` is called more than once for the same turn number, THEN THE Engine SHALL NOT advance the earthquake world again.
+4. WHEN `applyTurn($turnNumber, $actions)` is called for a turn that `prepareTurn` has already prepared, THE Engine SHALL NOT advance the earthquake world again for that turn, and THE Engine SHALL evaluate actions, execute actions, update resident state, emit dialogue, clear turn-scoped flags, check for episode end, advance the turn clock, and store the records.
+5. WHEN `applyTurn($turnNumber, $actions)` is called for a turn that `prepareTurn` has not prepared, THE Engine SHALL advance the earthquake world for that turn itself, so that `applyTurn` produces a correct result whether or not `prepareTurn` was called.
+6. THE Engine SHALL map the earthquake switch to a non-negative earthquake start turn such that the first robot prompt after the switch is earthquake offset 1, the first shaking turn whose shaking paragraph opens with "Suddenly the floor begins to shake hard."
+7. WHERE an episode does not call `prepareTurn`, THE Engine SHALL leave all existing turn results unchanged, so that every existing engine test continues to pass.
+
+---
+
+### Requirement 14: Situation-text version
+
+**User Story:** As a caller storing every prompt, I want the engine to expose the version of its situation text, so that each stored prompt records which fixed text and generator produced it.
+
+(Decided by the maintainer on 2026-11-08: the turn-loop spec stores this version with every prompt; see the turn-loop spec Gap B.)
+
+#### Acceptance Criteria
+
+1. THE Engine SHALL expose a situation-text version as a string value via `situationTextVersion(): string`.
+2. WHEN the fixed body text, the fixed house text, or the SituationTextGenerator output format changes, THE Engine SHALL change the situation-text version.
+3. WHEN `situationTextFor` produces a robot's text, THE situation-text version SHALL identify the fixed text and generator that produced that text, so that a caller can store the version alongside the prompt.
+
+---
+
 ## Open Questions
 
 **(a) Speaking as an action** — Decided by the maintainer on 2026-11-01: speaking does not use the robot's one physical action. A robot does at most one physical action per turn, and the words it speaks in the same reply are delivered in parallel (see Requirement 5.12). `EpisodeConfig::speakConsumesAction` stays `false`; the flag is kept only for later comparison.
