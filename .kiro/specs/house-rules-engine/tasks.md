@@ -144,21 +144,21 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `ResidentState` fields match `EpisodeConfig` defaults after reset
     - _Requirements: Req 1.7–1.11, Req 8.7–8.8_
 
-- [ ] 8. WorldModel: objects_visible_to() and one-room property
-  - [~] 8.1 Implement `objects_visible_to(string $robotId, int $turn): array` on `WorldModel`:
+- [x] 8. WorldModel: objects_visible_to() and one-room property
+  - [x] 8.1 Implement `objects_visible_to(string $robotId, int $turn): array` on `WorldModel`:
     - Look up robot's current room
     - If room `lightLevel === LightLevel::dark`, return `[]`
     - Return objects whose `room` matches the robot's room in the fixed room order defined in Req 1.6; exclude fixtures
     - _Requirements: Req 2.3–2.4_
-  - [ ]* 8.2 Write unit tests extending `WorldModelTest.php`:
+  - [x]* 8.2 Write unit tests extending `WorldModelTest.php`:
     - Returns all objects in the robot's room in fixed order
     - Returns empty array when room light level is `dark`
     - Fixtures are never included in the returned list
     - After moving an object to a different room (mutate directly in test), it no longer appears in the original room's list
     - _Requirements: Req 2.3–2.4, Req 1.12_
-  - [~] 8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
+  - [x] 8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 2: One-room invariant** — `forAll(int seed)`: after `reset(seed)`, every `ObjectState` in `$world->objects` appears in exactly one room (cross-check: count objects per room key matches total object count)
-    - Uses `Eris\TestTrait`, `->withMinSuccesses(100)`
+    - Uses `Eris\TestTrait`, `->limitTo(100)`
     - _Requirements: Req 2.1–2.2, Req 11.1_
 
 - [ ] 9. RulesEvaluator — move and take operations
@@ -274,7 +274,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 3.1–3.8_
   - [~] 14.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 5: Earthquake determinism** — `forAll(int seed)`: run the earthquake phase (offsets 1–13) twice on two separate `WorldModel` instances reset with the same seed and no robot actions; fallen object sets per offset are identical
-    - Uses `->withMinSuccesses(100)`
+    - Uses `->limitTo(100)`
     - _Requirements: Req 3.4, Req 3.8, Req 8.5, Req 11.5_
 
 - [ ] 15. ResidentController — updateState
@@ -298,7 +298,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 6.1–6.11_
   - [~] 15.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:
     - **Property 3: Resident state range** — `forAll(int seed)`: after any sequence of `applyTurn` calls (up to 13 turns, no robot actions), all `ResidentState` values remain within their clamped ranges
-    - Uses `->withMinSuccesses(100)`
+    - Uses `->limitTo(100)`
     - _Requirements: Req 6.8, Req 11.2, Req 11.3_
 
 - [ ] 16. ResidentController — emitDialogueLine
@@ -357,7 +357,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 10.1–10.5_
   - [~] 18.3 Write property-based test in `tests/Engine/Properties/EnginePropertyTest.php`:
     - **Property 4: applyTurn idempotency** — `forAll(int seed)`: call `applyTurn(n, actions)`, capture `TurnResult` and snapshot; call `applyTurn(n, actions)` again; assert both `TurnResult` values are equal and world snapshot is unchanged
-    - Uses `->withMinSuccesses(100)`
+    - Uses `->limitTo(100)`
     - _Requirements: Req 10.2–10.3, Req 11.4_
 
 - [ ] 19. Engine — episode-end conditions
@@ -384,7 +384,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [~] 20.2 Complete the situation-text property tests in `tests/Engine/Properties/SituationTextPropertyTest.php`:
     - **Property 6: Banned words absent** — `forAll(int seed)`: after `reset(seed)`, generate situation text for both `robot_a` and `robot_b`; extract fixed body, fixed house, "Right now:" paragraph, and shaking paragraph; assert none of the 13 banned words appear in those sections — Validates: Req 9.15, Req 11.7
     - **Property 7: Fixed sections identical** — `forAll(int seed)`: generate for both robots; assert fixed body + fixed house sections are byte-for-byte equal — Validates: Req 9.2, Req 11.8
-    - Both use `->withMinSuccesses(100)`
+    - Both use `->limitTo(100)`
     - _Requirements: Req 9.2, Req 9.15, Req 11.7–11.8_
 
 - [ ] 21. Model solution integration test
@@ -420,7 +420,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 12.2–12.4_
   - [x] 23.2 Write tests in `tests/Engine/EvidenceCheckTest.php`:
     - Every quote in the 18 readings of `pilot/予備実験_2手目_2026-11-02_n3.json` (`reading.quote`, `reading.words`, `reading.indirect[].quote`) passes against `turn1.reply`; hand-made failing quotes become `unknown` or are dropped
-    - Property 12 with Eris (`withMinSuccesses(100)`): substrings of a generated reply pass, non-substrings fail
+    - Property 12 with Eris (`limitTo(100)`): substrings of a generated reply pass, non-substrings fail
     - _Requirements: Req 11.14, Req 12.2–12.4_
 
 - [x] 24. SituationTextGenerator — turn 2 and later, rule A (added 2026-11-02)
@@ -433,7 +433,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
     - For each of the 18 runs in `pilot/予備実験_2手目_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
     - Assert that the "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt` (checked by hand on 2026-11-02: all 18 match these rules)
-    - Property 11 with Eris (`withMinSuccesses(100)`)
+    - Property 11 with Eris (`limitTo(100)`)
     - A hand-written example of a robot's sixth turn (five blocks, oldest first, one turn in a shared room and one not), and the property of Req 11.15
     - _Requirements: Req 11.12, Req 11.13, Req 11.15, Req 9.17_
   - [x] 24.3 Checkpoint — all tests pass
@@ -450,7 +450,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 - The golden test S0 (task 4.2) is the canonical correctness anchor: if `SituationTextGenerator` passes S0, the pilot experiment is reproducible.
 - Golden tests S1–S5 (task 5.1) read expected prompts from `pilot/実験0_状況を変える_2026-11-01_n3.json`, indexed by `sid`, first occurrence.
 - The model solution integration test (task 21.1) uses hard-coded `SituationSpec` values — never seed-derived — so the test remains valid even if `SituationSpec::fromSeed` changes.
-- Property tests use `giorgiosironi/eris` with `Eris\TestTrait` and `->withMinSuccesses(100)` on each property.
+- Property tests use `giorgiosironi/eris` with `Eris\TestTrait` and `->limitTo(100)` on each property.
 - The R2 open question (dangerous flag for R2a/R2b) is governed by `EpisodeConfig::r2aIsDangerous` and `r2bIsDangerous`; the danger codes are always recorded regardless of those flags.
 - Speaking does not use the action (decided by the maintainer on 2026-11-01): at most one physical action per robot per turn, with spoken words (`Action.words`) delivered in parallel; `EpisodeConfig::speakConsumesAction` stays `false` (Req 5.12).
 

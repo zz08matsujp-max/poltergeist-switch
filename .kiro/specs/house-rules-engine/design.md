@@ -1177,7 +1177,7 @@ One `*Test.php` file per class. Each tests specific concrete scenarios:
 
 ### Property-Based Tests (Eris)
 
-Each test class in `tests/Engine/Properties/` uses the `Eris\TestTrait` and sets `->withMinSuccesses(100)`.
+Each test class in `tests/Engine/Properties/` uses the `Eris\TestTrait` and sets `->limitTo(100)`.
 
 **Generators used:**
 
@@ -1300,4 +1300,4 @@ $this->assertLessThanOrEqual($config->modelSolutionFearThreshold,   $state->fear
 $this->assertGreaterThanOrEqual($config->modelSolutionWaterThreshold, $state->water);
 ```
 
-Property-based testing library: **Eris** (`giorgiosironi/eris ^1.3`). Requires `phpunit/phpunit ^11` and PHP ^8.1 (set `config.platform.php` to `8.2.0` in `composer.json` to stay on PHPUnit 11 rather than 12, which requires PHP 8.3). Each property test is configured with `->withMinSuccesses(100)`. Test tags follow the format: `// Feature: house-rules-engine, Property {N}: {property_text}`.
+Property-based testing library: **Eris** (`giorgiosironi/eris ^1.3`). Requires `phpunit/phpunit ^11` and PHP ^8.1 (set `config.platform.php` to `8.2.0` in `composer.json` to stay on PHPUnit 11 rather than 12, which requires PHP 8.3). Each property test is configured with `->limitTo(100)`. Test tags follow the format: `// Feature: house-rules-engine, Property {N}: {property_text}`.

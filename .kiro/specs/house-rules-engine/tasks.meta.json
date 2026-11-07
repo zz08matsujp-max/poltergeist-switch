@@ -1,5 +1,10 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "8.3 Write property-based test in `tests/Engine/Properties/WorldModelPropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794030919756
+    }
+  },
   "executionHistory": {
     "1. Composer setup and test scaffold": [
       {
@@ -427,6 +432,18 @@
         "executionId": "022c8008-e279-427a-a988-baa76abeed6e",
         "chatSessionId": "sess_6b73b0ee-5769-4630-8009-eb61a1ab2135",
         "timestamp": 1794030467898
+      }
+    ],
+    "8. WorldModel: objects_visible_to() and one-room property": [
+      {
+        "executionId": "d91539f3-48c4-4deb-acca-cb676c7b0b39",
+        "chatSessionId": "sess_1eaaef12-9cf1-49d3-897c-8f60b7e849bf",
+        "timestamp": 1794030727279
+      },
+      {
+        "executionId": "d91539f3-48c4-4deb-acca-cb676c7b0b39",
+        "chatSessionId": "sess_1eaaef12-9cf1-49d3-897c-8f60b7e849bf",
+        "timestamp": 1794030946638
       }
     ]
   }
