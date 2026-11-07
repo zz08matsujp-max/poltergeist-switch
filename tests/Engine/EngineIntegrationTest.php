@@ -751,4 +751,166 @@ class EngineIntegrationTest extends TestCase
             operation: Operation::wait->value,
         );
     }
+
+    // ==================================================================
+    // Resident move via support (task 25, Req 7.13–7.17)
+    // ==================================================================
+
+    /**
+     * Build an Engine whose world places robot_a in the resident's room so a
+     * support action is possible. The resident sits at the low table in the
+     * living room (sitting_at_table), and robot_a starts there too; robot_b is
+     * out of the way in the kitchen. No earthquake is started, so the quiet
+     * world leaves the resident untouched between turns and the only state
+     * change comes from the support under test.
+     *
+     * @return array{Engine,WorldModel}
+     */
+    private function makeSupportEngine(): array
+    {
+        $spec = new SituationSpec(
+            time: 'afternoon',
+            robotARoom: 'living_room',
+            robotBRoom: 'kitchen',
+            manActivity: 'sitting_at_table',
+            potBoiling: false,
+        );
+
+        $world = new WorldModel($this->config);
+        $world->reset(Seed::fromInt(1), $spec);
+
+        $engine = new Engine(
+            $world,
+            $this->config,
+            new RulesEvaluator(),
+            new ActionExecutor(),
+            new EarthquakePhase(),
+            new ResidentController(),
+            new SituationTextGenerator(),
+        );
+
+        return [$engine, $world];
+    }
+
+    /**
+     * A support action naming a destination that a spoken line also names is
+     * accepted, and the resident moves on the SECOND turn — not the turn the
+     * support begins (Req 7.15). With an in-room spot destination the resident
+     * keeps his room and gains the spot.
+     */
+    public function testAcceptedSupportMovesResidentUnderTableOnSecondTurn(): void
+    {
+        [$engine, $world] = $this->makeSupportEngine();
+
+        $support = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetId: 'resident',
+            targetSpot: 'under_table',
+            words: ['Let me help you under the table.'],
+        );
+
+        // Turn 0: the support begins. The resident has NOT moved yet — he is
+        // still at his starting spot (seated at the low table), not under it.
+        $engine->applyTurn(0, ['robot_a' => $support]);
+        $this->assertNotSame('under_table', $world->residentState->spot);
+        $this->assertSame('living_room', $world->residentState->room);
+
+        // Turn 1 (the second turn): the countdown reaches zero and the resident
+        // crouches under the low table, keeping his room.
+        $engine->applyTurn(1, ['robot_a' => $this->wait('robot_a')]);
+        $this->assertSame('under_table', $world->residentState->spot);
+        $this->assertSame('living_room', $world->residentState->room);
+    }
+
+    /**
+     * A support with a valid destination spot but no robot naming it in speech
+     * is refused: the resident never moves and speaks the refusal line in place
+     * of any scripted line this turn (Req 7.9, Req 7.14, Req 7.15).
+     */
+    public function testSupportWithNoDestinationWordIsRefusedWithRefusalLine(): void
+    {
+        [$engine, $world] = $this->makeSupportEngine();
+
+        $support = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetId: 'resident',
+            targetSpot: 'under_table',
+            // No spoken line, so no robot names the destination this turn.
+        );
+
+        $result = $engine->applyTurn(0, ['robot_a' => $support]);
+
+        // The refusal line is this turn's resident line (Req 7.9).
+        $this->assertSame("I don't want to move from here.", $result->residentLine);
+
+        // The support ended, so even running further turns never moves him: he
+        // stays in the living room and never reaches the under_table spot.
+        $engine->applyTurn(1, ['robot_a' => $this->wait('robot_a')]);
+        $engine->applyTurn(2, ['robot_a' => $this->wait('robot_a')]);
+        $this->assertNotSame('under_table', $world->residentState->spot);
+        $this->assertSame('living_room', $world->residentState->room);
+    }
+
+    /**
+     * A weakened resident accepts a support move even when no robot names the
+     * destination (Req 7.11 overrides the support-and-reason test). He still
+     * moves on the second turn.
+     */
+    public function testWeakenedResidentAcceptsSupportWithoutDestinationWord(): void
+    {
+        [$engine, $world] = $this->makeSupportEngine();
+        // A weakened resident accepts any move proposal (Req 7.11). The
+        // weakened flag is recomputed from body temperature each turn, so raise
+        // the temperature above the threshold rather than setting the flag,
+        // which updateState would overwrite before the proposal is resolved.
+        $world->residentState->bodyTemp = $this->config->weakenedThreshold + 1.0;
+
+        $support = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetId: 'resident',
+            targetSpot: 'under_table',
+            // No spoken line naming the destination.
+        );
+
+        // Turn 0: begins; no refusal line, resident not yet moved under the
+        // table (he is still at his starting spot).
+        $result = $engine->applyTurn(0, ['robot_a' => $support]);
+        $this->assertNotSame("I don't want to move from here.", $result->residentLine);
+        $this->assertNotSame('under_table', $world->residentState->spot);
+
+        // Turn 1: the accepted move completes under the low table.
+        $engine->applyTurn(1, ['robot_a' => $this->wait('robot_a')]);
+        $this->assertSame('under_table', $world->residentState->spot);
+    }
+
+    /**
+     * An accepted support to an adjacent room relocates the resident on the
+     * second turn: his room becomes the destination, his spot clears, and his
+     * activity becomes `standing` (Req 7.15).
+     */
+    public function testAcceptedSupportToAdjacentRoomStandsResidentUp(): void
+    {
+        [$engine, $world] = $this->makeSupportEngine();
+
+        // The kitchen is adjacent to the living room (the resident's room).
+        $support = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetId: 'resident',
+            targetSpot: 'kitchen',
+            words: ['Let us move to the kitchen together.'],
+        );
+
+        $engine->applyTurn(0, ['robot_a' => $support]);
+        // Not moved yet on the first turn.
+        $this->assertSame('living_room', $world->residentState->room);
+
+        $engine->applyTurn(1, ['robot_a' => $this->wait('robot_a')]);
+        $this->assertSame('kitchen', $world->residentState->room);
+        $this->assertNull($world->residentState->spot);
+        $this->assertSame('standing', $world->residentState->activity);
+    }
 }

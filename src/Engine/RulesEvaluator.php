@@ -37,6 +37,14 @@ class RulesEvaluator
     /** Target id that names the resident himself (R3, Req 4.11). */
     private const RESIDENT_ID = 'resident';
 
+    /**
+     * The two in-room spot destinations a support action may name (Req 7.13):
+     * crouching under the low table, or sitting beside the futon. Any other
+     * destination must be a room key adjacent to the resident's current room.
+     */
+    private const SPOT_UNDER_TABLE = 'under_table';
+    private const SPOT_BESIDE_FUTON = 'beside_futon';
+
     /** Danger codes recorded in the Judgement (Req 4.8–4.12). */
     private const DANGER_R1 = 'R1';
     private const DANGER_R2A = 'R2a';
@@ -248,9 +256,18 @@ class RulesEvaluator
     }
 
     /**
-     * support: possible only when the resident shares the robot's room; the
-     * support takes two turns to carry out (`duration=2`, Req 4.4). Otherwise
-     * it is impossible with `not_in_same_room` (Req 4.5).
+     * support: possible only when the resident shares the robot's room AND the
+     * action names a valid destination in `targetSpot` (Req 4.4, Req 7.13). The
+     * support takes two turns to carry out (`duration=2`, Req 4.4).
+     *
+     * The destination must be one of:
+     *   - `under_table`  — crouch under the low table (stays in the room);
+     *   - `beside_futon` — sit beside the futon (stays in the room);
+     *   - a room key adjacent to the resident's current room (relocates him).
+     * Anything else — a null spot, an unknown token, or a non-adjacent room —
+     * is `possible=false, reason="no_destination"`. The same-room check runs
+     * first so a support from the wrong room is still `not_in_same_room`
+     * (Req 4.5).
      */
     private function evaluateSupport(Action $action, WorldModel $world): Judgement
     {
@@ -264,11 +281,40 @@ class RulesEvaluator
             );
         }
 
+        if (!$this->supportDestinationIsValid($action->targetSpot, $world)) {
+            return new Judgement(
+                robotId: $action->robotId,
+                possible: false,
+                reason: 'no_destination',
+            );
+        }
+
         return new Judgement(
             robotId: $action->robotId,
             possible: true,
             duration: 2,
         );
+    }
+
+    /**
+     * Whether a support action's `targetSpot` names a destination the resident
+     * can be taken to (Req 7.13). The two in-room spots are always valid; any
+     * other value must be the key of a room adjacent to the resident's current
+     * room. A null or empty spot is never valid.
+     */
+    private function supportDestinationIsValid(?string $targetSpot, WorldModel $world): bool
+    {
+        if ($targetSpot === null || $targetSpot === '') {
+            return false;
+        }
+
+        if ($targetSpot === self::SPOT_UNDER_TABLE || $targetSpot === self::SPOT_BESIDE_FUTON) {
+            return true;
+        }
+
+        $residentRoom = $world->residentState->room;
+
+        return in_array($targetSpot, $world->getRoom($residentRoom)->adjacentRooms, true);
     }
 
     /**

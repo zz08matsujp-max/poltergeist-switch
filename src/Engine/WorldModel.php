@@ -482,6 +482,11 @@ class WorldModel implements SituationView
         return $this->residentState->activity;
     }
 
+    public function residentSpot(): ?string
+    {
+        return $this->residentState->spot;
+    }
+
     public function isRoomDark(string $roomKey): bool
     {
         return $this->getRoom($roomKey)->lightLevel === LightLevel::dark;

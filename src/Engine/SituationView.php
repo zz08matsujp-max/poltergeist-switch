@@ -31,6 +31,13 @@ interface SituationView
     /** ManActivity value: the resident's current activity. */
     public function residentActivity(): string;
 
+    /**
+     * The resident's current spot within his room, or null. When set
+     * ('under_table', 'beside_futon') it overrides the activity phrasing in the
+     * situation text (Req 7.17).
+     */
+    public function residentSpot(): ?string;
+
     /** True when the resident's current room is dark (cannot see the objects). */
     public function isRoomDark(string $roomKey): bool;
 

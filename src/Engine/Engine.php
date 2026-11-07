@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PoltergeistSwitch\Engine;
 
 use Throwable;
+use PoltergeistSwitch\Engine\Enums\ManActivity;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\Enums\PowerState;
 use PoltergeistSwitch\Engine\Values\Action;
@@ -40,6 +41,10 @@ class Engine
 
     /** Object id of the gas stove; a `use` on it turns the flame off (Req 3.5). */
     private const GAS_STOVE_ID = 'gas_stove';
+
+    /** The two in-room support destinations that keep the resident's room (Req 7.13). */
+    private const SPOT_UNDER_TABLE = 'under_table';
+    private const SPOT_BESIDE_FUTON = 'beside_futon';
 
     /** Earthquake offset on which the power fails and the lights go out (Req 3.3). */
     private const POWER_OUTAGE_OFFSET = 2;
@@ -204,16 +209,24 @@ class Engine
         $turnActions = $this->buildTurnActions($allActions, $outcomes);
         $this->resident->updateState($this->world, $this->config, $turnActions);
 
-        // 6. Emit at most one scripted resident line for this turn.
-        $residentLine = $this->resident->emitDialogueLine(
-            $this->world,
-            $this->config,
-            $turnNumber,
-        );
+        // 5b. Resolve any support proposal made this turn: the resident decides
+        //     on the turn of the support action (Req 7.15). A refusal both ends
+        //     the support and overrides this turn's scripted line with
+        //     "I don't want to move from here." (Req 7.9, Req 7.15).
+        $refusalLine = $this->resolveSupportProposals($allActions, $outcomes);
+
+        // 6. Emit at most one scripted resident line for this turn, unless a
+        //    support refusal already claimed the line (Req 7.15).
+        $residentLine = $refusalLine
+            ?? $this->resident->emitDialogueLine(
+                $this->world,
+                $this->config,
+                $turnNumber,
+            );
 
         // Count down each robot's support timer (task 13 set it to 2 on a
-        // support action). The actual resident move when it reaches 0 is out of
-        // scope here — see the TODO in advanceSupportCountdowns().
+        // support action) and move the resident when a countdown reaches 0
+        // (Req 7.15).
         $this->advanceSupportCountdowns();
 
         // Set the four per-turn SituationView flags on the world so the next
@@ -449,11 +462,150 @@ class Engine
     }
 
     /**
-     * Count down each robot's `support` timer by one turn (set to 2 by a
-     * support action in task 13). When a robot's countdown reaches 0 the
-     * resident would be moved with that robot — but only the countdown
-     * mechanics are prepared here.
+     * Resolve every support proposal that was executed this turn (Req 7.15).
+     * The resident decides on the turn of the support action itself.
      *
+     * For each robot whose successful `support` this turn started a fresh
+     * countdown, the Engine builds the proposal tokens from the support action
+     * and both robots' spoken lines (Req 7.14), then asks
+     * ResidentController::evaluateRefusal(). A refusal ends the support
+     * immediately (the countdown and stored destination are cleared, so no move
+     * happens later) and claims this turn's resident line with
+     * "I don't want to move from here." — in place of any other scripted line
+     * (Req 7.9, Req 7.15). An acceptance leaves the countdown running so the
+     * move is carried out when it reaches 0.
+     *
+     * Returns the refusal line when at least one proposal was refused, else
+     * null. At most one line is spoken per turn (Req 7.7), so the first refusal
+     * found provides it; any other refused support is still ended.
+     *
+     * @param list<Action>          $allActions this turn's actions
+     * @param array<string,Outcome> $outcomes   keyed by robot id
+     */
+    private function resolveSupportProposals(array $allActions, array $outcomes): ?string
+    {
+        $refusalLine = null;
+
+        foreach ($allActions as $action) {
+            if ($action->operation !== Operation::support->value) {
+                continue;
+            }
+
+            $outcome = $outcomes[$action->robotId] ?? null;
+            if ($outcome === null || !$outcome->success) {
+                continue;
+            }
+
+            $robot = $this->world->robotStates[$action->robotId] ?? null;
+            // A freshly started support has its countdown at the full duration;
+            // decide it now, on the turn it was proposed.
+            if ($robot === null || $robot->supportTurnsRemaining <= 0) {
+                continue;
+            }
+
+            $proposal = $this->buildSupportProposal($allActions, $robot->supportDestination);
+
+            if ($this->resident->evaluateRefusal($proposal, $this->world, $this->config)) {
+                // Refused: end the support so no move happens later.
+                $robot->supportTurnsRemaining = 0;
+                $robot->supportDestination = null;
+                $refusalLine ??= $this->resident->refusalLine();
+            }
+        }
+
+        return $refusalLine;
+    }
+
+    /**
+     * Build the proposal token string that ResidentController::evaluateRefusal()
+     * reads, from a support action and the turn's spoken lines (Req 7.14).
+     *
+     * A support action is itself the move proposal (Req 7.15), so `move_resident`
+     * and `support` are always present. The `destination` token is added only
+     * when a spoken line of either robot this turn names the destination,
+     * case-insensitively: "table" for `under_table`, "futon" for `beside_futon`,
+     * or the destination room's display name for an adjacent room.
+     *
+     * @param list<Action> $allActions this turn's actions
+     * @param string|null  $destination the support's targetSpot destination
+     */
+    private function buildSupportProposal(array $allActions, ?string $destination): string
+    {
+        $tokens = ['move_resident', 'support'];
+
+        if ($destination !== null && $this->destinationNamed($allActions, $destination)) {
+            $tokens[] = 'destination';
+        }
+
+        return implode(' ', $tokens);
+    }
+
+    /**
+     * Whether any spoken line of either robot this turn names the support
+     * destination as the move's purpose, case-insensitively (Req 7.14). The
+     * word looked for is "table" for `under_table`, "futon" for `beside_futon`,
+     * or the destination room's display name (e.g. "kitchen", "living room")
+     * for an adjacent room key.
+     *
+     * @param list<Action> $allActions this turn's actions
+     */
+    private function destinationNamed(array $allActions, string $destination): bool
+    {
+        $needle = $this->destinationWord($destination);
+        if ($needle === null) {
+            return false;
+        }
+
+        $needle = mb_strtolower($needle);
+
+        foreach ($allActions as $action) {
+            foreach ($action->words as $line) {
+                if (str_contains(mb_strtolower($line), $needle)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The case-insensitive word a spoken line must contain to name the given
+     * destination (Req 7.14): "table" for the under-table spot, "futon" for the
+     * beside-futon spot, or the room's display name for an adjacent room key.
+     * Returns null for an unrecognised destination.
+     */
+    private function destinationWord(string $destination): ?string
+    {
+        if ($destination === self::SPOT_UNDER_TABLE) {
+            return 'table';
+        }
+
+        if ($destination === self::SPOT_BESIDE_FUTON) {
+            return 'futon';
+        }
+
+        if (array_key_exists($destination, $this->world->rooms)) {
+            return $this->world->getRoom($destination)->displayName;
+        }
+
+        return null;
+    }
+
+    /**
+     * Count down each robot's `support` timer by one turn (set to 2 by a
+     * support action in task 13) and carry out the resident move when a
+     * countdown reaches 0 (Req 7.15).
+     *
+     * A refused proposal has already been ended in resolveSupportProposals()
+     * (its countdown reset to 0), so only accepted supports reach 0 here. When
+     * one does, the stored destination relocates the resident:
+     *   - an in-room spot (`under_table`, `beside_futon`) sets
+     *     ResidentState.spot and keeps his room;
+     *   - an adjacent room key sets ResidentState.room, clears the spot, and
+     *     sets his activity to `standing` ("on his feet, leaning on his cane").
+     * The destination has already been validated by the RulesEvaluator on the
+     * support turn (Req 7.13).
      */
     private function advanceSupportCountdowns(): void
     {
@@ -465,25 +617,37 @@ class Engine
             $robot->supportTurnsRemaining--;
 
             if ($robot->supportTurnsRemaining === 0) {
-                // TODO (task 25. Resident move via support): when the support
-                // countdown reaches 0, move the resident to the destination —
-                // but ONLY if ResidentController::evaluateRefusal() accepts
-                // (weakened, or support executed AND the destination was named
-                // this turn). The destination source is undecided in the spec
-                // (a room, or a spot such as "under the table"); the maintainer
-                // must settle it before the move is wired up (decision
-                // 2026-11-07). Until then the resident is deliberately NOT
-                // relocated here; only the countdown is maintained. Only the
-                // countdown mechanics and the evaluateRefusal() gating may be
-                // prepared in this task; the actual position change is out of
-                // scope. Example once decided:
-                //   $proposal = 'move_resident support destination';
-                //   if (!$this->resident->evaluateRefusal($proposal, $this->world, $this->config)) {
-                //       // relocate the resident to the chosen destination
-                //   }
-                continue;
+                $this->moveResidentTo($robot->supportDestination);
+                $robot->supportDestination = null;
             }
         }
+    }
+
+    /**
+     * Relocate the resident to the accepted support destination (Req 7.15). An
+     * in-room spot sets the resident's spot and leaves his room; an adjacent
+     * room key moves him to that room, clears the spot, and stands him up.
+     * A null destination (should not occur for an accepted support) is ignored.
+     */
+    private function moveResidentTo(?string $destination): void
+    {
+        if ($destination === null) {
+            return;
+        }
+
+        $resident = $this->world->residentState;
+
+        if ($destination === self::SPOT_UNDER_TABLE || $destination === self::SPOT_BESIDE_FUTON) {
+            // An in-room spot keeps his room and records the spot.
+            $resident->spot = $destination;
+
+            return;
+        }
+
+        // An adjacent room: move him, drop the spot, and stand him up.
+        $resident->room = $destination;
+        $resident->spot = null;
+        $resident->activity = ManActivity::standing->value;
     }
 
     /**

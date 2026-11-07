@@ -288,6 +288,9 @@ class ActionExecutor
     {
         $robot = $this->robot($action, $world);
         $robot->supportTurnsRemaining = self::SUPPORT_TURNS;
+        // Remember where the resident is to be taken so the Engine can carry
+        // out the move when the countdown reaches zero (Req 7.13, Req 7.15).
+        $robot->supportDestination = $action->targetSpot;
 
         return [
             'You began to support the man.',

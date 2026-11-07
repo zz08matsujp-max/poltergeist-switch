@@ -24,6 +24,12 @@ use PoltergeistSwitch\Engine\Values\TurnActions;
 class ResidentController
 {
     /**
+     * The resident's spot while crouching under the low table. Like being
+     * covered, it zeroes the falling-object injury increment (Req 7.16).
+     */
+    private const SPOT_UNDER_TABLE = 'under_table';
+
+    /**
      * Apply one turn's deltas to the resident and re-clamp (design §h).
      *
      * Order (applied sequentially before clamping):
@@ -55,12 +61,16 @@ class ResidentController
 
         // 1. Injury from falling objects. The resident must be in a shaking
         //    house with objects falling, and the hazard applies only in the
-        //    resident's own room. A set cover flag zeroes the increment.
+        //    resident's own room. A set cover flag (Req 6.3) OR crouching under
+        //    the low table (Req 7.16) zeroes the increment.
         $residentRoomShaking = $house->shaking
             && $house->fallingObjects
             && $this->roomHasFallenObject($world, $residentRoomKey);
 
-        if ($residentRoomShaking && !$resident->coverFlag) {
+        $shielded = $resident->coverFlag
+            || $resident->spot === self::SPOT_UNDER_TABLE;
+
+        if ($residentRoomShaking && !$shielded) {
             $resident->injury += $config->injuryDeltaFalling;
         }
 

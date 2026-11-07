@@ -129,6 +129,30 @@ class ResidentControllerTest extends TestCase
         );
     }
 
+    public function testInjuryDeltaIsZeroWhenResidentIsUnderTable(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->houseState->shaking        = true;
+        $world->houseState->fallingObjects = true;
+        $world->objects['tv']->fallen      = true;
+        // Crouching under the low table shields the resident just like cover
+        // does (Req 7.16), even with no coverFlag set this turn.
+        $world->residentState->coverFlag   = false;
+        $world->residentState->spot        = 'under_table';
+
+        $before = $world->residentState->injury;
+
+        (new ResidentController())->updateState($world, $config, $this->noActions());
+
+        $this->assertSame(
+            $before,
+            $world->residentState->injury,
+            'The under_table spot must zero the falling-object injury increment'
+        );
+    }
+
     // ------------------------------------------------------------------
     // 3. Fear from shaking (Req 6.4).
     // ------------------------------------------------------------------

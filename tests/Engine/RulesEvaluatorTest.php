@@ -327,11 +327,13 @@ class RulesEvaluatorTest extends TestCase
     public function testSupportWhenResidentInSameRoomIsPossibleWithDurationTwo(): void
     {
         $world = $this->makeWorld();
-        // robot_a and the resident are both in the living room.
+        // robot_a and the resident are both in the living room; the low table
+        // is here, so `under_table` is a valid destination (Req 7.13).
 
         $action = new Action(
             robotId: 'robot_a',
             operation: Operation::support->value,
+            targetSpot: 'under_table',
         );
 
         $judgement = $this->evaluate($world, $action);
@@ -340,14 +342,69 @@ class RulesEvaluatorTest extends TestCase
         $this->assertSame(2, $judgement->duration);
     }
 
+    public function testSupportWithAdjacentRoomDestinationIsPossible(): void
+    {
+        $world = $this->makeWorld();
+        // The resident is in the living room; the kitchen is adjacent, so a
+        // room-key destination is valid (Req 7.13).
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetSpot: 'kitchen',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertSame(2, $judgement->duration);
+    }
+
+    public function testSupportWithNoDestinationIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a shares the resident's room but names no destination.
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('no_destination', $judgement->reason);
+    }
+
+    public function testSupportWithNonAdjacentRoomDestinationIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+        // The resident is in the living room; the bathroom is not adjacent to
+        // it, so a bathroom destination is rejected (Req 7.13).
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetSpot: 'bathroom',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('no_destination', $judgement->reason);
+    }
+
     public function testSupportWhenResidentNotInSameRoomIsImpossible(): void
     {
         $world = $this->makeWorld();
-        // robot_b is in the kitchen; the resident sits in the living room.
+        // robot_b is in the kitchen; the resident sits in the living room. The
+        // same-room check runs before the destination check, so even a valid
+        // destination still yields not_in_same_room.
 
         $action = new Action(
             robotId: 'robot_b',
             operation: Operation::support->value,
+            targetSpot: 'under_table',
         );
 
         $judgement = $this->evaluate($world, $action);

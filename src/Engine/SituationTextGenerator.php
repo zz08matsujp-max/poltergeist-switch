@@ -178,7 +178,12 @@ final class SituationTextGenerator
         }
 
         // Resident sentence.
-        $now .= $this->describeResident($you, $mroom, $world->residentActivity()) . ' ';
+        $now .= $this->describeResident(
+            $you,
+            $mroom,
+            $world->residentActivity(),
+            $world->residentSpot()
+        ) . ' ';
 
         // Other-robot sentence (no trailing space; ends the paragraph).
         $now .= $other === $you
@@ -191,10 +196,21 @@ final class SituationTextGenerator
     /**
      * Describe where the resident is relative to the robot's room.
      * Ported from the $mroom branches in vary_situation().
+     *
+     * The "doing" phrase comes from the resident's spot when one is set
+     * ("crouching under the low table", "sitting beside his futon"), then from
+     * the `standing` activity ("standing, leaning on his cane"), otherwise from
+     * the scripted activity (Req 7.17). The S0–S5 and turn-2 golden texts leave
+     * the spot null with one of the four original activities, so their phrasing
+     * is unchanged.
      */
-    private function describeResident(string $you, string $mroom, string $activity): string
-    {
-        $doing = $this->manDoing($activity);
+    private function describeResident(
+        string $you,
+        string $mroom,
+        string $activity,
+        ?string $spot = null
+    ): string {
+        $doing = $this->manDoing($activity, $spot);
 
         if ($mroom === $you) {
             return 'The man is here in ' . $this->vThe($you) . ', ' . $doing . '.';
@@ -469,14 +485,29 @@ final class SituationTextGenerator
     /**
      * The resident's activity phrase, matching the V_MAN 'doing' strings from
      * pilot/index.php keyed by ManActivity value.
+     *
+     * A set spot wins over the activity (Req 7.17): `under_table` reads
+     * "crouching under the low table" and `beside_futon` reads "sitting beside
+     * his futon". With no spot, the `standing` activity reads "standing,
+     * leaning on his cane"; the four scripted activities keep their original
+     * phrasing so the golden texts do not change.
      */
-    private function manDoing(string $activity): string
+    private function manDoing(string $activity, ?string $spot = null): string
     {
+        if ($spot === 'under_table') {
+            return 'crouching under the low table';
+        }
+
+        if ($spot === 'beside_futon') {
+            return 'sitting beside his futon';
+        }
+
         return match ($activity) {
             'sitting_at_table' => 'sitting at the low table',
             'asleep_in_futon'  => 'asleep in his futon',
             'bathing'          => 'taking a bath',
             'cooking'          => 'cooking at the gas stove',
+            'standing'         => 'standing, leaning on his cane',
             default            => throw new \InvalidArgumentException("Unknown manActivity '{$activity}'."),
         };
     }

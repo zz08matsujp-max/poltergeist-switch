@@ -325,6 +325,11 @@ class SituationTextGeneratorTest extends TestCase
                 return $this->manActivity;
             }
 
+            public function residentSpot(): ?string
+            {
+                return null;
+            }
+
             public function isRoomDark(string $roomKey): bool
             {
                 // Turn 1: power is on, nothing is dark regardless of time.
@@ -395,6 +400,11 @@ class SituationTextGeneratorTest extends TestCase
             public function residentActivity(): string
             {
                 return 'sitting_at_table';
+            }
+
+            public function residentSpot(): ?string
+            {
+                return null;
             }
 
             public function isRoomDark(string $roomKey): bool
@@ -649,6 +659,11 @@ class SituationTextGeneratorTest extends TestCase
             public function residentActivity(): string
             {
                 return 'sitting_at_table';
+            }
+
+            public function residentSpot(): ?string
+            {
+                return null;
             }
 
             public function isRoomDark(string $roomKey): bool

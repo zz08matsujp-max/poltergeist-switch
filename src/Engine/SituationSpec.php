@@ -36,6 +36,20 @@ readonly class SituationSpec
         'storeroom',
     ];
 
+    /**
+     * @var string[] The starting activities a seed may draw. The `standing`
+     *               ManActivity is a runtime state the resident reaches only
+     *               after a robot moves him via support (Req 7.15); it is never
+     *               an episode starting pose, so it is excluded here. Keeping
+     *               this list fixed also preserves the fromSeed() draw range.
+     */
+    private const STARTING_ACTIVITIES = [
+        'sitting_at_table',
+        'asleep_in_futon',
+        'bathing',
+        'cooking',
+    ];
+
     public string $time;
     public string $robotARoom;
     public string $robotBRoom;
@@ -113,7 +127,7 @@ readonly class SituationSpec
     public static function fromSeed(Seed $seed): self
     {
         $times      = array_column(TimeOfDay::cases(), 'value');    // ['morning','afternoon','night']
-        $activities = array_column(ManActivity::cases(), 'value');   // ['sitting_at_table',…,'cooking']
+        $activities = self::STARTING_ACTIVITIES;                    // ['sitting_at_table',…,'cooking']
 
         $time        = $times[$seed->next(0, count($times) - 1)];
         $manActivity = $activities[$seed->next(0, count($activities) - 1)];
