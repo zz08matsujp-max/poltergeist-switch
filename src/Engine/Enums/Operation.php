@@ -14,4 +14,5 @@ enum Operation: string
     case cover     = 'cover';
     case wait      = 'wait';
     case speak     = 'speak';
+    case unknown   = 'unknown';
 }

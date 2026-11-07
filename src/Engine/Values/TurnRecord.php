@@ -13,5 +13,6 @@ readonly class TurnRecord
         public array $outcomes,      // Outcome[] keyed by robotId
         public ?string $residentLine,
         public mixed $snapshot,      // WorldSnapshot
+        public array $roomsAtStart = [], // robotId => room key at the start of this turn (rule A, Req 9.16)
     ) {}
 }
