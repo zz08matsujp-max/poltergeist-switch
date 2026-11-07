@@ -166,9 +166,10 @@ class ActionExecutorTest extends TestCase
         $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
 
         $this->assertTrue($outcome->success);
-        // The spoken words are carried in the outcome text.
-        $this->assertStringContainsString('Stay calm.', (string) $outcome->whatHappenedText);
-        $this->assertStringContainsString('I am here.', (string) $outcome->whatHappenedText);
+        // A spoken line is carried by Action.words and delivered separately, so
+        // the outcome event text is empty for speak (design §f, Req 9.16).
+        $this->assertSame('', $outcome->whatHappenedText);
+        $this->assertSame('', $outcome->seenByOtherText);
 
         // No world field changed.
         $this->assertSnapshotsEqual($before, $world->snapshot());

@@ -11,6 +11,7 @@ use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\Values\Judgement;
 use PoltergeistSwitch\Engine\Values\Outcome;
 use PoltergeistSwitch\Engine\Values\TurnActions;
+use PoltergeistSwitch\Engine\Values\TurnRecord;
 use PoltergeistSwitch\Engine\Values\TurnResult;
 
 /**
@@ -52,6 +53,18 @@ class Engine
 
     /** @var array<int,TurnResult> processed turn number => stored TurnResult */
     private array $turnHistory = [];
+
+    /**
+     * Ordered, append-only history of TurnRecord value objects — one per
+     * applied turn, in turn order (design §d step 10, §i). Unlike $turnHistory
+     * this is a plain list, never keyed by turn, and it is appended only on the
+     * normal processing path: the error path (errorResult) adds nothing. The
+     * situation text for the next turn reads the last five entries so the robot
+     * sees up to the last five turns of recent events (Req 9.16–9.18).
+     *
+     * @var list<TurnRecord>
+     */
+    private array $turnRecords = [];
 
     /**
      * Tracks the earthquake start turn seen on the previous applyTurn so the
@@ -131,6 +144,22 @@ class Engine
     }
 
     /**
+     * Build the full situation text sent to one robot for the current turn
+     * (design §i, Req 10.1). It reads the live world through SituationView and
+     * the last five applied TurnRecords (oldest first), which the generator
+     * renders as the recent-events section under the "In the last 15 seconds:"
+     * heading. Memories are not supplied here.
+     *
+     * @param string $robotId 'robot_a' or 'robot_b'
+     */
+    public function situationTextFor(string $robotId): string
+    {
+        $recent = array_slice($this->turnRecords, -5);
+
+        return $this->textGen->generate($robotId, $this->world, $recent);
+    }
+
+    /**
      * Process the current turn (steps 2–10 of design §d). Called only when the
      * idempotency check has confirmed `$turnNumber === currentTurn`.
      *
@@ -138,6 +167,15 @@ class Engine
      */
     private function processCurrentTurn(int $turnNumber, array $actions): TurnResult
     {
+        // Capture each robot's room at the START of the turn, before any move
+        // in executeActions() (step 4). Rule A compares these start rooms (and
+        // the end rooms in the snapshot) to decide whether a robot saw the
+        // other robot's action this turn (Req 9.16).
+        $roomsAtStart = [
+            self::ROBOT_A => $this->world->robotStates[self::ROBOT_A]->room,
+            self::ROBOT_B => $this->world->robotStates[self::ROBOT_B]->room,
+        ];
+
         // 2. Advance the earthquake phase if active. The observer layer sets
         //    earthquakeStartTurn on the world; the Engine captures the stove
         //    flame the first turn it sees it set (Req 3.5), then advances the
@@ -195,18 +233,40 @@ class Engine
         // 9. Advance the turn clock.
         $this->world->currentTurn++;
 
-        // 10. Build, store and return the TurnResult for this turn.
+        // 10. Build, store and return the TurnResult for this turn. The same
+        //     post-turn snapshot feeds both the TurnResult and the TurnRecord.
+        $snapshot = $this->world->snapshot();
+
         $result = new TurnResult(
             turnNumber: $turnNumber,
             judgements: $judgements,
             outcomes: $outcomes,
             residentLine: $residentLine,
-            worldSnapshot: $this->world->snapshot(),
+            worldSnapshot: $snapshot,
             residentState: clone $this->world->residentState,
             episodeEnded: $this->world->episodeEnded,
         );
 
         $this->turnHistory[$turnNumber] = $result;
+
+        // Append this turn's TurnRecord for the situation-text history (§i).
+        // robotActions is keyed by robot id; $allActions is a list, so build an
+        // id-keyed map from it. roomsAtStart was captured at the top of the
+        // turn before any move.
+        $robotActions = [];
+        foreach ($allActions as $action) {
+            $robotActions[$action->robotId] = $action;
+        }
+
+        $this->turnRecords[] = new TurnRecord(
+            turnNumber: $turnNumber,
+            robotActions: $robotActions,
+            judgements: $judgements,
+            outcomes: $outcomes,
+            residentLine: $residentLine,
+            snapshot: $snapshot,
+            roomsAtStart: $roomsAtStart,
+        );
 
         return $result;
     }

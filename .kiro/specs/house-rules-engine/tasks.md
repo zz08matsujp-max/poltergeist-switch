@@ -446,10 +446,10 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - Decide with the maintainer where the destination comes from (a room, or a spot such as under the table), then move the resident when the support countdown reaches 0 and evaluateRefusal() accepts
   - _Requirements: Req 7.8–7.11_
 
-- [ ] 26. Engine — turn records and each robot's situation text (added 2026-11-07)
-  - [ ] 26.1 ActionExecutor: whatHappenedText in the second person, past tense, and seenByOtherText starting "The other robot", for every operation; both empty for speak and unknown (Req 9.16, Req 12.3)
-  - [ ] 26.2 Engine: store a TurnRecord for every applied turn (with roomsAtStart) and add `situationTextFor(string $robotId): string`, which calls SituationTextGenerator::generate() with the world and the last five TurnRecords
-  - [ ] 26.3 Tests: at earthquake offset 2 the text for both robots contains "The lights go out."; at offset 5 it contains "The shaking has stopped."; on the turn after a robot speaks, the other robot's text contains its line under "In the last 15 seconds:"
+- [x] 26. Engine — turn records and each robot's situation text (added 2026-11-07)
+  - [x] 26.1 ActionExecutor: whatHappenedText in the second person, past tense, and seenByOtherText starting "The other robot", for every operation; both empty for speak and unknown (Req 9.16, Req 12.3)
+  - [x] 26.2 Engine: store a TurnRecord for every applied turn (with roomsAtStart) and add `situationTextFor(string $robotId): string`, which calls SituationTextGenerator::generate() with the world and the last five TurnRecords
+  - [x] 26.3 Tests: at earthquake offset 2 the text for both robots contains "The lights go out."; at offset 5 it contains "The shaking has stopped."; on the turn after a robot speaks, the other robot's text contains its line under "In the last 15 seconds:"
   - _Requirements: Req 9.12–9.18, Req 10.1_
 
 ---

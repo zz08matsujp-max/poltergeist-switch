@@ -71,33 +71,40 @@ class ActionExecutor
         $snapshot = $world->snapshot();
 
         try {
-            $whatHappened = $this->applyAction($action, $world, $config);
+            [$whatHappened, $seenByOther] = $this->applyAction($action, $world, $config);
         } catch (Throwable $e) {
             $world->restore($snapshot);
 
             return Outcome::failure($action->robotId, $e->getMessage());
         }
 
-        return Outcome::success($action->robotId, $whatHappened);
+        return Outcome::success($action->robotId, $whatHappened, $seenByOther);
     }
 
     /**
-     * Dispatch to the per-operation mutation. Returns the "what happened" text
-     * describing the change; throws on any inconsistency so execute() can roll
-     * back. cover, wait, and speak never mutate the physical world.
+     * Dispatch to the per-operation mutation. Returns a `[whatHappenedText,
+     * seenByOtherText]` tuple: the first is second-person past tense ("You
+     * …"), the second the same event from the other robot's viewpoint ("The
+     * other robot …"). Mutating operations fill both; `speak` and `unknown`
+     * fill both with the empty string, because a spoken line is carried by
+     * Action.words and delivered separately and an unknown reading executes
+     * nothing (design §f "Outcome text contract", Req 9.16, Req 12.3). Throws
+     * on any inconsistency so execute() can roll back.
+     *
+     * @return array{0:string,1:string} [whatHappenedText, seenByOtherText]
      */
-    private function applyAction(Action $action, WorldModel $world, EpisodeConfig $config): string
+    private function applyAction(Action $action, WorldModel $world, EpisodeConfig $config): array
     {
         return match ($action->operation) {
-            Operation::move->value  => $this->executeMove($action, $world),
-            Operation::take->value  => $this->executeTake($action, $world),
-            Operation::use->value   => $this->executeUse($action, $world),
+            Operation::move->value      => $this->executeMove($action, $world),
+            Operation::take->value      => $this->executeTake($action, $world),
+            Operation::use->value       => $this->executeUse($action, $world),
             Operation::cover->value     => $this->executeCover($action, $world),
-            Operation::speak->value     => $this->executeSpeak($action),
-            Operation::wait->value      => 'The robot waits.',
+            Operation::speak->value     => $this->executeSpeak(),
+            Operation::wait->value      => ['You waited.', 'The other robot waited.'],
             Operation::support->value   => $this->executeSupport($action, $world),
             Operation::hand_over->value => $this->executeHandOver($action, $world, $config),
-            default => $this->executeSpeak($action),
+            default => $this->executeSpeak(),
         };
     }
 
@@ -106,7 +113,7 @@ class ActionExecutor
      * the destination room key; `targetSpot` carries the spot within it. The
      * room lookup throws on an unknown key, triggering rollback.
      */
-    private function executeMove(Action $action, WorldModel $world): string
+    private function executeMove(Action $action, WorldModel $world): array
     {
         $robot = $this->robot($action, $world);
         $destination = (string) $action->targetId;
@@ -117,7 +124,10 @@ class ActionExecutor
         $robot->room = $destination;
         $robot->spot = $action->targetSpot;
 
-        return "The robot moves to the {$room->displayName}.";
+        return [
+            "You moved to the {$room->displayName}.",
+            "The other robot moved to the {$room->displayName}.",
+        ];
     }
 
     /**
@@ -126,7 +136,7 @@ class ActionExecutor
      * invariant still holds and the room's object list no longer shows it — and
      * the robot's single held slot records the object id.
      */
-    private function executeTake(Action $action, WorldModel $world): string
+    private function executeTake(Action $action, WorldModel $world): array
     {
         $robot = $this->robot($action, $world);
         $object = $this->object($action, $world);
@@ -137,7 +147,10 @@ class ActionExecutor
         $object->room = $robot->id;
         $object->spot = null;
 
-        return "The robot takes {$object->displayName}.";
+        return [
+            "You picked up {$object->displayName}.",
+            "The other robot picked up {$object->displayName}.",
+        ];
     }
 
     /**
@@ -148,7 +161,7 @@ class ActionExecutor
      *     light level is recomputed so a dark room becomes lit again.
      * Any other target is toggled on as a generic appliance.
      */
-    private function executeUse(Action $action, WorldModel $world): string
+    private function executeUse(Action $action, WorldModel $world): array
     {
         $targetId = (string) $action->targetId;
 
@@ -157,7 +170,10 @@ class ActionExecutor
         if ($targetId === self::GAS_MAIN_VALVE_ID) {
             $world->houseState->gasMain = GasState::closed;
 
-            return 'The robot closes the gas main valve.';
+            return [
+                'You closed the gas main valve.',
+                'The other robot closed the gas main valve.',
+            ];
         }
 
         $object = $this->object($action, $world);
@@ -167,7 +183,10 @@ class ActionExecutor
         if ($object->id === self::GAS_STOVE_ID) {
             $object->on = false;
 
-            return 'The robot turns off the gas stove.';
+            return [
+                'You turned off the gas stove. The flame went out.',
+                'The other robot turned off the gas stove. The flame went out.',
+            ];
         }
 
         // Lighting a flashlight or candle switches it on and can push a dark
@@ -177,13 +196,19 @@ class ActionExecutor
             $object->on = true;
             EarthquakePhase::recomputeRoomLightLevel($world, $object->room);
 
-            return "The robot switches on {$object->displayName}.";
+            return [
+                "You switched on {$object->displayName}.",
+                "The other robot switched on {$object->displayName}.",
+            ];
         }
 
         // Any other appliance is simply switched on.
         $object->on = true;
 
-        return "The robot uses {$object->displayName}.";
+        return [
+            "You used {$object->displayName}.",
+            "The other robot used {$object->displayName}.",
+        ];
     }
 
     /**
@@ -192,32 +217,40 @@ class ActionExecutor
      * resident covers the resident; targeting nobody (or the robot itself)
      * covers the robot. The flag is cleared by the engine at end of turn.
      */
-    private function executeCover(Action $action, WorldModel $world): string
+    private function executeCover(Action $action, WorldModel $world): array
     {
         if ($action->targetId === self::RESIDENT_ID) {
             $world->residentState->coverFlag = true;
 
-            return 'The robot shields the man.';
+            return [
+                'You shielded the man.',
+                'The other robot shielded the man.',
+            ];
         }
 
         $robot = $this->robot($action, $world);
         $robot->coverFlag = true;
 
-        return 'The robot takes cover.';
+        return [
+            'You took cover.',
+            'The other robot took cover.',
+        ];
     }
 
     /**
-     * speak: words are carried in parallel with the physical action and never
-     * change the world (Req 5.7). The spoken lines are returned in the Outcome
-     * text so the engine can record them on the turn; no world field is touched.
+     * speak: words are carried in parallel with the physical action in
+     * Action.words and are delivered as their own recent-events lines by the
+     * SituationTextGenerator, not through the Outcome text (Req 5.7, Req 9.16).
+     * The spoken action therefore produces no event text: both fields are the
+     * empty string so the generator's non-empty checks skip them. No world
+     * field is touched. The same empty-text result stands in for an `unknown`
+     * reading, which executes nothing (Req 12.3).
+     *
+     * @return array{0:string,1:string}
      */
-    private function executeSpeak(Action $action): string
+    private function executeSpeak(): array
     {
-        if ($action->words === []) {
-            return 'The robot says nothing.';
-        }
-
-        return 'The robot says: ' . implode(' ', $action->words);
+        return ['', ''];
     }
 
     /**
@@ -226,12 +259,15 @@ class ActionExecutor
      * decrements the flag to zero on the second turn. Setting the countdown is
      * the executor's only job here.
      */
-    private function executeSupport(Action $action, WorldModel $world): string
+    private function executeSupport(Action $action, WorldModel $world): array
     {
         $robot = $this->robot($action, $world);
         $robot->supportTurnsRemaining = self::SUPPORT_TURNS;
 
-        return 'The robot begins to support the man.';
+        return [
+            'You began to support the man.',
+            'The other robot began to support the man.',
+        ];
     }
 
     /**
@@ -249,7 +285,7 @@ class ActionExecutor
      * `$config->waterDeltaHandover`; the final clamp is applied by
      * ResidentController at end of turn.
      */
-    private function executeHandOver(Action $action, WorldModel $world, EpisodeConfig $config): string
+    private function executeHandOver(Action $action, WorldModel $world, EpisodeConfig $config): array
     {
         $robot = $this->robot($action, $world);
 
@@ -278,7 +314,10 @@ class ActionExecutor
             $resident->water += $config->waterDeltaHandover;
         }
 
-        return "The robot hands {$object->displayName} to the man.";
+        return [
+            "You handed {$object->displayName} to the man.",
+            "The other robot handed {$object->displayName} to the man.",
+        ];
     }
 
     /**
