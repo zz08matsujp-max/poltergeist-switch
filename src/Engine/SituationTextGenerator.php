@@ -25,6 +25,22 @@ namespace PoltergeistSwitch\Engine;
 final class SituationTextGenerator
 {
     /**
+     * Situation-text version (Req 14). A plain PHP 8.2 class constant (NOT a
+     * typed class constant — those arrived in PHP 8.3) identifying the fixed
+     * body text (FIXED_BODY), the fixed house text (FIXED_HOUSE), and the
+     * generator's output format (section order and phrasing in generate()).
+     *
+     * BUMP THIS whenever FIXED_BODY, FIXED_HOUSE, or the generator output
+     * format changes (Req 14.2). The S0–S5 golden tests and this constant are
+     * coupled: a change that moves a golden test must also bump this version.
+     * The Engine surfaces this value via Engine::situationTextVersion() so a
+     * caller can store it alongside each prompt (Req 14.1, Req 14.3). Keep it
+     * at most 32 characters to fit the turn-loop prompts.situation_text_version
+     * column.
+     */
+    public const VERSION = 'situation-text-2026-11-08';
+
+    /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.
      *
      * @var array<string,string>

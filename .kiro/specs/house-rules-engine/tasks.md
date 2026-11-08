@@ -484,12 +484,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Run every existing engine test; update any test that assumed the old "applyTurn advances the earthquake before judging" ordering, and state in the task which tests changed
     - _Requirements: Req 13.1–13.8, Req 11.4_
 
-- [ ] 29. Situation-text version (added 2026-11-08)
-  - [ ] 29.1 Expose a situation-text version (Req 14):
+- [x] 29. Situation-text version (added 2026-11-08)
+  - [x] 29.1 Expose a situation-text version (Req 14):
     - Add a plain PHP 8.2 `const` string version on `SituationTextGenerator` (not a typed class constant) identifying the fixed body text, fixed house text, and generator output format; bump it whenever any of those change
     - Add `Engine::situationTextVersion(): string` surfacing that constant
     - _Requirements: Req 14.1–14.3_
-  - [ ] 29.2 Tests:
+  - [x] 29.2 Tests:
     - `Engine::situationTextVersion()` returns the `SituationTextGenerator` version constant
     - A documented check/reminder that the version must be bumped when the fixed text or generator output format changes (e.g. the S0 golden test and the version constant are noted as coupled)
     - _Requirements: Req 14.1–14.3_

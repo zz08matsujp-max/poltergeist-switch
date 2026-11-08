@@ -46,8 +46,9 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - A missing/unreadable config returns an error and attempts no provider call; a missing/unreadable/empty key file returns an error for that client and attempts no provider call for it
     - Never return a key, credential, or the secrets path in any output
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 1.10_
-  - [ ]* 3.3 Write unit tests in `tests/TurnLoop/ConfigSecretLoaderTest.php` using a temporary fake secrets dir (never a real key):
+  - [ ] 3.3 Write unit tests in `tests/TurnLoop/ConfigSecretLoaderTest.php` using a temporary fake secrets dir (never a real key):
     - Reads a key from a fake file; missing config → error with no provider call; missing/empty key file → error for that client; per-call timeout strictly below per-request budget; no secret value appears in any returned string
+    - Required, not optional (decided by the maintainer on 2026-11-08): these tests guard the API keys
     - _Requirements: 2.4, 2.5, 2.6, 1.12_
 
 - [ ] 4. ParallelHttp helper

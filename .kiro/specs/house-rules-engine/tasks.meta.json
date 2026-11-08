@@ -900,6 +900,37 @@
         "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
         "timestamp": 1794097157226
       }
+    ],
+    "29.1 Expose a situation-text version (Req 14):": [
+      {
+        "executionId": "efaf4ed6-4190-4105-aec2-ac62961de312",
+        "chatSessionId": "sess_e16b9221-97c0-4d05-bd5b-1d48c6f97d9e",
+        "timestamp": 1794097443870
+      },
+      {
+        "executionId": "efaf4ed6-4190-4105-aec2-ac62961de312",
+        "chatSessionId": "sess_e16b9221-97c0-4d05-bd5b-1d48c6f97d9e",
+        "timestamp": 1794097543869
+      }
+    ],
+    "29.2 Tests:": [
+      {
+        "executionId": "efaf4ed6-4190-4105-aec2-ac62961de312",
+        "chatSessionId": "sess_e16b9221-97c0-4d05-bd5b-1d48c6f97d9e",
+        "timestamp": 1794097547135
+      },
+      {
+        "executionId": "efaf4ed6-4190-4105-aec2-ac62961de312",
+        "chatSessionId": "sess_e16b9221-97c0-4d05-bd5b-1d48c6f97d9e",
+        "timestamp": 1794097642150
+      }
+    ],
+    "29. Situation-text version (added 2026-11-08)": [
+      {
+        "executionId": "efaf4ed6-4190-4105-aec2-ac62961de312",
+        "chatSessionId": "sess_e16b9221-97c0-4d05-bd5b-1d48c6f97d9e",
+        "timestamp": 1794097642291
+      }
     ]
   }
 }

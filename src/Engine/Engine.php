@@ -202,6 +202,20 @@ class Engine
     }
 
     /**
+     * Return the situation-text version (Req 14.1). This is the plain
+     * SituationTextGenerator::VERSION constant, which identifies the fixed body
+     * text, the fixed house text, and the generator's output format and is
+     * bumped whenever any of those change (Req 14.2). Every text produced by
+     * situationTextFor comes from that same fixed text and generator, so a
+     * caller can store this version alongside each prompt to record what
+     * produced it (Req 14.3).
+     */
+    public function situationTextVersion(): string
+    {
+        return SituationTextGenerator::VERSION;
+    }
+
+    /**
      * Advance the earthquake world to the turn about to be played WITHOUT
      * judging, so a following situationTextFor renders that same turn's world
      * (Req 13.1–13.2, Req 13.8).
