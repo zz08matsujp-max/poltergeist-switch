@@ -27,11 +27,13 @@ use PoltergeistSwitch\TurnLoop\Clients\ClaudeClient;
 use PoltergeistSwitch\TurnLoop\Clients\ClaudeRecorderClient;
 use PoltergeistSwitch\TurnLoop\Clients\GptClient;
 use PoltergeistSwitch\TurnLoop\Config;
+use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\ReplayEngineFactory;
 use PoltergeistSwitch\TurnLoop\Repository\PdoEpisodeRepository;
 use PoltergeistSwitch\TurnLoop\SecretLoader;
 use PoltergeistSwitch\TurnLoop\TurnService;
+use PoltergeistSwitch\TurnLoop\WorldStateBackfill;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
 use PoltergeistSwitch\TurnLoop\Values\RobotFourLayers;
 use PoltergeistSwitch\TurnLoop\Values\TurnView;
@@ -190,6 +192,43 @@ function ps_build_turn_service(): TurnService
         new ReplayEngineFactory($repo),
         $repo,
         $cfg,
+    );
+}
+
+/**
+ * Build the production EpisodeListService for the ended-episode list route
+ * (screens spec Requirement 11). It reads no secrets — the list is a pure read
+ * over the episodes/turns tables plus the engine-only world backfill, so it
+ * needs only the PDO repository and a ReplayEngineFactory (the same factory the
+ * TurnService uses for the replay). No AI is ever called. Any DB/config failure
+ * surfaces as a generic 500 ApiError, never a leak.
+ */
+function ps_build_episode_list_service(): EpisodeListService
+{
+    $config = ps_load_local_config();
+    $db = ps_load_db_credentials($config['secrets_dir']);
+
+    try {
+        $pdo = new PDO(
+            $db['dsn'],
+            $db['user'],
+            $db['password'],
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ],
+        );
+    } catch (\Throwable) {
+        // Never leak the DSN, credential, or driver message.
+        throw ps_internal_error();
+    }
+
+    $repo = new PdoEpisodeRepository($pdo);
+
+    return new EpisodeListService(
+        $repo,
+        new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
     );
 }
 

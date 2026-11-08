@@ -48,11 +48,19 @@ foreach ($_COOKIE as $name => $value) {
     }
 }
 
-// Build the service inside the try so a missing config / secrets file surfaces
+// The query parameters drive the ended-episode list route, which is recognised
+// by `ended=1` on the bare episodes collection and reads `limit` (parsed and
+// validated in src/). `route` also lives in $_GET; passing the full array is
+// fine because the list handler reads only `ended`/`limit`.
+/** @var array<string,mixed> $query */
+$query = is_array($_GET) ? $_GET : [];
+
+// Build the services inside the try so a missing config / secrets file surfaces
 // as a safe 500 rather than a provider call or a leaked path.
 try {
     $service = ps_build_turn_service();
-    $response = ps_dispatch($service, (string) $method, (string) $route, $cookies);
+    $listService = ps_build_episode_list_service();
+    $response = ps_dispatch($service, (string) $method, (string) $route, $cookies, $query, $listService);
 } catch (\Throwable) {
     // Any failure before/around dispatch (config, secrets, DB connection)
     // becomes a generic 500 with a short machine code only.

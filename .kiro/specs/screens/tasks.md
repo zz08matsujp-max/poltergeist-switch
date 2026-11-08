@@ -66,9 +66,9 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Build the starting-situation one-liner from turn 0's `world_json` (time of day plus each robot's and the man's starting room, naming only Amber and Jade, using room display names); if turn 0's world is missing, produce it via the same backfill (task 3.3) first (Req 8.5)
     - Add the repository query `WHERE ended = 1 ORDER BY created_at DESC, id DESC LIMIT :limit` to `PdoEpisodeRepository` (and the in-memory double); run `php -l` on changed PHP files
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 8.5_
-  - [~] 4.2 Implement the thin handler `api/episodes_list.php` and wire the route
-    - Parse `ended` and `limit` from the query, call `EpisodeListService`, and write the JSON list; all validation lives in `src/`, matching the existing `episodes_get.php` pattern; wire `GET /api/episodes?ended=1&limit=20` through `router.php`
-    - Send `Cache-Control: no-store` on the response (Req 11.9); no rules logic in `api/`; run `php -l` on changed PHP files
+  - [x] 4.2 Implement the thin handler `api/episodes_list.php` and wire the route
+    - [x] Parse `ended` and `limit` from the query, call `EpisodeListService`, and write the JSON list; all validation lives in `src/`, matching the existing `episodes_get.php` pattern; wire `GET /api/episodes?ended=1&limit=20` through `router.php`
+    - [x] Send `Cache-Control: no-store` on the response (Req 11.9); no rules logic in `api/`; run `php -l` on changed PHP files
     - _Requirements: 11.9, 11.4, 11.5, 11.6_
   - [~] 4.3 Write the required list property tests in `tests/TurnLoop/Properties/`
     - **Property 4: List returns only ended episodes, newest first**

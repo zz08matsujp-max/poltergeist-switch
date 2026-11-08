@@ -23,6 +23,7 @@ declare(strict_types=1);
  * never a key, credential, path, or provider name (Requirements 9.11, 2.6).
  */
 
+use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\TurnService;
 
@@ -31,24 +32,50 @@ require_once __DIR__ . '/episodes_disaster.php';
 require_once __DIR__ . '/episodes_ask.php';
 require_once __DIR__ . '/episodes_apply.php';
 require_once __DIR__ . '/episodes_get.php';
+require_once __DIR__ . '/episodes_list.php';
 
 /**
  * Parse the method + route and dispatch to the matching handler, returning the
  * response as a value so a test can inspect it. All errors are mapped to a safe
  * JSON body here, so a handler never has to touch the output globals.
  *
- * @param string               $method  the HTTP method, e.g. 'GET' or 'POST'
- * @param string               $route   the route without a leading slash, e.g.
- *                                       'episodes/abc/turns/2/ask'
- * @param array<string,string> $cookies the request cookies (for the device id)
+ * @param string               $method      the HTTP method, e.g. 'GET' or 'POST'
+ * @param string               $route       the route without a leading slash, e.g.
+ *                                           'episodes/abc/turns/2/ask'
+ * @param array<string,string> $cookies     the request cookies (for the device id)
+ * @param array<string,mixed>  $query       the request query parameters ($_GET);
+ *                                           the ended-episode list reads `ended`
+ *                                           and `limit` from here
+ * @param EpisodeListService|null $listService the service for the ended-episode
+ *                                           list route; null when no list
+ *                                           service is wired, in which case the
+ *                                           list route falls through to 404
  */
-function ps_dispatch(TurnService $service, string $method, string $route, array $cookies): PsApiResponse
-{
+function ps_dispatch(
+    TurnService $service,
+    string $method,
+    string $route,
+    array $cookies,
+    array $query = [],
+    ?EpisodeListService $listService = null,
+): PsApiResponse {
     $method = strtoupper($method);
     $route = trim($route, '/');
 
     try {
         $segments = $route === '' ? [] : explode('/', $route);
+
+        // GET /api/episodes?ended=1 — the ended-episode list. Recognised by the
+        // `ended=1` query on the bare episodes collection, which distinguishes
+        // it from any other GET on episodes (design "Ended-episode list
+        // endpoint"). All limit validation lives in EpisodeListService.
+        if ($method === 'GET'
+            && $segments === ['episodes']
+            && ($query['ended'] ?? null) === '1'
+            && $listService !== null
+        ) {
+            return ps_handle_list($listService, $query);
+        }
 
         // POST /api/episodes — create
         if ($method === 'POST' && $segments === ['episodes']) {

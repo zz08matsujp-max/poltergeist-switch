@@ -8,8 +8,10 @@ use PHPUnit\Framework\TestCase;
 use PoltergeistSwitch\TurnLoop\Clients\FakeRecorderClient;
 use PoltergeistSwitch\TurnLoop\Clients\FakeRobotClient;
 use PoltergeistSwitch\TurnLoop\Config;
+use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\ReplayEngineFactory;
 use PoltergeistSwitch\TurnLoop\TurnService;
+use PoltergeistSwitch\TurnLoop\WorldStateBackfill;
 
 // The api/ layer is plain PHP with its own PSR-4 autoloader (no Composer on the
 // server), so the handlers and the routing/response helpers are global
@@ -64,6 +66,34 @@ class ApiTest extends TestCase
             $repo,
             new Config(),
         );
+    }
+
+    /**
+     * Build the ended-episode list service over the same in-memory repo the
+     * fake-backed TurnService uses, mirroring how index.php wires the
+     * production list service beside the TurnService. No config, secret, DB, or
+     * network is touched.
+     */
+    private function listService(InMemoryEpisodeRepository $repo): EpisodeListService
+    {
+        return new EpisodeListService(
+            $repo,
+            new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+        );
+    }
+
+    /**
+     * Create one ended episode in $repo through a real TurnService over fake
+     * clients (no network, no AI), so the list has a real ended episode with a
+     * stored turn 0 world to build its one-liner from. Returns the episode id.
+     */
+    private function seedEndedEpisode(InMemoryEpisodeRepository $repo): string
+    {
+        $service = $this->service($repo);
+        $episodeId = $service->createEpisode('dev_list', seed: 1)->episodeId;
+        $repo->markEpisodeEnded($episodeId);
+
+        return $episodeId;
     }
 
     /**
@@ -219,6 +249,89 @@ class ApiTest extends TestCase
 
         // A non-numeric turn segment is a bad route, not a 409.
         $response = ps_dispatch($service, 'POST', 'episodes/' . $episodeId . '/turns/x/ask', []);
+        $this->assertSame(404, $response->status);
+        $this->assertSafeJson($response);
+    }
+
+    public function testEndedEpisodeListIsJsonUncacheableAndLeakFree(): void
+    {
+        // GET /api/episodes?ended=1 returns the ended-episode list as a bare
+        // JSON array, uncacheable (Requirement 11.9) and leak-free
+        // (Requirement 11.7). The route is recognised by `ended=1` on the bare
+        // episodes collection.
+        $repo = new InMemoryEpisodeRepository();
+        $episodeId = $this->seedEndedEpisode($repo);
+
+        $response = ps_dispatch(
+            $this->service($repo),
+            'GET',
+            'episodes',
+            [],
+            ['route' => 'episodes', 'ended' => '1', 'limit' => '20'],
+            $this->listService($repo),
+        );
+
+        $this->assertSame(200, $response->status);
+        // Cache-Control: no-store on every API response (Requirement 11.9).
+        $this->assertSame('no-store', $response->headers['Cache-Control'] ?? null);
+
+        // The body is a bare JSON array of list items; it must parse and leak
+        // no secret or provider name.
+        $decoded = json_decode($response->body, true);
+        $this->assertIsArray($decoded, 'list body must parse as a JSON array');
+        foreach (self::FORBIDDEN_SUBSTRINGS as $needle) {
+            $this->assertStringNotContainsString(
+                $needle,
+                $response->body,
+                'list body must not leak a secret or provider name: ' . $needle,
+            );
+        }
+
+        $this->assertCount(1, $decoded);
+        $this->assertSame($episodeId, $decoded[0]['id'] ?? null);
+        $this->assertArrayHasKey('createdDate', $decoded[0]);
+        $this->assertArrayHasKey('turns', $decoded[0]);
+        $this->assertArrayHasKey('startingSituation', $decoded[0]);
+    }
+
+    public function testEndedEpisodeListRejectsOutOfRangeLimit(): void
+    {
+        // An out-of-range `limit` is rejected with 400 limit_out_of_range and
+        // no list (Requirement 11.6); the 400 body is still uncacheable and
+        // leak-free. The service validates and throws; the router maps it.
+        $repo = new InMemoryEpisodeRepository();
+        $this->seedEndedEpisode($repo);
+
+        $response = ps_dispatch(
+            $this->service($repo),
+            'GET',
+            'episodes',
+            [],
+            ['route' => 'episodes', 'ended' => '1', 'limit' => '0'],
+            $this->listService($repo),
+        );
+
+        $this->assertSame(400, $response->status);
+        $body = $this->assertSafeJson($response);
+        $this->assertSame('limit_out_of_range', $body['error'] ?? null);
+    }
+
+    public function testEpisodesCollectionWithoutEndedIsNotTheListRoute(): void
+    {
+        // A GET on the bare episodes collection WITHOUT `ended=1` is not the
+        // list route and falls through to 404 (the list is recognised only by
+        // `ended=1`).
+        $repo = new InMemoryEpisodeRepository();
+
+        $response = ps_dispatch(
+            $this->service($repo),
+            'GET',
+            'episodes',
+            [],
+            ['route' => 'episodes'],
+            $this->listService($repo),
+        );
+
         $this->assertSame(404, $response->status);
         $this->assertSafeJson($response);
     }
