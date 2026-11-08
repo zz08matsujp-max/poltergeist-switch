@@ -3,6 +3,10 @@
     "2.2 Write the required round-trip property test in `tests/TurnLoop/Properties/WorldStateRoundTripTest.php`": {
       "status": "passed",
       "lastRunTimestamp": 1794124264262
+    },
+    "3.4 Write the required backfill property tests in `tests/TurnLoop/Properties/`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794126501493
     }
   },
   "executionHistory": {
@@ -66,6 +70,11 @@
         "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794124705729
+      },
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794126248671
       }
     ],
     "4.1 Implement `EpisodeListService` in `src/TurnLoop/EpisodeListService.php` (plain PHP)": [

@@ -46,7 +46,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - If the backfill replay fails to complete, leave existing stored values unchanged, persist no partial World_State, and return an error indicating the World_State backfill failed
     - Run `php -l` on changed PHP files
     - _Requirements: 10.7, 10.8_
-  - [~] 3.4 Write the required backfill property tests in `tests/TurnLoop/Properties/`
+  - [x] 3.4 Write the required backfill property tests in `tests/TurnLoop/Properties/`
     - **Property 2: Backfill fills only missing turns, exactly once**
     - **Validates: Requirements 10.7**
     - Generate ended episodes with a random subset of turns missing `world_json`, read once, and assert the missing turns are filled, the present ones are unchanged, and the replay ran exactly once (spy on `ReplayEngineFactory`)
