@@ -27,7 +27,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x] 1.1 Write a guard test in `tests/Memory/BootstrapAutoloaderTest.php` asserting that every top-level namespace directory under `src/` is registered in the hand-written autoloader prefix list in `api/bootstrap.php`: for each directory `<Dir>` under `src/`, the prefix `PoltergeistSwitch\<Dir>\` maps to that directory in `api/bootstrap.php`, so a new namespace (such as Memory) can never ship without its server-side mapping and the memory endpoints never 500 on the server; no SQL and no network is involved
     - _Requirements: none (infrastructure only)_
 
-- [ ] 2. SQL migration FILE for memory, generations, reflection slots, snapshot columns, and prompt/response kind
+- [x] 2. SQL migration FILE for memory, generations, reflection slots, snapshot columns, and prompt/response kind
   - [x] 2.1 Write `sql/2026-11-09_add_memory.sql` (file only — never run against a database; the maintainer applies it on the server):
     - `memories` table (id BIGINT auto-increment doubling as finish-order seq, robot_id, generation, disaster, source_episode_id, body MEDIUMTEXT, status active|retired, created_at, retired_at; `idx_active_pick (robot_id, disaster, generation, status, id)`, `idx_snapshot (robot_id, generation, status, id)`, `UNIQUE KEY uq_source (source_episode_id, robot_id)`)
     - `memory_generation` single-row table (id TINYINT, generation default 1, updated_at) seeded with generation 1
@@ -39,7 +39,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x] 2.2 Write a static-check test in `tests/Memory/MigrationFileTest.php` asserting the file exists, declares `utf8mb4`, and contains the `memories`, `memory_generation`, and `reflections` tables, the three `episodes` columns, and the `kind` column on `prompts` and `responses`; no SQL is executed
     - _Requirements: 3.1, 8.2, 2.5_
 
-- [ ] 3. Memory value objects and row DTOs
+- [x] 3. Memory value objects and row DTOs
   - [x] 3.1 Implement the value objects in `src/Memory/Values/`:
     - `MemoryRow` (readonly: robotId, generation, disaster, sourceEpisodeId, body, status, createdAt, nullable seq, nullable retiredAt)
     - `MemorySnapshot` (readonly: `bodies` string[] oldest first; `isEmpty()`)
@@ -51,7 +51,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 2.6, 3.7, 5.2_
 
 - [ ] 4. EpisodeRepository additions — interface, in-memory fake, and PDO implementation
-  - [~] 4.1 Extend the turn-loop `EpisodeRepository` interface with the memory methods:
+  - [x] 4.1 Extend the turn-loop `EpisodeRepository` interface with the memory methods:
     - generations (`currentGeneration`, `advanceGeneration`), per-episode snapshot + generation (`storeEpisodeMemory`, `episodeGeneration`, `episodeSnapshot`), memory reads (`activeMemories`, `activeCount`), the atomic cap/retire write (`appendMemory`), and the reflection slot claim/commit (`claimReflectionSlot`, `commitReflectionAnswer`, `commitReflectionFailure`, `reflectionAnswer`)
     - _Requirements: 8.1_
   - [~] 4.2 Implement the additions in `InMemoryEpisodeRepository` (the turn-loop test fake):
@@ -73,7 +73,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 8.4, 8.5, 2.8, 2.9, 2.10_
 
 - [ ] 5. ReflectionTextBuilder (pure engine)
-  - [~] 5.1 Implement `ReflectionTextBuilder` in `src/Engine/ReflectionTextBuilder.php`:
+  - [-] 5.1 Implement `ReflectionTextBuilder` in `src/Engine/ReflectionTextBuilder.php`:
     - a pure class taking a robot id, the episode's ordered `TurnRecord`s (first played turn to last), the earthquake start turn, the post-episode `WorldModel`, and the robot's `MemorySnapshot`; makes no AI, HTTP, or database/external-memory call
     - assembles, in order separated by blank lines: the fixed body section, the fixed house section (reused from `SituationTextGenerator`), the `Memories_Block` (Appendix A form) only when the snapshot is non-empty, the fixed lead-in `Here is what happened after the shaking began:`, one event block per played turn oldest first, the `Right now:` paragraph for the world after the last turn, a blank line, then the exact question `Is there anything from what happened this time that you want to remember?`
     - each event block headed `{15·k} to {15·(k+1)} seconds after the shaking began:` counting up from the first played/shaking turn (k = 0 for turn 1); within a block perceived items first (the man's line rendered per Req 9.10–9.11, then the house events rendered per Req 9.14) then acted items (own action result, own spoken lines `You said, "…"`, own reported speech `You {ownForm}.`, then under rule A the other robot's action, its spoken lines, its reported speech `You heard the other robot {heardAs}.`); a block with no lines shows the neutral line `Nothing happened that you noticed.`; never repeats the static room-object list per turn

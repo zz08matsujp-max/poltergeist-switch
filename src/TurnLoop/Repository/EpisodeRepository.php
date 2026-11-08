@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\TurnLoop\Repository;
 
+use PoltergeistSwitch\Memory\Values\MemoryRow;
+use PoltergeistSwitch\Memory\Values\MemorySnapshot;
+use PoltergeistSwitch\Memory\Values\ReflectionClaim;
 use PoltergeistSwitch\TurnLoop\Values\AppliedTurnRows;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
@@ -213,4 +216,147 @@ interface EpisodeRepository
      * or null when no episode has that id (Requirements 9.4, 9.5).
      */
     public function loadEpisodeView(string $id): ?EpisodeView;
+
+    // =====================================================================
+    // Robot-memory additions (robot-memory spec, Requirement 8.1)
+    //
+    // All memory storage goes through this same interface, so ReflectService
+    // and MemoryService can be driven against the in-memory fake without a
+    // database (robot-memory Requirement 8.1). PdoEpisodeRepository implements
+    // these over PDO for MySQL; InMemoryEpisodeRepository mirrors the same
+    // logic in memory. Robot ids are the same 'robot_a' / 'robot_b' literals;
+    // generations are positive integers; the only disaster today is
+    // 'earthquake' but the column and these methods carry the disaster so all
+    // three are supported.
+    // =====================================================================
+
+    // --- Generations -----------------------------------------------------
+
+    /**
+     * Return the current memory generation (robot-memory Requirement 4.1). The
+     * generation partitions every robot's memories: a reset advances it so new
+     * episodes start with none, while older memories are kept but excluded.
+     */
+    public function currentGeneration(): int;
+
+    /**
+     * Advance the current memory generation to a new, higher integer and return
+     * it (robot-memory Requirement 4.2). No memory row is ever deleted; a reset
+     * only moves the current generation forward so later episodes see none of
+     * the earlier generation's memories.
+     */
+    public function advanceGeneration(): int;
+
+    // --- Per-episode snapshot + generation (stored with the episode) -----
+
+    /**
+     * Store, with the episode, the generation it belongs to and each robot's
+     * frozen verbatim memory snapshot taken at creation (robot-memory
+     * Requirement 6.1). Called inside createEpisode, reusing the same insert
+     * transaction, so every new episode carries its generation and the exact
+     * bodies both robots will be shown for the whole run. A rebuild reads these
+     * back and never re-queries the live `memories` table, so replay matches
+     * the live run byte-for-byte.
+     */
+    public function storeEpisodeMemory(
+        string $episodeId,
+        int $generation,
+        MemorySnapshot $robotA,
+        MemorySnapshot $robotB
+    ): void;
+
+    /**
+     * Return the generation stored with an episode (robot-memory Requirement
+     * 6.1). A running episode keeps its own stored generation even when a reset
+     * advances the current generation, so its later reflections store under its
+     * own generation.
+     */
+    public function episodeGeneration(string $episodeId): int;
+
+    /**
+     * Return a robot's frozen memory snapshot stored with an episode
+     * (robot-memory Requirement 6.6), 'robot_a' or 'robot_b'. A pre-feature
+     * episode whose snapshot column is NULL, or a malformed stored snapshot,
+     * yields an empty MemorySnapshot. The bodies are returned verbatim, oldest
+     * first, exactly as they were frozen at creation.
+     */
+    public function episodeSnapshot(string $episodeId, string $robotId): MemorySnapshot;
+
+    // --- Memories: read --------------------------------------------------
+
+    /**
+     * Return the active memories of ($robotId, $generation) across all
+     * disasters, oldest first by finish-order sequence, capped at $cap
+     * (robot-memory Requirements 3.8, 6.1). Retired rows and rows of any other
+     * generation are excluded. This is the list frozen into an episode's
+     * snapshot at creation (draft cap 18).
+     */
+    public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot;
+
+    /**
+     * Return how many active memories ($robotId, $generation) currently has for
+     * one $disaster (robot-memory Requirement 3.3), excluding retired and
+     * other-generation rows. The per-triple active cap is 6.
+     */
+    public function activeCount(string $robotId, int $generation, string $disaster): int;
+
+    // --- Memories: write with cap + retirement, atomic -------------------
+
+    /**
+     * Store one memory and retire oldest-active rows for its
+     * ($robotId, $disaster, $generation) triple until at most 6 remain active
+     * (robot-memory Requirements 3.3, 3.4, 8.4). The whole operation runs in a
+     * single transaction that FIRST takes a locking read (SELECT ... FOR
+     * UPDATE) over that triple's active rows, so two interleaved commits for
+     * the same triple — even from two different episodes — serialize and never
+     * leave more than 6 active. Retirement flips status to 'retired' and never
+     * deletes a row, so a retired memory is kept but excluded from every read.
+     * Idempotent per ($sourceEpisodeId, $robotId): a second store for the same
+     * source episode + robot leaves the stored records unchanged and creates no
+     * duplicate (robot-memory Requirement 8.5).
+     */
+    public function appendMemory(MemoryRow $memory): void;
+
+    // --- Reflection slot claim/commit (idempotency) ----------------------
+
+    /**
+     * Claim this episode+robot's reflection slot in a short transaction and
+     * return a ReflectionClaim telling the caller what to do (robot-memory
+     * Requirements 2.8, 2.9, 2.10):
+     *   - claimed: call this robot — a new, previously failed, or stale
+     *     re-claimed slot (a fresh in-progress claim is one made within the
+     *     last 120 s; older than that is stale and re-claimable);
+     *   - reuse: the robot already answered; reuse the carried stored body and
+     *     make no call;
+     *   - skip: a fresh in-progress claim exists, so do nothing (the robot is
+     *     not double-asked).
+     * The claim holds no lock across the AI call: it is taken and released in
+     * one short transaction, with the call made afterwards outside any lock.
+     */
+    public function claimReflectionSlot(string $episodeId, string $robotId): ReflectionClaim;
+
+    /**
+     * Commit a non-empty reflection answer in a short transaction (robot-memory
+     * Requirements 2.6, 8.4): append the memory with the cap/retirement applied
+     * in the same transaction (serialized per robot/disaster/generation) and
+     * mark the slot 'answered'. Idempotent with appendMemory per source episode
+     * + robot, so a repeated commit of an already-stored answer creates no
+     * duplicate memory.
+     */
+    public function commitReflectionAnswer(string $episodeId, string $robotId, MemoryRow $memory): void;
+
+    /**
+     * Commit a reflection failure in a short transaction (robot-memory
+     * Requirement 2.10): add no memory, record the short $reason
+     * ('empty_answer', 'no_reply', 'timeout'), and release the slot to 'failed'
+     * so a later reflect call may ask that robot again.
+     */
+    public function commitReflectionFailure(string $episodeId, string $robotId, string $reason): void;
+
+    /**
+     * Return the memory already stored for this episode+robot when the slot is
+     * 'answered', so the caller reuses it verbatim without a new AI call
+     * (robot-memory Requirements 2.8, 2.9); null when there is no stored answer.
+     */
+    public function reflectionAnswer(string $episodeId, string $robotId): ?MemoryRow;
 }

@@ -449,4 +449,70 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
     {
         return $this->inner->loadEpisodeView($id);
     }
+
+    // --- Robot-memory additions: forward to the inner repo (stubs until 4.2) --
+
+    public function currentGeneration(): int
+    {
+        return $this->inner->currentGeneration();
+    }
+
+    public function advanceGeneration(): int
+    {
+        return $this->inner->advanceGeneration();
+    }
+
+    public function storeEpisodeMemory(
+        string $episodeId,
+        int $generation,
+        \PoltergeistSwitch\Memory\Values\MemorySnapshot $robotA,
+        \PoltergeistSwitch\Memory\Values\MemorySnapshot $robotB
+    ): void {
+        $this->inner->storeEpisodeMemory($episodeId, $generation, $robotA, $robotB);
+    }
+
+    public function episodeGeneration(string $episodeId): int
+    {
+        return $this->inner->episodeGeneration($episodeId);
+    }
+
+    public function episodeSnapshot(string $episodeId, string $robotId): \PoltergeistSwitch\Memory\Values\MemorySnapshot
+    {
+        return $this->inner->episodeSnapshot($episodeId, $robotId);
+    }
+
+    public function activeMemories(string $robotId, int $generation, int $cap): \PoltergeistSwitch\Memory\Values\MemorySnapshot
+    {
+        return $this->inner->activeMemories($robotId, $generation, $cap);
+    }
+
+    public function activeCount(string $robotId, int $generation, string $disaster): int
+    {
+        return $this->inner->activeCount($robotId, $generation, $disaster);
+    }
+
+    public function appendMemory(\PoltergeistSwitch\Memory\Values\MemoryRow $memory): void
+    {
+        $this->inner->appendMemory($memory);
+    }
+
+    public function claimReflectionSlot(string $episodeId, string $robotId): \PoltergeistSwitch\Memory\Values\ReflectionClaim
+    {
+        return $this->inner->claimReflectionSlot($episodeId, $robotId);
+    }
+
+    public function commitReflectionAnswer(string $episodeId, string $robotId, \PoltergeistSwitch\Memory\Values\MemoryRow $memory): void
+    {
+        $this->inner->commitReflectionAnswer($episodeId, $robotId, $memory);
+    }
+
+    public function commitReflectionFailure(string $episodeId, string $robotId, string $reason): void
+    {
+        $this->inner->commitReflectionFailure($episodeId, $robotId, $reason);
+    }
+
+    public function reflectionAnswer(string $episodeId, string $robotId): ?\PoltergeistSwitch\Memory\Values\MemoryRow
+    {
+        return $this->inner->reflectionAnswer($episodeId, $robotId);
+    }
 }

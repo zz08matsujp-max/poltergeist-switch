@@ -10,6 +10,9 @@ use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\Values\Judgement;
 use PoltergeistSwitch\Engine\Values\Outcome;
 use PoltergeistSwitch\Engine\Values\ReportedSpeech;
+use PoltergeistSwitch\Memory\Values\MemoryRow;
+use PoltergeistSwitch\Memory\Values\MemorySnapshot;
+use PoltergeistSwitch\Memory\Values\ReflectionClaim;
 use PoltergeistSwitch\TurnLoop\Config;
 use PoltergeistSwitch\TurnLoop\Values\AppliedRobotRow;
 use PoltergeistSwitch\TurnLoop\Values\AppliedTurnRows;
@@ -1095,5 +1098,78 @@ final class PdoEpisodeRepository implements EpisodeRepository
     private function now(): string
     {
         return date('Y-m-d H:i:s');
+    }
+
+    // =====================================================================
+    // Robot-memory additions (robot-memory spec, Requirement 8.1)
+    //
+    // STUBS ONLY. Task 4.1 extends the EpisodeRepository interface; the real
+    // PDO/MySQL logic lands in task 4.3. These stubs keep the class
+    // instantiable so `php -l` and the existing turn-loop suite stay green
+    // until 4.3 replaces each body. TASK 4.3: replace every stub below.
+    // =====================================================================
+
+    public function currentGeneration(): int
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function advanceGeneration(): int
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function storeEpisodeMemory(
+        string $episodeId,
+        int $generation,
+        MemorySnapshot $robotA,
+        MemorySnapshot $robotB
+    ): void {
+        throw new \LogicException('not implemented');
+    }
+
+    public function episodeGeneration(string $episodeId): int
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function episodeSnapshot(string $episodeId, string $robotId): MemorySnapshot
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function activeCount(string $robotId, int $generation, string $disaster): int
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function appendMemory(MemoryRow $memory): void
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function claimReflectionSlot(string $episodeId, string $robotId): ReflectionClaim
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function commitReflectionAnswer(string $episodeId, string $robotId, MemoryRow $memory): void
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function commitReflectionFailure(string $episodeId, string $robotId, string $reason): void
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function reflectionAnswer(string $episodeId, string $robotId): ?MemoryRow
+    {
+        throw new \LogicException('not implemented');
     }
 }

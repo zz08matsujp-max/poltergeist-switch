@@ -13,6 +13,9 @@ use PoltergeistSwitch\TurnLoop\Clients\FakeRecorderClient;
 use PoltergeistSwitch\TurnLoop\Clients\FakeRobotClient;
 use PoltergeistSwitch\TurnLoop\Config;
 use PoltergeistSwitch\TurnLoop\EngineFactory;
+use PoltergeistSwitch\Memory\Values\MemoryRow;
+use PoltergeistSwitch\Memory\Values\MemorySnapshot;
+use PoltergeistSwitch\Memory\Values\ReflectionClaim;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\ReplayEngineFactory;
 use PoltergeistSwitch\TurnLoop\Repository\EpisodeRepository;
@@ -634,5 +637,71 @@ final class WorldJsonOverrideRepository implements EpisodeRepository
     public function storeAppliedTurn(AppliedTurnRows $rows): void
     {
         $this->inner->storeAppliedTurn($rows);
+    }
+
+    // --- Robot-memory additions: forward to the inner repo (stubs until 4.2) --
+
+    public function currentGeneration(): int
+    {
+        return $this->inner->currentGeneration();
+    }
+
+    public function advanceGeneration(): int
+    {
+        return $this->inner->advanceGeneration();
+    }
+
+    public function storeEpisodeMemory(
+        string $episodeId,
+        int $generation,
+        MemorySnapshot $robotA,
+        MemorySnapshot $robotB
+    ): void {
+        $this->inner->storeEpisodeMemory($episodeId, $generation, $robotA, $robotB);
+    }
+
+    public function episodeGeneration(string $episodeId): int
+    {
+        return $this->inner->episodeGeneration($episodeId);
+    }
+
+    public function episodeSnapshot(string $episodeId, string $robotId): MemorySnapshot
+    {
+        return $this->inner->episodeSnapshot($episodeId, $robotId);
+    }
+
+    public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
+    {
+        return $this->inner->activeMemories($robotId, $generation, $cap);
+    }
+
+    public function activeCount(string $robotId, int $generation, string $disaster): int
+    {
+        return $this->inner->activeCount($robotId, $generation, $disaster);
+    }
+
+    public function appendMemory(MemoryRow $memory): void
+    {
+        $this->inner->appendMemory($memory);
+    }
+
+    public function claimReflectionSlot(string $episodeId, string $robotId): ReflectionClaim
+    {
+        return $this->inner->claimReflectionSlot($episodeId, $robotId);
+    }
+
+    public function commitReflectionAnswer(string $episodeId, string $robotId, MemoryRow $memory): void
+    {
+        $this->inner->commitReflectionAnswer($episodeId, $robotId, $memory);
+    }
+
+    public function commitReflectionFailure(string $episodeId, string $robotId, string $reason): void
+    {
+        $this->inner->commitReflectionFailure($episodeId, $robotId, $reason);
+    }
+
+    public function reflectionAnswer(string $episodeId, string $robotId): ?MemoryRow
+    {
+        return $this->inner->reflectionAnswer($episodeId, $robotId);
     }
 }
