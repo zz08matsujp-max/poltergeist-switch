@@ -278,6 +278,11 @@
     if (el.controls) { el.controls.hidden = false; }
     if (el.toldHost) { el.toldHost.hidden = true; }
 
+    // Show, per robot, how many memories it started this episode with
+    // (robot-memory Requirement 7.6): the length of its stored Memory_Snapshot,
+    // read from the loaded view.
+    renderStartedWith(view);
+
     // Render the opening frame: snap the house to turn 0's world and fill the
     // reply panels with the highlighted replies for that turn. No acting-out
     // yet — the first beat is a still frame until Play or Step is pressed.
@@ -380,6 +385,106 @@
       }
       return Promise.resolve();
     }
+  }
+
+  // ── started-with memory counts (robot-memory Req 7.6) ───────────────────────
+
+  // The Appendix A Memories_Block heading, inserted into each turn's situation
+  // text when the robot's Memory_Snapshot for the episode is non-empty. It is
+  // the fixed line SituationTextGenerator::MEMORIES_HEADING renders verbatim.
+  var MEMORIES_HEADING =
+    'Your memories (what you wrote down after an earlier disaster in this house):';
+
+  /**
+   * renderStartedWith(view) — show, for each robot, how many memories it
+   * started the loaded episode with (Req 7.6). The count is the length of that
+   * robot's stored Memory_Snapshot, read from the episode view: the per-turn
+   * situation text already carries the verbatim Memories_Block (one `"""` block
+   * per remembered memory), so the started-with count is the number of memory
+   * blocks in that robot's Memories_Block. A robot that started with no
+   * memories has no Memories_Block and shows a count of zero.
+   *
+   * Names the robots only Amber (robot_a) and Jade (robot_b) (Req 7.7). Reads
+   * only the already-loaded view — no AI call (Req 8.6).
+   */
+  function renderStartedWith(view) {
+    var turns = (view && Array.isArray(view.turns)) ? view.turns : [];
+    fillStartedWith(el.startedAmber, countSnapshotFor(turns, 'robot_a'));
+    fillStartedWith(el.startedJade, countSnapshotFor(turns, 'robot_b'));
+  }
+
+  // Fill one robot's started-with line as plain text (never innerHTML). The
+  // robot is identified by which reply panel the line sits in (its <h3> already
+  // names Amber / Jade, Req 7.7); the line itself names no AI company or model.
+  function fillStartedWith(host, count) {
+    if (!host) { return; }
+    var n = (isFinite(count) && count >= 0) ? Math.floor(count) : 0;
+    var noun = (n === 1) ? 'memory' : 'memories';
+    host.textContent = 'Started this episode with ' + n + ' ' + noun + '.';
+    host.hidden = false;
+  }
+
+  /**
+   * countSnapshotFor(turns, robotId) — the length of a robot's stored
+   * Memory_Snapshot for the episode, derived from the situation text the robot
+   * received (Req 7.6). Returns the number of `"""`-delimited memory blocks in
+   * that robot's Memories_Block, or 0 when no turn carries a Memories_Block
+   * (the robot started with no memories). The snapshot is frozen for the whole
+   * episode, so any turn's situation text yields the same count; the first turn
+   * that has a non-empty block is used.
+   */
+  function countSnapshotFor(turns, robotId) {
+    for (var i = 0; i < turns.length; i++) {
+      var turn = turns[i];
+      var layers = turn && turn.robots && turn.robots[robotId];
+      var text = layers && layers.situationText;
+      if (typeof text !== 'string' || text === '') { continue; }
+      var headingAt = text.indexOf(MEMORIES_HEADING);
+      if (headingAt < 0) {
+        // This turn carried no Memories_Block. The snapshot is frozen for the
+        // whole episode, so no later turn can carry one either; the robot
+        // started with no memories.
+        return 0;
+      }
+      return countMemoryBlocks(text, headingAt + MEMORIES_HEADING.length);
+    }
+    return 0;
+  }
+
+  /**
+   * countMemoryBlocks(text, from) — count the `"""`-delimited memory blocks of
+   * the Memories_Block that begins at `from` (just after the heading). The
+   * block's form is a heading, a blank line, then each verbatim body wrapped as
+   * a line `"""`, the body, a line `"""`, with blank lines between blocks
+   * (SituationTextGenerator::buildMemoriesBlock). The block ends at the first
+   * blank line that is NOT inside or between `"""` wrappers — i.e. where the
+   * recent-events / "Right now:" section begins. Counting the opening `"""`
+   * delimiters (every other `"""` line, starting with the first) gives the
+   * number of memories, which equals the stored Memory_Snapshot length.
+   */
+  function countMemoryBlocks(text, from) {
+    var lines = text.slice(from).split('\n');
+    var fences = 0;      // running count of `"""` fence lines seen
+    var memories = 0;    // completed memory blocks (a pair of fences)
+    var inside = false;  // true while between a block's opening and closing fence
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line === '"""') {
+        fences += 1;
+        inside = !inside;              // toggle: opening ⇄ closing fence
+        if (!inside) { memories += 1; } // a closing fence completes one block
+        continue;
+      }
+      // While inside a `"""` block, every line (including blank ones) is part
+      // of the verbatim body, so never stop here.
+      if (inside) { continue; }
+      // Outside a block: a non-blank line that is not a fence is the start of
+      // the recent-events / "Right now:" section, so the Memories_Block has
+      // ended. Blank lines outside a block are the separators between blocks
+      // (and the blank line before the first block), so they are skipped.
+      if (line !== '') { break; }
+    }
+    return memories;
   }
 
   // ── reply panels + evidence highlighting (Req 9.2–9.6) ──────────────────────
@@ -719,6 +824,8 @@
     el.replies = document.getElementById('replies');
     el.replyAmberText = document.getElementById('reply-amber-text');
     el.replyJadeText = document.getElementById('reply-jade-text');
+    el.startedAmber = document.getElementById('started-amber');
+    el.startedJade = document.getElementById('started-jade');
     el.controls = document.getElementById('controls');
     el.btnPlay = document.getElementById('btn-play');
     el.btnPause = document.getElementById('btn-pause');
@@ -775,6 +882,10 @@
   var controller = {
     showList: showList,
     directLoad: directLoad,
+    // Started-with memory counts (robot-memory Req 7.6), exposed so a headless
+    // check can assert the per-robot count equals the stored snapshot length.
+    renderStartedWith: renderStartedWith,
+    countSnapshotFor: countSnapshotFor,
     // Playback seam task 10.2 replaces to drive turn-by-turn playback.
     startPlayback: startPlayback,
     play: play,

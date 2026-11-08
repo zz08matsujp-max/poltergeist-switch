@@ -178,7 +178,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 7.4, 7.5_
 
 - [ ] 13. Replay screen — started-with counts
-  - [-] 13.1 Extend `public/replay.php` and `public/js/replay.js`:
+  - [x] 13.1 Extend `public/replay.php` and `public/js/replay.js`:
     - when a stored episode is loaded, show for each robot how many memories it started the episode with (the length of that robot's stored `Memory_Snapshot`, read from the episode view); the per-turn `Memories_Block` already appears as part of the stored situation text, so no extra work there
     - name the robots only Amber and Jade; the page sends `Cache-Control: no-store`
     - _Requirements: 7.6, 7.7, 7.8_

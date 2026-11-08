@@ -124,10 +124,16 @@ header('Cache-Control: no-store');
       <div class="replies" id="replies">
         <div class="reply amber" id="reply-amber">
           <h3>Amber</h3>
+          <!-- How many memories this robot started the episode with (robot-memory
+               Requirement 7.6): the length of its stored Memory_Snapshot, read
+               from the loaded episode view. Filled by replay.js; hidden until a
+               view is loaded. Names only Amber (Req 7.7). -->
+          <div class="started-with" id="started-amber" hidden></div>
           <div class="text" id="reply-amber-text"></div>
         </div>
         <div class="reply jade" id="reply-jade">
           <h3>Jade</h3>
+          <div class="started-with" id="started-jade" hidden></div>
           <div class="text" id="reply-jade-text"></div>
         </div>
       </div>
