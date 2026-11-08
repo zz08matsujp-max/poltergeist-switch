@@ -192,7 +192,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 5.10, 6.1_
 
 - [ ] 17. Collapse the End_Card full replies
-  - [ ] 17.1 Put each robot's full replies in a collapsed `<details>` in `public/js/observe.js`
+  - [x] 17.1 Put each robot's full replies in a collapsed `<details>` in `public/js/observe.js`
     - Keep the full replies (Req 6.1) but render each robot's replies inside a `<details>` collapsed by default, with a summary like "Amber — full replies (N turns)", so the End_Card no longer opens ~9,000 px tall
     - _Requirements: 6.1_
 

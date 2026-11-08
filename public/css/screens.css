@@ -333,6 +333,12 @@ canvas {
 .reply h3 { margin: 0 0 6px; font-size: 13px; font-weight: 400; }
 .reply.amber h3 { color: var(--amber); }
 .reply.jade h3 { color: var(--jade); }
+/* End_Card collapsed full replies (Req 6.9): the <summary> is the disclosure
+   label, styled like the old <h3> title. */
+details.reply > summary { margin: 0; font-size: 13px; font-weight: 400; cursor: pointer; }
+details.reply[open] > summary { margin-bottom: 6px; }
+.reply.amber > summary { color: var(--amber); }
+.reply.jade > summary { color: var(--jade); }
 .reply .text { font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
 /* Evidence highlights: solid underline for the action quote (Req 9.4), dotted
    for words passed on (Req 9.5). */

@@ -812,10 +812,11 @@
     manP.textContent = describeManFinal(view);
     card.appendChild(manP);
 
-    // Full stored replies for Amber and Jade (Req 6.1).
+    // Full stored replies for Amber and Jade, collapsed by default (Req 6.1,
+    // 6.9). N is the turns-taken count shown in the header above.
     if (!zero) {
-      card.appendChild(replyBlock('Amber', 'amber', fullReplyFor(turns, 'robot_a')));
-      card.appendChild(replyBlock('Jade', 'jade', fullReplyFor(turns, 'robot_b')));
+      card.appendChild(replyBlock('Amber', 'amber', fullReplyFor(turns, 'robot_a'), count));
+      card.appendChild(replyBlock('Jade', 'jade', fullReplyFor(turns, 'robot_b'), count));
     }
 
     // Error line (used only when "Watch again" fails — Req 6.7).
@@ -864,17 +865,26 @@
     });
   }
 
-  function replyBlock(name, cls, text) {
-    var wrap = document.createElement('div');
-    wrap.className = 'reply ' + cls;
-    var h3 = document.createElement('h3');
-    h3.textContent = name + ' \u2014 full reply';
-    wrap.appendChild(h3);
+  // A robot's full stored replies inside a disclosure element collapsed by
+  // default (Req 6.9), so the End_Card no longer opens ~9,000 px tall. The
+  // full replies stay fully present inside the <details> (Req 6.1); they are
+  // only hidden until the viewer opens them. `turnCount` is the turns-taken N
+  // shown in the End_Card header, so the summary reads e.g.
+  // "Amber — full replies (13 turns)".
+  function replyBlock(name, cls, text, turnCount) {
+    var n = (typeof turnCount === 'number' && turnCount >= 0) ? turnCount : 0;
+    var details = document.createElement('details');
+    details.className = 'reply ' + cls;
+    // No `open` attribute -> closed by default.
+    var summary = document.createElement('summary');
+    summary.textContent = name + ' \u2014 full replies (' +
+      String(n) + (n === 1 ? ' turn)' : ' turns)');
+    details.appendChild(summary);
     var body = document.createElement('div');
     body.className = 'text';
     body.textContent = text || '(no reply recorded)';
-    wrap.appendChild(body);
-    return wrap;
+    details.appendChild(body);
+    return details;
   }
 
   // Dismiss the End_Card (Req 6.4).

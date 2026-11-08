@@ -320,6 +320,13 @@
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794133756910
       }
+    ],
+    "17.1 Put each robot's full replies in a collapsed `<details>` in `public/js/observe.js`": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794133956183
+      }
     ]
   }
 }
