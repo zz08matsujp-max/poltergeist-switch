@@ -68,7 +68,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - **Property 2: Memories round-trip verbatim with their tags in finish order** — storing a non-empty answer appends exactly one memory whose body equals the answer byte-for-byte with matching robot, generation, disaster, source episode, and created time, read back in finish order
     - Each tagged `Feature: robot-memory, Property N: …`, `Eris\TestTrait`, `->limitTo(100)`
     - _Requirements: 9.2, 3.3, 3.4, 3.5, 3.6, 3.8, 8.4, 2.6, 3.7_
-  - [-]* 4.5 Write unit tests in `tests/Memory/Repository/EpisodeRepositoryTest.php` against the in-memory fake (required behaviour), with the `PdoEpisodeRepository` locking/atomicity tests written to SKIP when no MySQL test database is available:
+  - [x]* 4.5 Write unit tests in `tests/Memory/Repository/EpisodeRepositoryTest.php` against the in-memory fake (required behaviour), with the `PdoEpisodeRepository` locking/atomicity tests written to SKIP when no MySQL test database is available:
     - the atomic store commits only after insert + retire; a duplicate store for the same source episode + robot creates no duplicate; a stale `in_progress` (older than 120 s) is re-claimable while a fresh one returns `skip`; the PDO two-connection test asserts a second `claimReflectionSlot` blocks then reads committed state and two per-triple commits serialize to exactly 6 active
     - _Requirements: 8.4, 8.5, 2.8, 2.9, 2.10_
 
@@ -105,7 +105,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - with no memories the S0–S5 situation texts are byte-for-byte unchanged (required, not optional)
     - `Engine::situationTextVersion()` equals `'situation-text-2026-11-09'` so adding the block forces a conscious bump (required, not optional)
     - _Requirements: 9.8, 6.5, 6.8_
-  - [-]* 6.4 Write an example test for the Appendix A `Memories_Block` format and its position between the house and recent-events sections (heading, each body in its own `"""` block, oldest first, the exact separators)
+  - [x]* 6.4 Write an example test for the Appendix A `Memories_Block` format and its position between the house and recent-events sections (heading, each body in its own `"""` block, oldest first, the exact separators)
     - _Requirements: 6.3, 6.4, 9.9_
 
 - [ ] 7. MemoryService — snapshot, reset, status
