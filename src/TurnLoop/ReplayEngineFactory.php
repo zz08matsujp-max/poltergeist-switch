@@ -45,7 +45,10 @@ use RuntimeException;
  *      when the current expected turn is earthquake_start_turn + 1, so
  *      world->earthquakeStartTurn is set only after turn earthquake_start_turn
  *      has been replayed, just before replaying turn earthquake_start_turn + 1.
- *      A late flip never starts the earthquake early in the replay.
+ *      A late flip never starts the earthquake early in the replay. When the
+ *      switch was just flipped and no turn after earthquake_start_turn has been
+ *      applied yet, the loop never reaches such a turn, so the start turn is set
+ *      once more after the loop; the next prepareTurn then opens the earthquake.
  *
  * Because prepareTurn/applyTurn are deterministic and the seed reproduces the
  * same world on any PHP 8.2 build, the rebuilt world equals the world that
@@ -117,6 +120,17 @@ final class ReplayEngineFactory implements EngineFactory
             // the already-prepared turn (Requirements 13.1, 13.2, 13.4).
             $engine->prepareTurn($turnNumber);
             $engine->applyTurn($turnNumber, $actions);
+        }
+
+        // Catch the just-flipped case: when the switch was flipped but no turn
+        // after earthquake_start_turn has been applied yet (the current
+        // expected turn is earthquake_start_turn + 1 and nothing past it is in
+        // the turns table), the loop above never reached a turn >= startTurn + 1
+        // and so never set the start turn. Set it now so the next
+        // prepareTurn on the expected turn opens the earthquake with
+        // "Suddenly the floor begins to shake hard." (Requirement 4.4).
+        if ($startTurn !== null && $world->earthquakeStartTurn === null) {
+            $world->earthquakeStartTurn = $startTurn;
         }
 
         return $engine;
