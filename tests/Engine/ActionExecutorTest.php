@@ -223,7 +223,7 @@ class ActionExecutorTest extends TestCase
     public function testSituationTextVersionIsBumped(): void
     {
         $this->assertSame(
-            'situation-text-2026-11-08c',
+            'situation-text-2026-11-09',
             \PoltergeistSwitch\Engine\SituationTextGenerator::VERSION,
         );
     }

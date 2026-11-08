@@ -132,6 +132,18 @@ class Engine
      */
     private ?string $pendingResidentLine = null;
 
+    /**
+     * Each robot's ordered, verbatim memory bodies for this episode (oldest
+     * first), keyed by robot id ('robot_a' / 'robot_b'), as frozen in the
+     * episode's Memory_Snapshot (robot-memory Requirement 6.1, 6.2). Set once
+     * for an episode through setMemories() before any situationTextFor() call;
+     * when it is never set, or a robot's list is empty, that robot's turn text
+     * carries no Memories_Block and behaviour is unchanged (Requirement 6.5).
+     *
+     * @var array<string,string[]>
+     */
+    private array $memoriesByRobot = [];
+
     public function __construct(
         private WorldModel $world,
         private EpisodeConfig $config,
@@ -141,6 +153,24 @@ class Engine
         private ResidentController $resident,
         private SituationTextGenerator $textGen,
     ) {}
+
+    /**
+     * Supply each robot's frozen memory bodies for this episode (robot-memory
+     * Requirement 6.2). Call once before building any turn text, with
+     * $memoriesByRobot = ['robot_a' => string[], 'robot_b' => string[]] holding
+     * each robot's ordered verbatim memory bodies, oldest first. The same list
+     * is used for every turn of the episode, so each robot reads the same
+     * Memories_Block for the whole run. An absent robot key or an empty list
+     * means that robot has no memories this episode and its turn text carries
+     * no block (Requirement 6.5), leaving the S0–S5 golden texts unchanged when
+     * no memories are set.
+     *
+     * @param array<string,string[]> $memoriesByRobot
+     */
+    public function setMemories(array $memoriesByRobot): void
+    {
+        $this->memoriesByRobot = $memoriesByRobot;
+    }
 
     /**
      * Advance the world by one turn and return its TurnResult (design §d).
@@ -190,7 +220,13 @@ class Engine
      * (design §i, Req 10.1). It reads the live world through SituationView and
      * the last five applied TurnRecords (oldest first), which the generator
      * renders as the recent-events section under the "In the last 15 seconds:"
-     * heading. Memories are not supplied here.
+     * heading.
+     *
+     * This robot's frozen memory bodies (set via setMemories, robot-memory
+     * Requirement 6.2) are rendered into the section-3 Memories_Block in the
+     * Appendix A form and threaded to the generator. When no memories were set
+     * for this robot, or its list is empty, the block is null and no section 3
+     * appears, so existing behaviour is unchanged (Requirement 6.5).
      *
      * @param string $robotId 'robot_a' or 'robot_b'
      */
@@ -198,7 +234,11 @@ class Engine
     {
         $recent = array_slice($this->turnRecords, -5);
 
-        return $this->textGen->generate($robotId, $this->world, $recent);
+        $memoriesBlock = $this->textGen->buildMemoriesBlock(
+            $this->memoriesByRobot[$robotId] ?? []
+        );
+
+        return $this->textGen->generate($robotId, $this->world, $recent, $memoriesBlock);
     }
 
     /**

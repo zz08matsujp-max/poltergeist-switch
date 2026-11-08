@@ -216,6 +216,18 @@ final class ReplayEngineFactory implements EngineFactory
             new SituationTextGenerator(),
         );
 
+        // Thread each robot's frozen Memory_Snapshot into the engine before any
+        // situation text is built (robot-memory Requirement 6.6). The bodies
+        // come from the episode row, not a live query, so a rebuild uses the
+        // exact verbatim memories the live run used and matches it byte-for-
+        // byte. A pre-feature episode (NULL snapshot) or a malformed snapshot
+        // yields an empty MemorySnapshot, so no block appears and the turn text
+        // is unchanged.
+        $engine->setMemories([
+            'robot_a' => $this->repo->episodeSnapshot($episodeId, 'robot_a')->bodies,
+            'robot_b' => $this->repo->episodeSnapshot($episodeId, 'robot_b')->bodies,
+        ]);
+
         $appliedActions = $this->repo->loadAppliedActionsForReplay($episodeId);
         ksort($appliedActions);
 

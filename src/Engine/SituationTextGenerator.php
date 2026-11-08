@@ -38,7 +38,7 @@ final class SituationTextGenerator
      * at most 32 characters to fit the turn-loop prompts.situation_text_version
      * column.
      */
-    public const VERSION = 'situation-text-2026-11-08c';
+    public const VERSION = 'situation-text-2026-11-09';
 
     /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.
@@ -167,6 +167,55 @@ final class SituationTextGenerator
         );
 
         return implode("\n\n", $sections);
+    }
+
+    /**
+     * The Memories_Block heading line (robot-memory Requirement 6.4, Appendix
+     * A form). The heading introduces the robot's own retained memories and is
+     * engine-authored, fact-only, and banned-word clean.
+     */
+    private const MEMORIES_HEADING =
+        'Your memories (what you wrote down after an earlier disaster in this house):';
+
+    /**
+     * Build the section-3 Memories_Block from a robot's ordered verbatim memory
+     * bodies, in the Appendix A form (robot-memory Requirements 6.3, 6.4):
+     *
+     *   Your memories (what you wrote down after an earlier disaster in this house):
+     *
+     *   """
+     *   {memory 1, oldest}
+     *   """
+     *
+     *   """
+     *   {memory 2}
+     *   """
+     *   ...
+     *
+     * The heading, a blank line, then each body wrapped in its own `"""` block,
+     * oldest first, verbatim, with a blank line between successive blocks.
+     *
+     * The bodies are the robot's own words and are exempt from the banned-word
+     * check (Requirement 6.7); only the engine-authored heading is fixed text.
+     * Returns null when the list is empty, so no block is inserted and the
+     * S0–S5 golden situation texts stay byte-for-byte unchanged (Requirement
+     * 6.5).
+     *
+     * @param string[] $bodies verbatim memory bodies, oldest first
+     */
+    public function buildMemoriesBlock(array $bodies): ?string
+    {
+        $bodies = array_values($bodies);
+        if ($bodies === []) {
+            return null;
+        }
+
+        $blocks = [];
+        foreach ($bodies as $body) {
+            $blocks[] = '"""' . "\n" . $body . "\n" . '"""';
+        }
+
+        return self::MEMORIES_HEADING . "\n\n" . implode("\n\n", $blocks);
     }
 
     /**

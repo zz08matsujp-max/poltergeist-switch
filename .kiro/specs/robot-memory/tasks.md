@@ -91,7 +91,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 1.2, 1.3, 1.4, 1.10, 9.7_
 
 - [ ] 6. Thread memories into turn texts — SituationTextGenerator / Engine
-  - [-] 6.1 Implement the memories-block threading in `src/Engine/`:
+  - [x] 6.1 Implement the memories-block threading in `src/Engine/`:
     - add `Engine::setMemories(array $memoriesByRobot)` (`['robot_a' => string[], 'robot_b' => string[]]`); `Engine::situationTextFor` builds the `$memoriesBlock` from that robot's list and passes it to `SituationTextGenerator::generate`; when `setMemories` is not called or an empty list is set, pass `null` so no block appears and behaviour is unchanged
     - `SituationTextGenerator` fills its section-3 placeholder with the `Memories_Block` in the Appendix A form (heading `Your memories (what you wrote down after an earlier disaster in this house):`, then each body in its own `"""` block oldest first, verbatim), inserted between the fixed house section and the recent-events section; memory bodies are exempt from the banned-word check while every engine-authored part stays checked
     - bump the situation-text version constant on `SituationTextGenerator` from `situation-text-2026-11-08c` to `situation-text-2026-11-09` (within 32 chars), exposed by `Engine::situationTextVersion()`
