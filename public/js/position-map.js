@@ -78,6 +78,7 @@
   var ACTIVITY_POS = {
     sitting_at_table: { x: 201, y: 196 },
     asleep_in_futon:  { x: 106, y: 196 },
+    lying_in_futon:   { x: 106, y: 196 },
     bathing:          { x: 368, y: 196 },
     cooking:          { x: 290, y: 196 }
   };
@@ -86,6 +87,7 @@
   var KNOWN_ACTIVITIES = {
     sitting_at_table: true,
     asleep_in_futon: true,
+    lying_in_futon: true,
     bathing: true,
     cooking: true,
     standing: true

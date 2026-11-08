@@ -84,6 +84,112 @@ class EngineSituationTextTest extends TestCase
         );
     }
 
+    /**
+     * A man asleep in his futon in the bedroom. Both robots stand in other
+     * rooms (kitchen, living room) so each hears the earthquake shout from
+     * another room ("You hear the man shout, ...").
+     */
+    private function bedroomAsleepSpec(): SituationSpec
+    {
+        return new SituationSpec(
+            time: 'afternoon',
+            robotARoom: 'kitchen',
+            robotBRoom: 'living_room',
+            manActivity: 'asleep_in_futon',
+            potBoiling: false,
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Req 32: a man who started asleep wakes once the earthquake has struck.
+    // The first shaking turn's text still reads "asleep in his futon" (the
+    // wake happens in applyTurn, after prepareTurn produced that text); the
+    // world stored after that turn, and every later text, read "lying in his
+    // futon" (Req 32.1, Req 32.3). A man who started sitting is unaffected
+    // (Req 32.6).
+    // ------------------------------------------------------------------
+
+    public function testAsleepManStillReadsAsleepOnFirstShakingTurn(): void
+    {
+        [$engine, $world] = $this->makeEngine($this->bedroomAsleepSpec());
+
+        // Earthquake begins on turn 0; the first shaking turn is offset 1 (turn
+        // 1). Apply turn 0, then prepare turn 1 and read its text before apply.
+        $world->earthquakeStartTurn = 0;
+
+        $engine->applyTurn(0, []);
+        $engine->prepareTurn(1);
+
+        $textA = $engine->situationTextFor('robot_a');
+
+        // Req 32.1: the first shaking turn still describes him as asleep, and
+        // the earthquake shout reaches the robot in another room.
+        $this->assertStringContainsString('asleep in his futon', $textA);
+        $this->assertStringContainsString('What\'s happening?!', $textA);
+    }
+
+    public function testAsleepManReadsLyingFromTheNextTurn(): void
+    {
+        [$engine, $world] = $this->makeEngine($this->bedroomAsleepSpec());
+
+        $world->earthquakeStartTurn = 0;
+
+        // Offset 1 is the first shaking turn; offset 2 is the next turn.
+        $engine->applyTurn(0, []);
+        $engine->prepareTurn(1);
+        $engine->applyTurn(1, []);
+        $engine->prepareTurn(2);
+
+        $textA = $engine->situationTextFor('robot_a');
+
+        // Req 32.3: from the next turn on he reads "lying in his futon" and the
+        // text no longer says "asleep".
+        $this->assertStringContainsString('lying in his futon', $textA);
+        $this->assertStringNotContainsString('asleep', $textA);
+    }
+
+    public function testWorldStoredAfterFirstShakingTurnHasLyingActivity(): void
+    {
+        [$engine, $world] = $this->makeEngine($this->bedroomAsleepSpec());
+
+        $world->earthquakeStartTurn = 0;
+
+        // Apply the earthquake-start turn (offset 0) and the first shaking turn
+        // (offset 1). The wake runs inside applyTurn(1, ...), so the live world
+        // and the TurnResult snapshot stored for that turn hold lying_in_futon.
+        $engine->applyTurn(0, []);
+        $result = $engine->applyTurn(1, []);
+
+        // Req 32.3: the stored world after the first shaking turn is awake.
+        $this->assertSame('lying_in_futon', $world->residentState->activity);
+        $this->assertSame('lying_in_futon', $result->residentState->activity);
+    }
+
+    public function testSittingManIsUnaffectedByTheWake(): void
+    {
+        // nightSpec() seats the man at the low table (sitting_at_table).
+        [$engine, $world] = $this->makeEngine($this->nightSpec());
+
+        $world->earthquakeStartTurn = 0;
+
+        // Drive the same offsets a sleeping man would wake across.
+        $engine->applyTurn(0, []);
+        $engine->prepareTurn(1);
+        $textOffsetOne = $engine->situationTextFor('robot_a');
+
+        $engine->applyTurn(1, []);
+        $engine->prepareTurn(2);
+        $textOffsetTwo = $engine->situationTextFor('robot_a');
+
+        // Req 32.6: the other starting activities are untouched — the activity
+        // stays sitting_at_table and no text mentions sleeping or lying.
+        $this->assertSame('sitting_at_table', $world->residentState->activity);
+        $this->assertStringNotContainsString('lying in his futon', $textOffsetOne);
+        $this->assertStringNotContainsString('lying in his futon', $textOffsetTwo);
+        $this->assertStringNotContainsString('asleep', $textOffsetOne);
+        $this->assertStringNotContainsString('asleep', $textOffsetTwo);
+    }
+
     // ------------------------------------------------------------------
     // Offset 1 (first shaking turn): the earthquake shout reaches both robots
     // inside the shaking paragraph (Req 7.1, Req 9.10–9.11).

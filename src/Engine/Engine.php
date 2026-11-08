@@ -390,6 +390,28 @@ class Engine
         //     carried into the next turn's text by prepareTurn (Req 13.8).
         $refusalLine = $this->resolveSupportProposals($allActions, $outcomes);
 
+        // 5c. Wake a man who started asleep once the earthquake has struck
+        //     (Req 32.1, Req 32.3). This runs during applyTurn (processCurrentTurn),
+        //     AFTER prepareTurn has already produced this turn's situation text,
+        //     so the first shaking turn (offset 1) text still reads "asleep in
+        //     his futon" (Req 32.1); the wake only takes effect in the world
+        //     snapshot stored below (step 10) and in every later turn's text,
+        //     which prepareTurn renders from the already-woken world at offset
+        //     >= 2 (Req 32.3). Both the prepared and unprepared paths reach
+        //     here and both compute $offset above, so offset 1's apply always
+        //     does the wake. Idempotent: once lying_in_futon he never returns
+        //     to asleep_in_futon, and this never fires for the other starting
+        //     activities (Req 32.6). Room and spot are untouched (bedroom /
+        //     futon); support/standing from lying_in_futon resolves unchanged
+        //     because moveResidentTo overwrites the activity (Req 32.5).
+        if (
+            $offset !== null
+            && $offset >= 1
+            && $this->world->residentState->activity === ManActivity::asleep_in_futon->value
+        ) {
+            $this->world->residentState->activity = ManActivity::lying_in_futon->value;
+        }
+
         // 6. Fix this turn's single resident line. When prepareTurn prepared
         //    this turn it already decided the line (a refusal carried from the
         //    previous turn, or the scripted line); reuse it so applyTurn does

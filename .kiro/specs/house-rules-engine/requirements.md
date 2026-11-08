@@ -338,6 +338,25 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
 
 ---
 
+### Requirement 32: The man wakes when the earthquake starts
+
+**User Story:** As a viewer, I want a man who was asleep to be awake once the earthquake has struck, so that the situation text the robots read matches what they heard him shout and say.
+(Decided by the maintainer on 2026-11-08.)
+
+A live run (episode 2a3800d5) showed the contradiction this fixes: the man starts `asleep_in_futon`, shouts "What's happening?!" on the first shaking turn and says "I can't see anything." on the next, yet every later situation text still described him as "asleep in his futon".
+
+#### Acceptance Criteria
+
+1. WHEN the situation text for the first shaking turn (earthquake offset 1, the turn of the earthquake-start shout) is produced, THE Engine SHALL leave the "Right now:" paragraph describing the moment before the shaking, so a man who started `asleep_in_futon` still reads "asleep in his futon" on that turn, and the six golden situation texts (S0–S5) SHALL NOT change.
+2. THE ManActivity set SHALL include `lying_in_futon`, placed in the same room and spot as `asleep_in_futon` (bedroom, futon) and read as "lying in his futon".
+3. WHEN a turn after the first shaking turn is applied for an episode whose resident started `asleep_in_futon`, THE Engine SHALL have set the resident's activity to `lying_in_futon`, so the world stored after the first shaking turn and every situation text from the next turn on describe him as "lying in his futon"; and the resident SHALL NOT return to `asleep_in_futon` for the rest of the episode.
+4. WHEN the resident's spot is set, THE Engine SHALL describe the resident from the spot in preference to the activity (Requirement 7.17), unchanged, so a set spot still wins over `lying_in_futon`.
+5. WHEN a robot supports the resident from `lying_in_futon`, THE Engine SHALL resolve the support and the resulting `standing` move exactly as it does from `asleep_in_futon` (Requirement 7.15), unchanged.
+6. THE Engine SHALL leave the other starting activities (`sitting_at_table`, `bathing`, `cooking`) unchanged by this requirement.
+7. BECAUSE the later-turn situation texts change, THE Engine SHALL bump `SituationTextGenerator::VERSION`.
+
+---
+
 ## Open Questions
 
 **(a) Speaking as an action** — Decided by the maintainer on 2026-11-01: speaking does not use the robot's one physical action. A robot does at most one physical action per turn, and the words it speaks in the same reply are delivered in parallel (see Requirement 5.12). `EpisodeConfig::speakConsumesAction` stays `false`; the flag is kept only for later comparison.

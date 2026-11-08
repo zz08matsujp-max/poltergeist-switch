@@ -507,6 +507,22 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Update the existing ResidentController tests that asserted firing on `earthquakeStartTurn` itself; add an engine/integration check that after create + flip the first prompt for both robots contains the shout in the shaking paragraph
     - _Requirements: Req 3.1, Req 7.1_
 
+- [x] 32. The man wakes when the earthquake starts (added 2026-11-08)
+  - [x] 32.1 Engine: wake a man who started `asleep_in_futon` once the earthquake has struck, at the point that keeps the first shaking turn's text unchanged.
+    - Add the `lying_in_futon` case to `ManActivity`; give it the same room and spot as `asleep_in_futon` (bedroom, futon) in `WorldModel::placeResident`'s match, and the phrase "lying in his futon" in `SituationTextGenerator::manDoing`
+    - In `Engine::processCurrentTurn` (applyTurn), AFTER the turn's situation text has already been produced by `prepareTurn`, set the resident's activity from `asleep_in_futon` to `lying_in_futon` once the earthquake offset is >= 1, so the first shaking turn's text still reads "asleep in his futon" (Req 32.1) but the world stored after that turn and every later text read "lying in his futon" (Req 32.3); the change is idempotent and he never returns to `asleep_in_futon`
+    - A set spot still wins over the activity (Req 7.17/32.4); support/standing from `lying_in_futon` resolves exactly as from `asleep_in_futon` because `moveResidentTo` overwrites the activity (Req 7.15/32.5); the other starting activities are untouched (Req 32.6)
+    - Bump `SituationTextGenerator::VERSION` and update the version-assertion test (Req 32.7); keep it working through `prepareTurn` -> `applyTurn` and `ReplayEngineFactory`
+    - Run `php -l` on the changed PHP files
+    - _Requirements: Req 32.1, 32.2, 32.3, 32.4, 32.5, 32.6, 32.7_
+  - [x] 32.2 Screens: treat `lying_in_futon` like `asleep_in_futon`.
+    - In `public/js/position-map.js` give `lying_in_futon` the same position as `asleep_in_futon` (ACTIVITY_POS and KNOWN_ACTIVITIES); in `public/js/house-renderer.js` map `lying_in_futon` to the `lie` pose
+    - _Requirements: Req 32.2_
+  - [x] 32.3 Tests (required).
+    - Starting `asleep_in_futon`: the first shaking turn's text contains "asleep in his futon" and the earthquake shout; the next turn's text contains "lying in his futon" and no "asleep"; the world stored after the first shaking turn has activity `lying_in_futon`
+    - A man starting `sitting_at_table` is unaffected; the banned-word property test and all golden situation tests (S0–S5) still pass
+    - _Requirements: Req 32.1, 32.2, 32.3, 32.6, 32.7_
+
 ---
 
 ## Notes
@@ -555,7 +571,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 22, "tasks": ["28.1", "28.2", "29.1"] },
     { "id": 23, "tasks": ["28.3", "29.2"] },
     { "id": 24, "tasks": ["30.1", "30.2", "30.3"] },
-    { "id": 25, "tasks": ["31.1"] }
+    { "id": 25, "tasks": ["31.1"] },
+    { "id": 26, "tasks": ["32.1", "32.2", "32.3"] }
   ]
 }
 ```

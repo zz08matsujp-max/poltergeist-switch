@@ -945,6 +945,27 @@
         "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
         "timestamp": 1794117269447
       }
+    ],
+    "32.1 Engine: wake a man who started `asleep_in_futon` once the earthquake has struck, at the point that keeps the first shaking turn's text unchanged.": [
+      {
+        "executionId": "eff2fc16-cff8-4293-b1e9-6d2dc558dcd9",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794135607337
+      }
+    ],
+    "32.3 Tests (required).": [
+      {
+        "executionId": "eff2fc16-cff8-4293-b1e9-6d2dc558dcd9",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794135608363
+      }
+    ],
+    "32.2 Screens: treat `lying_in_futon` like `asleep_in_futon`.": [
+      {
+        "executionId": "eff2fc16-cff8-4293-b1e9-6d2dc558dcd9",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794135609476
+      }
     ]
   }
 }

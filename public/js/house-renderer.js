@@ -776,6 +776,7 @@
       switch (activity) {
         case 'sitting_at_table': return 'sit';
         case 'asleep_in_futon':  return 'lie';
+        case 'lying_in_futon':   return 'lie';
         case 'bathing':          return 'bath';
         case 'cooking':          return 'cook';
         case 'standing':         return 'stand';

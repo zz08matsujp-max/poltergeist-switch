@@ -38,7 +38,7 @@ final class SituationTextGenerator
      * at most 32 characters to fit the turn-loop prompts.situation_text_version
      * column.
      */
-    public const VERSION = 'situation-text-2026-11-08b';
+    public const VERSION = 'situation-text-2026-11-08c';
 
     /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.
@@ -521,6 +521,7 @@ final class SituationTextGenerator
         return match ($activity) {
             'sitting_at_table' => 'sitting at the low table',
             'asleep_in_futon'  => 'asleep in his futon',
+            'lying_in_futon'   => 'lying in his futon',
             'bathing'          => 'taking a bath',
             'cooking'          => 'cooking at the gas stove',
             'standing'         => 'standing, leaning on his cane',

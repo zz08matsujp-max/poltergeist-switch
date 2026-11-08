@@ -203,6 +203,7 @@ class WorldModel implements SituationView
         [$room, $spot] = match ($manActivity) {
             ManActivity::sitting_at_table->value => ['living_room', 'low_table'],
             ManActivity::asleep_in_futon->value  => ['bedroom', 'futon'],
+            ManActivity::lying_in_futon->value   => ['bedroom', 'futon'],
             ManActivity::bathing->value          => ['bathroom', 'bathtub'],
             ManActivity::cooking->value          => ['kitchen', 'gas_stove'],
             default => throw new InvalidArgumentException(
