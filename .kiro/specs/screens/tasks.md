@@ -41,7 +41,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - On apply, store the serialiser's output of the post-apply `WorldModel` as that turn's `world_json` (Req 10.1); on episode creation store the initial (calm, pre-earthquake) World_State as turn 0's world (Req 10.2)
     - Add a `world` field to each `TurnView` in the `EpisodeView` so `GET /api/episodes/{id}` returns the stored World_State per turn (Req 10.4); keep `episodes_get.php` thin; a GET for an id that does not exist leaves stored data unchanged and returns the existing not-found error (Req 10.5)
     - _Requirements: 10.1, 10.2, 10.4, 10.5_
-  - [~] 3.3 Implement the one-time backfill for pre-existing episodes
+  - [x] 3.3 Implement the one-time backfill for pre-existing episodes
     - When a read finds an episode with at least one turn whose `world_json` is absent or null, replay the engine for that episode exactly once via the existing `ReplayEngineFactory` (no AI call), serialise the world at each turn, and fill only the missing values — turns already holding a `world_json` are left byte-for-byte unchanged; commit the fills only after a complete replay
     - If the backfill replay fails to complete, leave existing stored values unchanged, persist no partial World_State, and return an error indicating the World_State backfill failed
     - Run `php -l` on changed PHP files

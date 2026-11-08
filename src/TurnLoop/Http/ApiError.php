@@ -16,17 +16,21 @@ namespace PoltergeistSwitch\TurnLoop\Http;
  *
  * A 409 body looks like
  *   { "error": "turn_mismatch", "currentExpectedTurn": 3, "turnState": "waiting" }
- * (design "Response shape"); a 404 body carries just the code with no state.
+ * (design "Response shape"); a 404 body carries just the code with no state. A
+ * 500 'world_backfill_failed' (screens spec Requirement 10.8) carries just the
+ * code too; the underlying cause is kept as the previous exception for logging
+ * and never put in the body.
  */
 final class ApiError extends \RuntimeException
 {
     public function __construct(
-        public readonly int $status,       // HTTP status: 404 or 409
+        public readonly int $status,       // HTTP status: 404, 409, or 500
         public readonly string $errorCode, // short machine code, e.g. 'turn_mismatch'
         public readonly ?int $currentExpectedTurn = null,
         public readonly ?string $turnState = null,
+        ?\Throwable $previous = null,      // the underlying cause, kept off the body
     ) {
-        parent::__construct($errorCode);
+        parent::__construct($errorCode, 0, $previous);
     }
 
     /**
@@ -48,6 +52,19 @@ final class ApiError extends \RuntimeException
     public static function notFound(string $code = 'episode_not_found'): self
     {
         return new self(404, $code);
+    }
+
+    /**
+     * Report that the one-time per-turn World_State backfill could not complete
+     * (screens spec Requirement 10.8). The underlying cause is kept as the
+     * previous exception for logging but never reaches the JSON body, which
+     * carries only the machine code 'world_backfill_failed'. HTTP 500: the read
+     * could not produce the stored worlds the screens need, and no stored
+     * World_State was changed.
+     */
+    public static function backfillFailed(?\Throwable $previous = null): self
+    {
+        return new self(500, 'world_backfill_failed', null, null, $previous);
     }
 
     /**

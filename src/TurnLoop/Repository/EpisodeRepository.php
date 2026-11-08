@@ -156,6 +156,36 @@ interface EpisodeRepository
      */
     public function loadAppliedActionsForReplay(string $episodeId): array;
 
+    // --- Per-turn World_State backfill (screens spec) --------------------
+
+    /**
+     * Return the raw stored `world_json` of every turn of an episode, keyed by
+     * turn number in ascending order, with null for a turn whose world_json is
+     * absent or null (screens spec Requirement 10.7). The one-time World_State
+     * backfill reads this to detect which turns are missing a world WITHOUT
+     * decoding (so a present value can be left byte-for-byte unchanged); an
+     * episode with no turns yields an empty array.
+     *
+     * @return array<int, string|null> turnNumber => world_json or null, ascending
+     */
+    public function loadTurnWorldJson(string $episodeId): array;
+
+    /**
+     * Fill the per-turn `world_json` for an episode, writing ONLY turns whose
+     * stored world_json is currently absent or null and leaving every turn that
+     * already holds a value byte-for-byte unchanged (screens spec Requirement
+     * 10.7). The whole fill is one atomic unit: either every missing turn in
+     * $worldByTurn is written or, on any error, nothing is (Requirement 10.8).
+     *
+     * The caller passes the world for EVERY turn from one complete replay; this
+     * method writes only the ones still missing, so a concurrent write or an
+     * already-present value is never clobbered. An entry for a turn that does
+     * not exist is ignored.
+     *
+     * @param array<int, string> $worldByTurn turnNumber => world_json from the replay
+     */
+    public function fillMissingWorldJson(string $episodeId, array $worldByTurn): void;
+
     // --- View -------------------------------------------------------------
 
     /**

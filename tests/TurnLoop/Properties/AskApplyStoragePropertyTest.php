@@ -416,6 +416,15 @@ final class CountingEngineFactory implements EngineFactory
         return $this->inner->worldForEpisode($episodeId);
     }
 
+    public function worldsPerTurnForEpisode(string $episodeId, callable $serialize): array
+    {
+        // A rebuild entry point like forEpisode, counted the same way so a test
+        // can assert the one-time World_State backfill replays at most once.
+        $this->forEpisodeCount++;
+
+        return $this->inner->worldsPerTurnForEpisode($episodeId, $serialize);
+    }
+
     public function resetCounts(): void
     {
         $this->forEpisodeCount = 0;

@@ -86,6 +86,48 @@ final class ReplayEngineFactory implements EngineFactory
         return $this->build($episodeId)['world'];
     }
 
+    public function worldsPerTurnForEpisode(string $episodeId, callable $serialize): array
+    {
+        // A single replay pass that serialises the engine's own world after
+        // each applied turn (screens spec Requirements 10.7, 10.8). This walks
+        // exactly the same path build() walks — prepareTurn then applyTurn for
+        // every applied turn in ascending order, with NO AI call — so the world
+        // after turn n equals the world the live loop stored for turn n. The
+        // whole episode is replayed in this one call, never once per turn.
+        [$engine, $world, $appliedActions, $startTurn] = $this->freshReplayState($episodeId);
+
+        /** @var array<int, string> $worldsByTurn */
+        $worldsByTurn = [];
+
+        foreach ($appliedActions as $turnNumber => $actionJsonByRobot) {
+            // Flip the earthquake on at the live moment, exactly as build()
+            // does, so a late flip never starts the earthquake early in the
+            // replay (Requirement 4.4).
+            if ($startTurn !== null
+                && $world->earthquakeStartTurn === null
+                && $turnNumber >= $startTurn + 1
+            ) {
+                $world->earthquakeStartTurn = $startTurn;
+            }
+
+            $actions = $this->decodeTurnActions($actionJsonByRobot);
+
+            $engine->prepareTurn($turnNumber);
+            $engine->applyTurn($turnNumber, $actions);
+
+            // Serialise the engine's own world AFTER the turn is applied. Turn 0
+            // is the initial calm world after the quiet turn 0; each later turn
+            // is that turn's post-apply world, matching TurnService's live
+            // writes (Requirements 10.1, 10.2, 10.6).
+            $worldsByTurn[$turnNumber] = $serialize($world);
+        }
+
+        // Keyed by turn number in ascending order (Requirement 13.2).
+        ksort($worldsByTurn);
+
+        return $worldsByTurn;
+    }
+
     /**
      * Rebuild the episode's Engine and its WorldModel by replaying it from
      * stored state. The returned world is the engine's own world (the same
@@ -96,38 +138,7 @@ final class ReplayEngineFactory implements EngineFactory
      */
     private function build(string $episodeId): array
     {
-        $episode = $this->repo->findEpisode($episodeId);
-        if ($episode === null) {
-            // The API layer answers 404 for an unknown id before reaching the
-            // factory (Requirement 9.5); a null here is a programming error.
-            throw new RuntimeException('unknown episode');
-        }
-
-        // A fresh world reset from the stored seed reproduces the same initial
-        // world the episode started with. No SituationSpec is passed: as in
-        // createEpisode (Requirement 4.3), the default spec drawn from the seed
-        // is reproducible on any PHP 8.2 build.
-        $world = new WorldModel($this->config);
-        $world->reset(Seed::fromInt($episode->seed));
-
-        $engine = new Engine(
-            $world,
-            $this->config,
-            new RulesEvaluator(),
-            new ActionExecutor(),
-            new EarthquakePhase(),
-            new ResidentController(),
-            new SituationTextGenerator(),
-        );
-
-        // Every applied turn the episode recorded, keyed by turn number and in
-        // ascending order. This is driven by the turns table, so the quiet
-        // turn 0 (createEpisode, Requirement 4.3) is included even though it
-        // has no action rows; its action map is simply empty.
-        $appliedActions = $this->repo->loadAppliedActionsForReplay($episodeId);
-        ksort($appliedActions);
-
-        $startTurn = $episode->earthquakeStartTurn;
+        [$engine, $world, $appliedActions, $startTurn] = $this->freshReplayState($episodeId);
 
         foreach ($appliedActions as $turnNumber => $actionJsonByRobot) {
             // Flip the earthquake on at the live moment: the switch is flipped
@@ -165,6 +176,50 @@ final class ReplayEngineFactory implements EngineFactory
         }
 
         return ['engine' => $engine, 'world' => $world];
+    }
+
+    /**
+     * Build a fresh Engine and WorldModel reset from the episode's stored seed,
+     * ready to replay, together with the episode's applied-turn action map
+     * (ascending by turn) and its earthquake start turn. Shared by {@see build}
+     * and {@see worldsPerTurnForEpisode} so both walk the same replay from the
+     * same starting state.
+     *
+     * A fresh world reset from the stored seed reproduces the same initial
+     * world the episode started with on any PHP 8.2 build (Requirements 4.3,
+     * 13.2). No SituationSpec is passed: as in createEpisode, the default spec
+     * drawn from the seed is reproducible. The applied turns come from the
+     * turns table, so the quiet turn 0 (createEpisode, Requirement 4.3) is
+     * included even though it has no action rows; its action map is empty.
+     *
+     * @return array{0: Engine, 1: WorldModel, 2: array<int, array<string, string>>, 3: int|null}
+     */
+    private function freshReplayState(string $episodeId): array
+    {
+        $episode = $this->repo->findEpisode($episodeId);
+        if ($episode === null) {
+            // The API layer answers 404 for an unknown id before reaching the
+            // factory (Requirement 9.5); a null here is a programming error.
+            throw new RuntimeException('unknown episode');
+        }
+
+        $world = new WorldModel($this->config);
+        $world->reset(Seed::fromInt($episode->seed));
+
+        $engine = new Engine(
+            $world,
+            $this->config,
+            new RulesEvaluator(),
+            new ActionExecutor(),
+            new EarthquakePhase(),
+            new ResidentController(),
+            new SituationTextGenerator(),
+        );
+
+        $appliedActions = $this->repo->loadAppliedActionsForReplay($episodeId);
+        ksort($appliedActions);
+
+        return [$engine, $world, $appliedActions, $episode->earthquakeStartTurn];
     }
 
     /**

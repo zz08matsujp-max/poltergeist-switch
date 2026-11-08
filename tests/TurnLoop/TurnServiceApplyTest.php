@@ -303,6 +303,15 @@ final class CountingEngineFactory implements EngineFactory
         return $this->inner->worldForEpisode($episodeId);
     }
 
+    public function worldsPerTurnForEpisode(string $episodeId, callable $serialize): array
+    {
+        // A rebuild entry point like forEpisode, counted the same way so a test
+        // can assert the one-time World_State backfill replays at most once.
+        $this->forEpisodeCount++;
+
+        return $this->inner->worldsPerTurnForEpisode($episodeId, $serialize);
+    }
+
     public function resetCounts(): void
     {
         $this->forEpisodeCount = 0;
@@ -419,6 +428,16 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
     public function loadAppliedActionsForReplay(string $episodeId): array
     {
         return $this->inner->loadAppliedActionsForReplay($episodeId);
+    }
+
+    public function loadTurnWorldJson(string $episodeId): array
+    {
+        return $this->inner->loadTurnWorldJson($episodeId);
+    }
+
+    public function fillMissingWorldJson(string $episodeId, array $worldByTurn): void
+    {
+        $this->inner->fillMissingWorldJson($episodeId, $worldByTurn);
     }
 
     public function loadEpisodeView(string $id): ?\PoltergeistSwitch\TurnLoop\Values\EpisodeView

@@ -51,6 +51,15 @@ class TurnService
     private WorldStateSerializer $worldSerializer;
 
     /**
+     * Fills a pre-existing episode's missing per-turn World_State once, by
+     * replaying the engine (never AI), when the episode is read (screens spec
+     * Requirements 10.7, 10.8). Built here from the same engine factory,
+     * repository, and serializer the service already holds, so both this read
+     * path and the ended-episode list (a later task) share one backfill.
+     */
+    private WorldStateBackfill $worldBackfill;
+
+    /**
      * Returns the current wall-clock datetime as a 'Y-m-d H:i:s' string, used
      * to stamp episode activity (touchActivity). Injectable so a test can
      * advance "now" deterministically; defaults to the real clock via date().
@@ -76,6 +85,11 @@ class TurnService
         $this->parallel = $parallel ?? new ParallelHttp();
         $this->clock = $clock ?? static fn (): string => date('Y-m-d H:i:s');
         $this->worldSerializer = new WorldStateSerializer();
+        $this->worldBackfill = new WorldStateBackfill(
+            $this->repo,
+            $this->engineFactory,
+            $this->worldSerializer,
+        );
     }
 
     /**
@@ -610,6 +624,17 @@ class TurnService
      */
     public function getEpisode(string $episodeId): EpisodeView
     {
+        // Fill a pre-existing episode's missing per-turn World_State once before
+        // returning the view, by replaying the engine exactly once (never AI)
+        // and filling only the missing turns; turns already holding a world are
+        // left byte-for-byte unchanged (screens spec Requirement 10.7). An
+        // unknown id has no turns, so the backfill is a no-op and the 404 is
+        // raised below by view(), leaving stored data unchanged (Requirement
+        // 10.5). A replay that cannot complete throws a 'world_backfill_failed'
+        // ApiError and persists nothing (Requirement 10.8). A freshly-run
+        // episode already has every world, so this never replays for it.
+        $this->worldBackfill->backfill($episodeId);
+
         return $this->view($episodeId);
     }
 

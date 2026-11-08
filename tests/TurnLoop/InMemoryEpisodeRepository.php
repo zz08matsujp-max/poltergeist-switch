@@ -390,6 +390,45 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         return $byTurn;
     }
 
+    // --- Per-turn World_State backfill (screens spec) --------------------
+
+    public function loadTurnWorldJson(string $episodeId): array
+    {
+        // The raw stored world_json per turn, ascending, null when a turn has
+        // none (Requirement 10.7). Returned without decoding so a present value
+        // can be compared byte-for-byte by the backfill.
+        $byTurn = [];
+        foreach ($this->turns as $turn) {
+            if ($turn->episodeId !== $episodeId) {
+                continue;
+            }
+            $byTurn[$turn->turnNumber] = $turn->worldJson;
+        }
+
+        ksort($byTurn);
+
+        return $byTurn;
+    }
+
+    public function fillMissingWorldJson(string $episodeId, array $worldByTurn): void
+    {
+        // Fill-only, all-or-nothing (Requirements 10.7, 10.8). The in-memory
+        // store has no partial-write window — a turn already holding a world is
+        // skipped, a missing one is filled, and a turn that does not exist is
+        // ignored — so the loop below is the whole atomic "commit".
+        foreach ($worldByTurn as $turnNumber => $worldJson) {
+            $key = $this->turnKey($episodeId, (int) $turnNumber);
+            $turn = $this->turns[$key] ?? null;
+            if ($turn === null) {
+                continue; // no such turn: ignore
+            }
+            if ($turn->worldJson !== null) {
+                continue; // already present: leave byte-for-byte unchanged
+            }
+            $this->turns[$key] = $this->withTurnChanges($turn, worldJson: $worldJson);
+        }
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView

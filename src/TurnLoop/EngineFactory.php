@@ -51,4 +51,30 @@ interface EngineFactory
      * prepareTurn, so a world replayed to the current turn start is correct.
      */
     public function worldForEpisode(string $episodeId): WorldModel;
+
+    /**
+     * Replay the episode ONCE and serialise the {@see WorldModel} after each
+     * applied turn, returning the per-turn `world_json` keyed by turn number in
+     * ascending order (screens spec Requirements 10.7, 10.8).
+     *
+     * This walks exactly the replay {@see forEpisode} walks — prepareTurn then
+     * applyTurn for every applied turn from the stored actions, with NO AI call
+     * — but serialises the engine's own world after each turn so the one-time
+     * World_State backfill can fill a pre-existing episode's missing turns from
+     * a single replay. Because the same seed reproduces the same world on any
+     * PHP 8.2 build, a serialised turn equals what a fresh run would have
+     * stored (Requirement 10.6). Turn 0 is the initial calm, pre-earthquake
+     * world; each later turn is that turn's post-apply world, matching how
+     * {@see \PoltergeistSwitch\TurnLoop\TurnService} stores them live.
+     *
+     * The replay is a single pass: a caller backfilling several missing turns
+     * calls this ONCE, never once per turn (the exactly-once guarantee the
+     * backfill relies on). A replay that cannot complete throws, and the caller
+     * persists nothing.
+     *
+     * @param callable(WorldModel):string $serialize serialises one world to its
+     *                                                stored `world_json` string
+     * @return array<int, string> turnNumber => world_json, ascending by turn
+     */
+    public function worldsPerTurnForEpisode(string $episodeId, callable $serialize): array;
 }

@@ -450,6 +450,72 @@ final class PdoEpisodeRepository implements EpisodeRepository
         return $byTurn;
     }
 
+    // --- Per-turn World_State backfill (screens spec) --------------------
+
+    public function loadTurnWorldJson(string $episodeId): array
+    {
+        // Read each turn's raw stored world_json without decoding, so a present
+        // value can be left byte-for-byte unchanged by the backfill
+        // (Requirement 10.7). A NULL column reads back as a null entry.
+        $stmt = $this->pdo->prepare(
+            'SELECT turn_number, world_json FROM turns '
+            . 'WHERE episode_id = :episode_id ORDER BY turn_number ASC'
+        );
+        $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->execute();
+
+        $byTurn = [];
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $turnNumber = (int) ($row['turn_number'] ?? 0);
+            $worldJson = $row['world_json'] ?? null;
+            $byTurn[$turnNumber] = is_string($worldJson) ? $worldJson : null;
+        }
+
+        ksort($byTurn);
+
+        return $byTurn;
+    }
+
+    public function fillMissingWorldJson(string $episodeId, array $worldByTurn): void
+    {
+        // All-or-nothing (Requirement 10.8): write every missing turn inside one
+        // transaction, commit only after all succeed, roll back on any error so
+        // no partial World_State persists. The WHERE guard `world_json IS NULL`
+        // makes each write fill-only: a turn that already holds a value is left
+        // byte-for-byte unchanged (Requirement 10.7), and a repeated backfill is
+        // idempotent.
+        if ($worldByTurn === []) {
+            return;
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                'UPDATE turns SET world_json = :world_json '
+                . 'WHERE episode_id = :episode_id AND turn_number = :turn_number '
+                . 'AND world_json IS NULL'
+            );
+            foreach ($worldByTurn as $turnNumber => $worldJson) {
+                $stmt->bindValue(':world_json', $worldJson);
+                $stmt->bindValue(':episode_id', $episodeId);
+                $stmt->bindValue(':turn_number', (int) $turnNumber, PDO::PARAM_INT);
+                $stmt->execute();
+            }
+
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('fillMissingWorldJson failed; rolled back', 0, $e);
+        }
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView
