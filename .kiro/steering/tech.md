@@ -21,3 +21,4 @@ inclusion: always
 - Commands: stay inside this project folder. Never run `rm -rf`, `sudo`, `git push`, FTP/SSH, or anything that touches files outside the project or the secrets outside the web root, even in Autopilot; ask the maintainer first.
 - Commits: when a task's tests pass, stage only the files that task changed and commit with the message `task N: <task title>` (for example `task 3: SituationSpec and EpisodeConfig`). Never push, amend, rebase or reset; the maintainer reviews and pushes from GitHub Desktop.
 - A task whose only test sub-task is optional and skipped is still committed the same way once `php -l` and the full existing test suite pass. Before committing, tick every finished sub-task in tasks.md (the parent box alone is not enough).
+- The Post Task Execution hook ticks parent tasks; you still tick each sub-task you finish. If the hook prints that it ticked a parent, include that tasks.md change in the task's commit.

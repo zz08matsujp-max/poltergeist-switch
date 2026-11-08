@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Tick parent tasks",
+  "description": "After each spec task, tick parent tasks in tasks.md whose sub-tasks are all done.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "php tools/tick_parent_tasks.php",
+    "timeoutSeconds": 30
+  }
+}
