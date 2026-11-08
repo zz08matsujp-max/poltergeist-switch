@@ -115,16 +115,16 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - `status()`: return the current generation and, per robot reported as Amber (robot_a) / Jade (robot_b), the active-memory count and each active memory's length, excluding retired and other-generation rows; return no device id, key, credential, or company/model name
     - a running episode keeps its own stored generation and snapshot when a reset occurs, and its later reflections store under its own generation
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 5.2, 5.3, 6.1_
-  - [~] 7.2 Write the reset and status property tests in `tests/Memory/Properties/`:
+  - [-] 7.2 Write the reset and status property tests in `tests/Memory/Properties/`:
     - **Property 3: Reset starts a fresh generation with zero memories and deletes nothing** — reset advances the current generation and removes no row; an episode created immediately after receives an empty snapshot for both robots
     - **Property 8: Status reports exactly the current generation's active counts and lengths** — `status()` reports the current generation and per-robot the count and character lengths of current-generation active memories oldest first, excluding retired and older-generation rows
     - Each tagged `Feature: robot-memory, Property N: …`, `->limitTo(100)` (required, not optional)
     - _Requirements: 9.3, 4.2, 4.3, 5.2, 5.3_
-  - [ ]* 7.3 Write an example test in `tests/Memory/MemoryServiceTest.php` for a reset during a running episode: the running episode keeps its generation and snapshot and its later reflection is stored under its own generation
+  - [x]* 7.3 Write an example test in `tests/Memory/MemoryServiceTest.php` for a reset during a running episode: the running episode keeps its generation and snapshot and its later reflection is stored under its own generation
     - _Requirements: 4.4, 9.9_
 
 - [ ] 8. ReflectService — asking, idempotency, storing answers
-  - [~] 8.1 Implement `ReflectService` in `src/Memory/ReflectService.php` (reuses the turn-loop `RobotClient`, `ParallelHttp`, `EngineFactory`, `Config`; holds no rules logic):
+  - [-] 8.1 Implement `ReflectService` in `src/Memory/ReflectService.php` (reuses the turn-loop `RobotClient`, `ParallelHttp`, `EngineFactory`, `Config`; holds no rules logic):
     - guard: load the episode; 404 if unknown; 409 `not_ended` if it has not ended (including an episode released after 5 idle minutes — it is not marked ended), changing no state and making no `RobotClient` call; 409 `not_reflectable` for a pre-feature episode whose snapshot columns are NULL, changing no state and making no `RobotClient` call
     - rebuild the episode via `EngineFactory::forEpisode` (which now sets memories from the stored snapshot) to obtain the ordered `TurnRecord`s, the earthquake start turn, and the final `WorldModel`
     - per robot claim a slot (`claimReflectionSlot`): `answered` → reuse the stored answer and make no call; a fresh `in_progress` → skip (not double-asked); unclaimed/failed/stale → claim and call
