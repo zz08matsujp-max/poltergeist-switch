@@ -137,8 +137,8 @@ class ReflectionTextBuilderTest extends TestCase
         $this->assertCount(3, $blocks, 'one event block per recorded turn');
 
         // Turn 1 (offset 1): the man shouts and robot_a shares his room, so the
-        // man's line is rendered in the same-room form (Req 9.10–9.11) as the
-        // first perceived line, ahead of the house events.
+        // man's line is rendered in the same-room form (Req 9.10–9.11), right
+        // after the house events.
         $this->assertStringContainsString(
             'The man shouts, "What\'s happening?!"',
             $blocks[0],
@@ -153,12 +153,13 @@ class ReflectionTextBuilderTest extends TestCase
             'the first shaking turn must render the shaking-start sentence'
         );
 
-        // The perceived man's line precedes the perceived house events in the
-        // block (Req 1.3): perceived items first, in record order.
+        // The perceived house events precede the man's line in the block, as
+        // in the turn texts where the shaking paragraph ends with his shout
+        // (Req 1.3; order fixed by the maintainer's review on 2026-11-09).
         $this->assertLessThan(
-            strpos($blocks[0], 'Suddenly the floor begins to shake hard.'),
             strpos($blocks[0], 'The man shouts, "What\'s happening?!"'),
-            'the man\'s line must precede the house events in the event block'
+            strpos($blocks[0], 'Suddenly the floor begins to shake hard.'),
+            'the house events must precede the man\'s line in the event block'
         );
 
         // Turn 2 (offset 2) is still shaking: the "still shaking" sentence, and

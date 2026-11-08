@@ -229,8 +229,8 @@ so turn 1 is headed `0 to 15 seconds after the shaking began:`, turn 2 `15 to 30
 
 *Perceived at the start of the turn:*
 
-1. The man's line R heard that turn — `rec.residentLine` — rendered as in `house-rules-engine` Requirements 9.10–9.11: `The man shouts, "{line}"` when the man was in R's room, `You hear the man shout, "{line}"` otherwise. Omitted when there was no line that turn.
-2. The house events R perceived that turn, rendered as in the shaking paragraph of `house-rules-engine` Requirement 9.14: `Suddenly the floor begins to shake hard.` on the first shaking turn; the room shake text for R's room (e.g. `Dishes are rattling in the cupboard.`); `The lights go out.` on the lights-out turn; `The shaking has stopped.` on the stop turn; and any object falling or breaking **where R could see it** (R's room, not dark), rendered in the same wording the turn texts use.
+1. The house events R perceived that turn, rendered as in the shaking paragraph of `house-rules-engine` Requirement 9.14: `Suddenly the floor begins to shake hard.` on the first shaking turn; the room shake text for R's room (e.g. `Dishes are rattling in the cupboard.`); `The lights go out.` on the lights-out turn; `The shaking has stopped.` on the stop turn; and any object falling or breaking **where R could see it** (R's room, not dark), rendered in the same wording the turn texts use.
+2. The man's line R heard that turn — `rec.residentLine` — rendered as in `house-rules-engine` Requirements 9.10–9.11: `The man shouts, "{line}"` when the man was in R's room, `You hear the man shout, "{line}"` otherwise. Omitted when there was no line that turn. (Order changed on 2026-11-09 after the first live reflection: the house events come first and the man's line second, as in the turn texts, where the shaking paragraph ends with the man's shout; `REFLECTION_TEXT_VERSION` bumped to `reflection-text-2026-11-09b`.)
 
 *Acted during the turn:*
 
@@ -782,7 +782,7 @@ The memory store and the reflection text are a good fit for property-based testi
 
 ### Property 7: Reflection_Text structure, count-up headings, and memories-block presence
 
-*For any* ended episode, the Reflection_Text presents its sections in order — body, house, the memories block when and only when the robot had memories this episode, the fixed lead-in `Here is what happened after the shaking began:`, one event block per played turn oldest first (turn 1 first, k = 0) each headed `{15·k} to {15·(k+1)} seconds after the shaking began:`, the "Right now:" paragraph, a blank line, then the exact question; within each event block the perceived items (the man's line, then the house events) come before the acted items (own action result, own spoken lines, own reported speech, then the other robot's action under rule A, its spoken lines, its reported speech); and the memories block, when present, uses the Appendix A heading with each body in its own `"""` block oldest first.
+*For any* ended episode, the Reflection_Text presents its sections in order — body, house, the memories block when and only when the robot had memories this episode, the fixed lead-in `Here is what happened after the shaking began:`, one event block per played turn oldest first (turn 1 first, k = 0) each headed `{15·k} to {15·(k+1)} seconds after the shaking began:`, the "Right now:" paragraph, a blank line, then the exact question; within each event block the perceived items (the house events, then the man's line) come before the acted items (own action result, own spoken lines, own reported speech, then the other robot's action under rule A, its spoken lines, its reported speech); and the memories block, when present, uses the Appendix A heading with each body in its own `"""` block oldest first.
 
 **Validates: Requirements 1.2, 1.3, 1.4, 1.7, 1.10**
 

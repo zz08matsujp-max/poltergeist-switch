@@ -50,7 +50,7 @@ final class ReflectionTextBuilder
      * against silent drift. Kept at most 32 characters to fit the reflection
      * prompt's version column.
      */
-    public const REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09';
+    public const REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09b';
 
     /**
      * The single sentence that introduces the turn-by-turn recap (Req 1.2). It
@@ -172,7 +172,7 @@ final class ReflectionTextBuilder
 
     /**
      * Build one turn's event block (Req 1.3, Req 1.4): the count-up heading,
-     * then the perceived items (the man's line, then the house events), then the
+     * then the perceived items (the house events, then the man's line), then the
      * acted items (own action result and speech, then the other robot's under
      * rule A). An empty block shows the neutral line so the count-up is
      * unbroken. The static room-object list is never repeated here (Req 1.3).
@@ -213,9 +213,9 @@ final class ReflectionTextBuilder
     }
 
     /**
-     * The perceived lines for one turn (Req 1.3): first the man's line rendered
-     * per Req 9.10–9.11, then the house events rendered as the turn text's
-     * shaking paragraph (Req 9.14).
+     * The perceived lines for one turn (Req 1.3): first the house events
+     * rendered as the turn text's shaking paragraph (Req 9.14), then the man's
+     * line rendered per Req 9.10–9.11 — the order of the turn texts.
      *
      * @return string[]
      */
@@ -223,14 +223,17 @@ final class ReflectionTextBuilder
     {
         $lines = [];
 
-        $manLine = $this->manLine($robotId, $record);
-        if ($manLine !== null) {
-            $lines[] = $manLine;
-        }
-
+        // House events first, then the man's line: the same order as the turn
+        // texts, where the shaking paragraph ends with the man's shout
+        // (maintainer's review after the first live reflection, 2026-11-09).
         $house = $this->houseEvents($robotId, $record, $earthquakeStartTurn);
         if ($house !== '') {
             $lines[] = $house;
+        }
+
+        $manLine = $this->manLine($robotId, $record);
+        if ($manLine !== null) {
+            $lines[] = $manLine;
         }
 
         return $lines;
@@ -267,8 +270,8 @@ final class ReflectionTextBuilder
      * starting/continuing/stopping, the room shake text, the boiling pot in the
      * kitchen, and the lights going out. Produced by the shaking paragraph of
      * SituationTextGenerator so the wording matches the turn texts exactly; the
-     * resident's line is suppressed in that render because it is already placed
-     * first as the man's line. Returns '' when there was no shaking event.
+     * resident's line is suppressed in that render because it is placed right
+     * after it as the man's line. Returns '' when there was no shaking event.
      */
     private function houseEvents(string $robotId, TurnRecord $record, int $earthquakeStartTurn): string
     {
