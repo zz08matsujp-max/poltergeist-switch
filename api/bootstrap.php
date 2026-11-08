@@ -23,6 +23,10 @@ declare(strict_types=1);
  * safe error and never leaks a path or triggers a provider call.
  */
 
+use PoltergeistSwitch\Engine\ReflectionTextBuilder;
+use PoltergeistSwitch\Engine\SituationTextGenerator;
+use PoltergeistSwitch\Memory\MemoryService;
+use PoltergeistSwitch\Memory\ReflectService;
 use PoltergeistSwitch\TurnLoop\Clients\ClaudeClient;
 use PoltergeistSwitch\TurnLoop\Clients\ClaudeRecorderClient;
 use PoltergeistSwitch\TurnLoop\Clients\GptClient;
@@ -230,6 +234,78 @@ function ps_build_episode_list_service(): EpisodeListService
     return new EpisodeListService(
         $repo,
         new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+    );
+}
+
+/**
+ * Open the production PDO connection to the MySQL database using the
+ * credentials read from the secrets directory (outside the web root, outside
+ * the repository). Any config/secrets/connection failure surfaces as a generic
+ * 500 ApiError so no path, credential, or driver message ever leaks. Shared by
+ * the memory and reflect service builders.
+ */
+function ps_build_pdo(): PDO
+{
+    $config = ps_load_local_config();
+    $db = ps_load_db_credentials($config['secrets_dir']);
+
+    try {
+        return new PDO(
+            $db['dsn'],
+            $db['user'],
+            $db['password'],
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ],
+        );
+    } catch (\Throwable) {
+        // Never leak the DSN, credential, or driver message.
+        throw ps_internal_error();
+    }
+}
+
+/**
+ * Build the production MemoryService (robot-memory Requirements 4, 5, 6). It
+ * reads no AI secret — snapshot, reset, and status are pure reads/writes over
+ * the memory tables through the PDO repository, so it needs only the PDO
+ * repository. No AI is ever called. Any DB/config failure surfaces as a generic
+ * 500 ApiError, never a leak.
+ */
+function ps_build_memory_service(): MemoryService
+{
+    return new MemoryService(new PdoEpisodeRepository(ps_build_pdo()));
+}
+
+/**
+ * Build the production ReflectService (robot-memory Requirement 2): the two
+ * real robot clients, the pure ReflectionTextBuilder, the replay engine
+ * factory, the PDO repository, and the turn-loop Config (timeouts, cost rates).
+ * API keys are read through SecretLoader; DB credentials from the secrets dir.
+ * Any failure surfaces as a generic 500 ApiError (never a provider call, never
+ * a leak).
+ */
+function ps_build_reflect_service(): ReflectService
+{
+    $config = ps_load_local_config();
+    $secrets = new SecretLoader(__DIR__ . '/config.local.php');
+
+    $pdo = ps_build_pdo();
+    $cfg = new Config();
+    $repo = new PdoEpisodeRepository($pdo);
+
+    // The key names match the <name>.key files in the secrets directory.
+    $robotA = new ClaudeClient($secrets->readKey('anthropic'), $cfg);
+    $robotB = new GptClient($secrets->readKey('openai'), $cfg);
+
+    return new ReflectService(
+        $robotA,
+        $robotB,
+        new ReflectionTextBuilder(new SituationTextGenerator()),
+        new ReplayEngineFactory($repo),
+        $repo,
+        $cfg,
     );
 }
 

@@ -141,7 +141,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 2.2, 2.4, 2.7, 2.10, 2.11_
 
 - [ ] 9. API entry points and the extended create endpoint
-  - [~] 9.1 Implement the three `api/` entry points, extend create, and add routes:
+  - [x] 9.1 Implement the three `api/` entry points, extend create, and add routes:
     - `api/episodes_reflect.php` (`POST /api/episodes/{id}/reflect`) → `ReflectService::reflect`, 200 per-robot result, 404 unknown, 409 `not_ended` / `not_reflectable`, body shape from the design (`amber`/`jade` with answered, memory, activeCount, reason)
     - `api/memory_reset.php` (`POST /api/memory/reset`) → `MemoryService::reset`, 200 `{ "generation": N }`
     - `api/memory_get.php` (`GET /api/memory`) → `MemoryService::status`, 200 generation + per-robot counts/lengths

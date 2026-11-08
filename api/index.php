@@ -60,7 +60,18 @@ $query = is_array($_GET) ? $_GET : [];
 try {
     $service = ps_build_turn_service();
     $listService = ps_build_episode_list_service();
-    $response = ps_dispatch($service, (string) $method, (string) $route, $cookies, $query, $listService);
+    $memoryService = ps_build_memory_service();
+    $reflectService = ps_build_reflect_service();
+    $response = ps_dispatch(
+        $service,
+        (string) $method,
+        (string) $route,
+        $cookies,
+        $query,
+        $listService,
+        $memoryService,
+        $reflectService,
+    );
 } catch (\Throwable) {
     // Any failure before/around dispatch (config, secrets, DB connection)
     // becomes a generic 500 with a short machine code only.

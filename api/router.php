@@ -23,6 +23,8 @@ declare(strict_types=1);
  * never a key, credential, path, or provider name (Requirements 9.11, 2.6).
  */
 
+use PoltergeistSwitch\Memory\MemoryService;
+use PoltergeistSwitch\Memory\ReflectService;
 use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\TurnService;
@@ -33,6 +35,9 @@ require_once __DIR__ . '/episodes_ask.php';
 require_once __DIR__ . '/episodes_apply.php';
 require_once __DIR__ . '/episodes_get.php';
 require_once __DIR__ . '/episodes_list.php';
+require_once __DIR__ . '/episodes_reflect.php';
+require_once __DIR__ . '/memory_reset.php';
+require_once __DIR__ . '/memory_get.php';
 
 /**
  * Parse the method + route and dispatch to the matching handler, returning the
@@ -50,6 +55,16 @@ require_once __DIR__ . '/episodes_list.php';
  *                                           list route; null when no list
  *                                           service is wired, in which case the
  *                                           list route falls through to 404
+ * @param MemoryService|null   $memoryService the service for the memory status
+ *                                           and reset routes, and for taking the
+ *                                           Memory_Snapshot on create; null when
+ *                                           not wired, in which case the two
+ *                                           memory routes fall through to 404 and
+ *                                           create takes no snapshot
+ * @param ReflectService|null  $reflectService the service for the reflect route;
+ *                                           null when not wired, in which case
+ *                                           the reflect route falls through to
+ *                                           404
  */
 function ps_dispatch(
     TurnService $service,
@@ -58,6 +73,8 @@ function ps_dispatch(
     array $cookies,
     array $query = [],
     ?EpisodeListService $listService = null,
+    ?MemoryService $memoryService = null,
+    ?ReflectService $reflectService = null,
 ): PsApiResponse {
     $method = strtoupper($method);
     $route = trim($route, '/');
@@ -77,9 +94,22 @@ function ps_dispatch(
             return ps_handle_list($listService, $query);
         }
 
-        // POST /api/episodes — create
+        // POST /api/episodes — create (takes the Memory_Snapshot when the
+        // memory service is wired; robot-memory Requirement 6.1).
         if ($method === 'POST' && $segments === ['episodes']) {
-            return ps_handle_create($service, $cookies);
+            return ps_handle_create($service, $cookies, $memoryService);
+        }
+
+        // GET /api/memory — the current generation and per-robot active-memory
+        // counts and lengths (robot-memory Requirement 5.1).
+        if ($method === 'GET' && $segments === ['memory'] && $memoryService !== null) {
+            return ps_handle_memory_get($memoryService);
+        }
+
+        // POST /api/memory/reset — advance the current generation, delete
+        // nothing (robot-memory Requirement 4.5).
+        if ($method === 'POST' && $segments === ['memory', 'reset'] && $memoryService !== null) {
+            return ps_handle_memory_reset($memoryService);
         }
 
         // Everything else is /episodes/{id}/...
@@ -89,6 +119,18 @@ function ps_dispatch(
             // POST /api/episodes/{id}/disaster
             if ($method === 'POST' && count($segments) === 3 && $segments[2] === 'disaster') {
                 return ps_handle_disaster($service, $episodeId);
+            }
+
+            // POST /api/episodes/{id}/reflect — ask both robots once after an
+            // ended episode (robot-memory Requirement 2.1). 404 unknown and
+            // 409 not_ended / not_reflectable are raised as ApiError by the
+            // service and mapped by the catch below.
+            if ($method === 'POST'
+                && count($segments) === 3
+                && $segments[2] === 'reflect'
+                && $reflectService !== null
+            ) {
+                return ps_handle_reflect($reflectService, $episodeId);
             }
 
             // POST /api/episodes/{id}/turns/{n}/ask
