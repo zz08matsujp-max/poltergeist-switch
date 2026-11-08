@@ -157,7 +157,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 9.10, 9.11, 9.12_
 
 - [ ] 11. Accessibility and caching pass across both pages
-  - [~] 11.1 Apply the shared look, accessibility, and caching rules to Observe and Replay
+  - [x] 11.1 Apply the shared look, accessibility, and caching rules to Observe and Replay
     - Present the UI in English with DotGothic16, falling back to a sans-serif font with text visible during load (Req 12.1, 12.2); lay out mobile-first from 320 px with 16 px gutters, no horizontal scroll from 320 px up, and `image-rendering: pixelated` (Req 12.3)
     - Make every button reachable and operable by keyboard alone with a visible focus indicator of ≥ 3:1 contrast (Req 12.4); announce each new "What happened" log entry through an `aria-live="polite"` region (Req 12.5); send `Cache-Control: no-store` on both pages (Req 12.7); name the robots only Amber and Jade with no AI company in the robots' text (Req 12.8)
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.7, 12.8_
