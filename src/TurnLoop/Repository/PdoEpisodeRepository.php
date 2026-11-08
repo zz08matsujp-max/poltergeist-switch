@@ -274,10 +274,10 @@ final class PdoEpisodeRepository implements EpisodeRepository
             'SELECT r.reply_text, r.input_tokens, r.output_tokens, r.seconds, '
             . 'r.cost, r.truncated, p.prompt_text '
             . 'FROM responses r '
-            . 'LEFT JOIN prompts p ON p.episode_id = r.episode_id '
-            . 'AND p.turn_number = r.turn_number AND p.robot_id = r.robot_id '
+            . "LEFT JOIN prompts p ON p.episode_id = r.episode_id "
+            . "AND p.turn_number = r.turn_number AND p.robot_id = r.robot_id AND p.kind = 'turn' "
             . 'WHERE r.episode_id = :episode_id AND r.turn_number = :turn_number '
-            . 'AND r.robot_id = :robot_id AND r.unanswered = 0 '
+            . "AND r.robot_id = :robot_id AND r.unanswered = 0 AND r.kind = 'turn' "
             . 'ORDER BY r.attempt DESC LIMIT 1'
         );
         $stmt->bindValue(':episode_id', $episodeId);
@@ -587,9 +587,12 @@ final class PdoEpisodeRepository implements EpisodeRepository
 
     private function upsertPrompt(PromptReplyRow $row): void
     {
+        // Turn prompts are tagged kind = 'turn' so a reflection prompt
+        // (kind = 'reflection', turn_number = -1) never collides with a turn
+        // read (robot-memory Requirement 2.5).
         $sql = 'INSERT INTO prompts '
-            . '(episode_id, turn_number, robot_id, prompt_text, situation_text_version) '
-            . 'VALUES (:episode_id, :turn_number, :robot_id, :prompt_text, :version) '
+            . "(episode_id, turn_number, robot_id, prompt_text, situation_text_version, kind) "
+            . "VALUES (:episode_id, :turn_number, :robot_id, :prompt_text, :version, 'turn') "
             . 'ON DUPLICATE KEY UPDATE '
             . 'prompt_text = VALUES(prompt_text), '
             . 'situation_text_version = VALUES(situation_text_version)';
@@ -605,12 +608,15 @@ final class PdoEpisodeRepository implements EpisodeRepository
 
     private function upsertResponse(PromptReplyRow $row): void
     {
+        // Turn responses are tagged kind = 'turn' so a reflection response
+        // (kind = 'reflection', turn_number = -1) never collides with a turn
+        // read (robot-memory Requirement 2.5).
         $sql = 'INSERT INTO responses '
-            . '(episode_id, turn_number, robot_id, attempt, reply_text, '
-            . 'input_tokens, output_tokens, seconds, cost, unanswered, truncated, failure_reason) '
+            . "(episode_id, turn_number, robot_id, attempt, reply_text, "
+            . 'input_tokens, output_tokens, seconds, cost, unanswered, truncated, failure_reason, kind) '
             . 'VALUES '
-            . '(:episode_id, :turn_number, :robot_id, :attempt, :reply_text, '
-            . ':input_tokens, :output_tokens, :seconds, :cost, :unanswered, :truncated, :failure_reason) '
+            . "(:episode_id, :turn_number, :robot_id, :attempt, :reply_text, "
+            . ":input_tokens, :output_tokens, :seconds, :cost, :unanswered, :truncated, :failure_reason, 'turn') "
             . 'ON DUPLICATE KEY UPDATE '
             . 'reply_text = VALUES(reply_text), '
             . 'input_tokens = VALUES(input_tokens), '
@@ -663,11 +669,13 @@ final class PdoEpisodeRepository implements EpisodeRepository
     private function insertPromptLayer(string $episodeId, int $turnNumber, string $robotId, AppliedRobotRow $row): void
     {
         // The situation text sent and its version (prompts table, Req 8.3).
-        // INSERT IGNORE keeps the guard idempotent should the prompt row
-        // already exist from the ask phase.
+        // Tagged kind = 'turn' so a reflection prompt never collides with a
+        // turn read (robot-memory Requirement 2.5). INSERT ... ON DUPLICATE KEY
+        // keeps the guard idempotent should the prompt row already exist from
+        // the ask phase.
         $sql = 'INSERT INTO prompts '
-            . '(episode_id, turn_number, robot_id, prompt_text, situation_text_version) '
-            . 'VALUES (:episode_id, :turn_number, :robot_id, :prompt_text, :version) '
+            . "(episode_id, turn_number, robot_id, prompt_text, situation_text_version, kind) "
+            . "VALUES (:episode_id, :turn_number, :robot_id, :prompt_text, :version, 'turn') "
             . 'ON DUPLICATE KEY UPDATE '
             . 'prompt_text = VALUES(prompt_text), '
             . 'situation_text_version = VALUES(situation_text_version)';
@@ -770,8 +778,8 @@ final class PdoEpisodeRepository implements EpisodeRepository
             . 'p.prompt_text, '
             . 'r.recorder_json, r.unknown, r.recorder_prompt_version, r.failure_reason '
             . 'FROM actions a '
-            . 'LEFT JOIN prompts p ON p.episode_id = a.episode_id '
-            . 'AND p.turn_number = a.turn_number AND p.robot_id = a.robot_id '
+            . "LEFT JOIN prompts p ON p.episode_id = a.episode_id "
+            . "AND p.turn_number = a.turn_number AND p.robot_id = a.robot_id AND p.kind = 'turn' "
             . 'LEFT JOIN recordings r ON r.episode_id = a.episode_id '
             . 'AND r.turn_number = a.turn_number AND r.robot_id = a.robot_id '
             . 'WHERE a.episode_id = :episode_id AND a.turn_number = :turn_number'
@@ -837,7 +845,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt = $this->pdo->prepare(
             'SELECT reply_text FROM responses '
             . 'WHERE episode_id = :episode_id AND turn_number = :turn_number '
-            . 'AND robot_id = :robot_id AND unanswered = 0 '
+            . "AND robot_id = :robot_id AND unanswered = 0 AND kind = 'turn' "
             . 'ORDER BY attempt DESC LIMIT 1'
         );
         $stmt->bindValue(':episode_id', $episodeId);
@@ -864,7 +872,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt = $this->pdo->prepare(
             'SELECT failure_reason FROM responses '
             . 'WHERE episode_id = :episode_id AND turn_number = :turn_number '
-            . 'AND robot_id = :robot_id '
+            . "AND robot_id = :robot_id AND kind = 'turn' "
             . 'ORDER BY attempt DESC LIMIT 1'
         );
         $stmt->bindValue(':episode_id', $episodeId);
@@ -1103,21 +1111,95 @@ final class PdoEpisodeRepository implements EpisodeRepository
     // =====================================================================
     // Robot-memory additions (robot-memory spec, Requirement 8.1)
     //
-    // STUBS ONLY. Task 4.1 extends the EpisodeRepository interface; the real
-    // PDO/MySQL logic lands in task 4.3. These stubs keep the class
-    // instantiable so `php -l` and the existing turn-loop suite stay green
-    // until 4.3 replaces each body. TASK 4.3: replace every stub below.
+    // The PDO/MySQL implementation of the memory methods. It mirrors the
+    // in-memory fake's semantics so ReflectService and MemoryService behave
+    // identically against either store, and matches the schema in
+    // sql/2026-11-09_add_memory.sql exactly (Requirement 8.1).
+    //
+    // The server is a MySQL 5.7-class engine: the idempotency and cap/retire
+    // designs use InnoDB row locks (SELECT ... FOR UPDATE) and NEVER
+    // SKIP LOCKED (design, "Reflection idempotency and the MySQL 5.7 locking
+    // design"). Every query uses prepared statements with bound parameters; no
+    // value is ever interpolated into SQL. Snapshots are stored as JSON text
+    // and decoded with json_decode(..., flags: JSON_THROW_ON_ERROR); a
+    // malformed snapshot degrades to an empty MemorySnapshot (PHP 8.2 has no
+    // json_validate()).
+    //
+    // Reflection prompts/responses are written with kind = 'reflection' and the
+    // sentinel turn number -1 (by ReflectService via savePromptAndReply); every
+    // turn read above filters on kind = 'turn' and never queries turn_number =
+    // -1, so a reflection row never collides with a turn read (Requirement 2.5).
     // =====================================================================
+
+    // The per-(robot, disaster, generation) active cap (Requirements 3.3, 3.4).
+    private const MEMORY_ACTIVE_CAP = 6;
+
+    // A claim older than this many seconds is stale and re-claimable; the
+    // per-request limit is well under it, so a fresh claim cannot still be
+    // running (Requirement 2.10).
+    private const REFLECTION_STALE_SECONDS = 120;
+
+    // --- Generations -----------------------------------------------------
 
     public function currentGeneration(): int
     {
-        throw new \LogicException('not implemented');
+        // The single memory_generation row (id = 1) holds the current
+        // generation (Requirement 4.1). A fresh install is seeded with
+        // generation 1 by the migration; a missing row degrades to 1.
+        $stmt = $this->pdo->prepare(
+            'SELECT generation FROM memory_generation WHERE id = 1'
+        );
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false) {
+            return 1;
+        }
+
+        return (int) $value;
     }
 
     public function advanceGeneration(): int
     {
-        throw new \LogicException('not implemented');
+        // Move the current generation forward by one in a short transaction
+        // (Requirement 4.2). No memory row is ever deleted; a reset only
+        // advances the generation so later episodes see none of the earlier
+        // generation's memories. The locking read serialises two concurrent
+        // resets so the generation advances by exactly one each.
+        $this->pdo->beginTransaction();
+        try {
+            $read = $this->pdo->prepare(
+                'SELECT generation FROM memory_generation WHERE id = 1 FOR UPDATE'
+            );
+            $read->execute();
+            $current = $read->fetchColumn();
+            $next = ($current === false ? 1 : (int) $current) + 1;
+
+            // Upsert so a missing seed row is created rather than silently
+            // left behind; the migration seeds it, this is defensive.
+            $write = $this->pdo->prepare(
+                'INSERT INTO memory_generation (id, generation, updated_at) '
+                . 'VALUES (1, :generation, :now) '
+                . 'ON DUPLICATE KEY UPDATE generation = VALUES(generation), '
+                . 'updated_at = VALUES(updated_at)'
+            );
+            $write->bindValue(':generation', $next, PDO::PARAM_INT);
+            $write->bindValue(':now', $this->now());
+            $write->execute();
+
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('advanceGeneration failed; rolled back', 0, $e);
+        }
+
+        return $next;
     }
+
+    // --- Per-episode snapshot + generation -------------------------------
 
     public function storeEpisodeMemory(
         string $episodeId,
@@ -1125,51 +1207,561 @@ final class PdoEpisodeRepository implements EpisodeRepository
         MemorySnapshot $robotA,
         MemorySnapshot $robotB
     ): void {
-        throw new \LogicException('not implemented');
+        // Freeze the generation and each robot's verbatim snapshot onto the
+        // episode row so a rebuild reads the exact bodies without re-querying
+        // the live `memories` table (Requirements 6.1, 6.6). The snapshot is a
+        // JSON array of strings, oldest first; an empty snapshot is stored as
+        // '[]' (never NULL) so a post-feature episode is never mistaken for a
+        // pre-feature one.
+        $stmt = $this->pdo->prepare(
+            'UPDATE episodes SET memory_generation = :generation, '
+            . 'robot_a_memory_snapshot = :snapshot_a, '
+            . 'robot_b_memory_snapshot = :snapshot_b '
+            . 'WHERE id = :id'
+        );
+        $stmt->bindValue(':generation', $generation, PDO::PARAM_INT);
+        $stmt->bindValue(':snapshot_a', $this->encodeSnapshot($robotA));
+        $stmt->bindValue(':snapshot_b', $this->encodeSnapshot($robotB));
+        $stmt->bindValue(':id', $episodeId);
+        $stmt->execute();
     }
 
     public function episodeGeneration(string $episodeId): int
     {
-        throw new \LogicException('not implemented');
+        // A running episode keeps its own stored generation even when a reset
+        // advances the current generation (Requirement 6.1). A missing episode
+        // or a column left at its default degrades to 1.
+        $stmt = $this->pdo->prepare(
+            'SELECT memory_generation FROM episodes WHERE id = :id'
+        );
+        $stmt->bindValue(':id', $episodeId);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false) {
+            return 1;
+        }
+
+        return (int) $value;
     }
 
     public function episodeSnapshot(string $episodeId, string $robotId): MemorySnapshot
     {
-        throw new \LogicException('not implemented');
+        // Read a robot's frozen verbatim snapshot off the episode row
+        // (Requirement 6.6). A pre-feature episode whose column is NULL, or a
+        // malformed stored snapshot, yields an empty MemorySnapshot.
+        $column = $this->isRobotA($robotId)
+            ? 'robot_a_memory_snapshot'
+            : 'robot_b_memory_snapshot';
+
+        // The column name comes from a fixed internal whitelist above, never
+        // from caller input, so interpolating it here is safe; the id is bound.
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . $column . ' FROM episodes WHERE id = :id'
+        );
+        $stmt->bindValue(':id', $episodeId);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false || $value === null) {
+            return new MemorySnapshot([]);
+        }
+
+        return $this->decodeSnapshot((string) $value);
     }
+
+    // --- Memories: read --------------------------------------------------
 
     public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
     {
-        throw new \LogicException('not implemented');
+        // Active memories of (robot, generation) across ALL disasters, oldest
+        // first by finish-order sequence (id ASC), capped at $cap (Requirements
+        // 3.8, 6.1). Retired rows and other-generation rows are excluded by the
+        // status/generation predicates, served by idx_snapshot. $cap is bound,
+        // never interpolated, and floored at 0 defensively.
+        $cap = $cap < 0 ? 0 : $cap;
+        if ($cap === 0) {
+            return new MemorySnapshot([]);
+        }
+
+        $stmt = $this->pdo->prepare(
+            'SELECT body FROM memories '
+            . 'WHERE robot_id = :robot_id AND generation = :generation '
+            . "AND status = 'active' "
+            . 'ORDER BY id ASC '
+            . 'LIMIT :cap'
+        );
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->bindValue(':generation', $generation, PDO::PARAM_INT);
+        $stmt->bindValue(':cap', $cap, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $bodies = [];
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $bodies[] = (string) ($row['body'] ?? '');
+        }
+
+        return new MemorySnapshot($bodies);
     }
 
     public function activeCount(string $robotId, int $generation, string $disaster): int
     {
-        throw new \LogicException('not implemented');
+        // How many active memories (robot, generation) has for one disaster
+        // (Requirement 3.3), excluding retired and other-generation rows,
+        // served by idx_active_pick.
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM memories '
+            . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+            . "AND generation = :generation AND status = 'active'"
+        );
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->bindValue(':disaster', $disaster);
+        $stmt->bindValue(':generation', $generation, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
     }
+
+    // --- Memories: write with cap + retirement, atomic -------------------
 
     public function appendMemory(MemoryRow $memory): void
     {
-        throw new \LogicException('not implemented');
+        // Store one memory and retire oldest-active rows for its
+        // (robot, disaster, generation) triple down to at most 6 active
+        // (Requirements 3.3, 3.4, 8.4). The whole operation is ONE transaction
+        // that first takes a locking read over that triple's active rows, so
+        // two interleaved commits for the same triple — even from two different
+        // episodes — serialise and never leave more than 6 active. Idempotent
+        // per (sourceEpisodeId, robotId) via uq_source: a repeat leaves the
+        // stored records unchanged and creates no duplicate (Requirement 8.5).
+        $this->pdo->beginTransaction();
+        try {
+            // Idempotency guard: a store already exists for this source episode
+            // + robot, so do nothing (Requirement 8.5). Checked inside the
+            // transaction so a concurrent duplicate serialises behind the first.
+            if ($this->memoryExistsForSource($memory->sourceEpisodeId, $memory->robotId)) {
+                $this->pdo->commit();
+
+                return;
+            }
+
+            // 1. SERIALISE: lock this triple's active rows so concurrent commits
+            //    for the same (robot, disaster, generation) cannot both count
+            //    from a stale snapshot (design step 1).
+            $lock = $this->pdo->prepare(
+                'SELECT id FROM memories '
+                . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                . "AND generation = :generation AND status = 'active' "
+                . 'FOR UPDATE'
+            );
+            $lock->bindValue(':robot_id', $memory->robotId);
+            $lock->bindValue(':disaster', $memory->disaster);
+            $lock->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
+            $lock->execute();
+            $lock->fetchAll();
+
+            // 2. Append the new memory. The auto-increment id doubles as the
+            //    finish-order seq (Requirement 3.6), so a later commit gets a
+            //    higher id and oldest-first is id ASC.
+            $insert = $this->pdo->prepare(
+                'INSERT INTO memories '
+                . '(robot_id, generation, disaster, source_episode_id, body, status, created_at) '
+                . "VALUES (:robot_id, :generation, :disaster, :source_episode_id, :body, 'active', :created_at)"
+            );
+            $insert->bindValue(':robot_id', $memory->robotId);
+            $insert->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
+            $insert->bindValue(':disaster', $memory->disaster);
+            $insert->bindValue(':source_episode_id', $memory->sourceEpisodeId);
+            $insert->bindValue(':body', $memory->body);
+            $insert->bindValue(':created_at', $memory->createdAt);
+            $insert->execute();
+
+            // 3. Retire every active row older than the 6 newest (id ASC,
+            //    OFFSET 6) by flipping status to 'retired'; the row is kept, not
+            //    deleted (Requirements 3.4, 3.5). In the one-at-a-time case the
+            //    surplus is exactly the single oldest active row. The
+            //    derived-table wrapping is the MySQL 5.7-compatible idiom for
+            //    updating a table also selected from. LIMIT/OFFSET are fixed
+            //    internal constants, never caller input.
+            $retire = $this->pdo->prepare(
+                "UPDATE memories SET status = 'retired', retired_at = :retired_at "
+                . 'WHERE id IN ( '
+                . 'SELECT id FROM ( '
+                . 'SELECT id FROM memories '
+                . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                . "AND generation = :generation AND status = 'active' "
+                . 'ORDER BY id ASC '
+                . 'LIMIT 1000 OFFSET ' . self::MEMORY_ACTIVE_CAP . ' '
+                . ') AS surplus '
+                . ')'
+            );
+            $retire->bindValue(':retired_at', $this->now());
+            $retire->bindValue(':robot_id', $memory->robotId);
+            $retire->bindValue(':disaster', $memory->disaster);
+            $retire->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
+            $retire->execute();
+
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('appendMemory failed; rolled back', 0, $e);
+        }
     }
+
+    // --- Reflection slot claim/commit ------------------------------------
 
     public function claimReflectionSlot(string $episodeId, string $robotId): ReflectionClaim
     {
-        throw new \LogicException('not implemented');
+        // Claim the per-episode-per-robot reflection slot in one short
+        // transaction, releasing the row lock at commit long before any AI call
+        // (Requirements 2.8, 2.9, 2.10; design "Reflection idempotency"). The
+        // INSERT ... ON DUPLICATE KEY ensures the row exists so the FOR UPDATE
+        // has something to lock; the locked status then decides the outcome.
+        $this->pdo->beginTransaction();
+        try {
+            $insert = $this->pdo->prepare(
+                'INSERT INTO reflections (episode_id, robot_id, status, claimed_at) '
+                . "VALUES (:episode_id, :robot_id, 'in_progress', :now) "
+                . 'ON DUPLICATE KEY UPDATE episode_id = episode_id'
+            );
+            $insert->bindValue(':episode_id', $episodeId);
+            $insert->bindValue(':robot_id', $robotId);
+            $insert->bindValue(':now', $this->now());
+            $insert->execute();
+            // rowCount() is 1 for a fresh insert, 0 for the no-op on an existing
+            // row (the ON DUPLICATE KEY assigns the same value), so this tells
+            // us whether THIS transaction created the row.
+            $created = $insert->rowCount() === 1;
+
+            $read = $this->pdo->prepare(
+                'SELECT status, answered_memory_id, '
+                . '(claimed_at < (NOW() - INTERVAL :stale SECOND)) AS stale '
+                . 'FROM reflections '
+                . 'WHERE episode_id = :episode_id AND robot_id = :robot_id '
+                . 'FOR UPDATE'
+            );
+            $read->bindValue(':stale', self::REFLECTION_STALE_SECONDS, PDO::PARAM_INT);
+            $read->bindValue(':episode_id', $episodeId);
+            $read->bindValue(':robot_id', $robotId);
+            $read->execute();
+            $row = $read->fetch(PDO::FETCH_ASSOC);
+
+            $status = is_array($row) ? (string) ($row['status'] ?? '') : '';
+            $stale = is_array($row) && (int) ($row['stale'] ?? 0) === 1;
+
+            if ($status === 'answered') {
+                // The robot already answered; the caller reuses the stored body
+                // and makes no AI call (Requirement 2.9). The body is read from
+                // the linked memory inside this same transaction.
+                $answeredId = isset($row['answered_memory_id']) && $row['answered_memory_id'] !== null
+                    ? (int) $row['answered_memory_id']
+                    : null;
+                $body = $answeredId !== null ? $this->memoryBodyById($answeredId) : null;
+                $this->pdo->commit();
+
+                return ReflectionClaim::reuse($body ?? '');
+            }
+
+            if ($created) {
+                // This transaction created the row: we own a fresh claim
+                // (Requirement 2.8). Proceed to the AI call after commit.
+                $this->pdo->commit();
+
+                return ReflectionClaim::claimed();
+            }
+
+            if ($status === 'failed' || ($status === 'in_progress' && $stale)) {
+                // A failed slot, or a stale in-progress whose owner died, is
+                // re-claimable: refresh it to a fresh in-progress and proceed
+                // (Requirement 2.10).
+                $reclaim = $this->pdo->prepare(
+                    "UPDATE reflections SET status = 'in_progress', claimed_at = :now, reason = NULL "
+                    . 'WHERE episode_id = :episode_id AND robot_id = :robot_id'
+                );
+                $reclaim->bindValue(':now', $this->now());
+                $reclaim->bindValue(':episode_id', $episodeId);
+                $reclaim->bindValue(':robot_id', $robotId);
+                $reclaim->execute();
+                $this->pdo->commit();
+
+                return ReflectionClaim::claimed();
+            }
+
+            // A fresh in-progress claim exists and we did not create it: a
+            // concurrent caller owns it, so skip this robot (Requirement 2.9).
+            $this->pdo->commit();
+
+            return ReflectionClaim::skip();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('claimReflectionSlot failed; rolled back', 0, $e);
+        }
     }
 
     public function commitReflectionAnswer(string $episodeId, string $robotId, MemoryRow $memory): void
     {
-        throw new \LogicException('not implemented');
+        // Commit a non-empty reflection answer in one short transaction
+        // (Requirements 2.6, 8.4): append the memory with the cap/retirement
+        // applied in the SAME transaction (serialised per
+        // robot/disaster/generation by the locking read), then mark the slot
+        // 'answered' and link the stored memory. Idempotent per source episode
+        // + robot, so a repeated commit of an already-stored answer creates no
+        // duplicate memory.
+        $this->pdo->beginTransaction();
+        try {
+            $answeredMemoryId = null;
+
+            if ($this->memoryExistsForSource($memory->sourceEpisodeId, $memory->robotId)) {
+                // Already stored (a repeat commit): reuse the existing memory's
+                // id for the slot link and append nothing (Requirement 8.5).
+                $answeredMemoryId = $this->memoryIdForSource($memory->sourceEpisodeId, $memory->robotId);
+            } else {
+                // 1. SERIALISE this triple's active rows (design step 1).
+                $lock = $this->pdo->prepare(
+                    'SELECT id FROM memories '
+                    . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                    . "AND generation = :generation AND status = 'active' "
+                    . 'FOR UPDATE'
+                );
+                $lock->bindValue(':robot_id', $memory->robotId);
+                $lock->bindValue(':disaster', $memory->disaster);
+                $lock->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
+                $lock->execute();
+                $lock->fetchAll();
+
+                // 2. Append the new memory (finish-order seq = auto-increment id).
+                $insert = $this->pdo->prepare(
+                    'INSERT INTO memories '
+                    . '(robot_id, generation, disaster, source_episode_id, body, status, created_at) '
+                    . "VALUES (:robot_id, :generation, :disaster, :source_episode_id, :body, 'active', :created_at)"
+                );
+                $insert->bindValue(':robot_id', $memory->robotId);
+                $insert->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
+                $insert->bindValue(':disaster', $memory->disaster);
+                $insert->bindValue(':source_episode_id', $memory->sourceEpisodeId);
+                $insert->bindValue(':body', $memory->body);
+                $insert->bindValue(':created_at', $memory->createdAt);
+                $insert->execute();
+                $answeredMemoryId = (int) $this->pdo->lastInsertId();
+
+                // 3. Retire oldest-active rows past the 6 newest (id ASC,
+                //    OFFSET 6); kept, not deleted (Requirements 3.4, 3.5).
+                $retire = $this->pdo->prepare(
+                    "UPDATE memories SET status = 'retired', retired_at = :retired_at "
+                    . 'WHERE id IN ( '
+                    . 'SELECT id FROM ( '
+                    . 'SELECT id FROM memories '
+                    . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                    . "AND generation = :generation AND status = 'active' "
+                    . 'ORDER BY id ASC '
+                    . 'LIMIT 1000 OFFSET ' . self::MEMORY_ACTIVE_CAP . ' '
+                    . ') AS surplus '
+                    . ')'
+                );
+                $retire->bindValue(':retired_at', $this->now());
+                $retire->bindValue(':robot_id', $memory->robotId);
+                $retire->bindValue(':disaster', $memory->disaster);
+                $retire->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
+                $retire->execute();
+            }
+
+            // 4. Mark the slot answered so repeat/concurrent calls reuse it.
+            $slot = $this->pdo->prepare(
+                "UPDATE reflections SET status = 'answered', answered_memory_id = :memory_id, reason = NULL "
+                . 'WHERE episode_id = :episode_id AND robot_id = :robot_id'
+            );
+            if ($answeredMemoryId === null) {
+                $slot->bindValue(':memory_id', null, PDO::PARAM_NULL);
+            } else {
+                $slot->bindValue(':memory_id', $answeredMemoryId, PDO::PARAM_INT);
+            }
+            $slot->bindValue(':episode_id', $episodeId);
+            $slot->bindValue(':robot_id', $robotId);
+            $slot->execute();
+
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('commitReflectionAnswer failed; rolled back', 0, $e);
+        }
     }
 
     public function commitReflectionFailure(string $episodeId, string $robotId, string $reason): void
     {
-        throw new \LogicException('not implemented');
+        // Commit a reflection failure in one short transaction (Requirement
+        // 2.10): add no memory, record the short machine reason, and release
+        // the slot to 'failed' so a later reflect call may re-claim and ask
+        // that robot again. The slot row already exists (the claim created it).
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                "UPDATE reflections SET status = 'failed', reason = :reason "
+                . 'WHERE episode_id = :episode_id AND robot_id = :robot_id'
+            );
+            $stmt->bindValue(':reason', $reason);
+            $stmt->bindValue(':episode_id', $episodeId);
+            $stmt->bindValue(':robot_id', $robotId);
+            $stmt->execute();
+
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('commitReflectionFailure failed; rolled back', 0, $e);
+        }
     }
 
     public function reflectionAnswer(string $episodeId, string $robotId): ?MemoryRow
     {
-        throw new \LogicException('not implemented');
+        // The memory stored for this episode+robot when the slot is 'answered',
+        // so the caller reuses it verbatim without a new AI call (Requirements
+        // 2.8, 2.9); null when there is no stored answer. Joined from the slot's
+        // answered_memory_id to the memories row.
+        $stmt = $this->pdo->prepare(
+            'SELECT m.robot_id, m.generation, m.disaster, m.source_episode_id, '
+            . 'm.body, m.status, m.created_at, m.id AS seq, m.retired_at '
+            . 'FROM reflections r '
+            . 'INNER JOIN memories m ON m.id = r.answered_memory_id '
+            . "WHERE r.episode_id = :episode_id AND r.robot_id = :robot_id "
+            . "AND r.status = 'answered'"
+        );
+        $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->execute();
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return new MemoryRow(
+            robotId: (string) ($row['robot_id'] ?? ''),
+            generation: (int) ($row['generation'] ?? 0),
+            disaster: (string) ($row['disaster'] ?? ''),
+            sourceEpisodeId: (string) ($row['source_episode_id'] ?? ''),
+            body: (string) ($row['body'] ?? ''),
+            status: (string) ($row['status'] ?? ''),
+            createdAt: (string) ($row['created_at'] ?? ''),
+            seq: isset($row['seq']) && $row['seq'] !== null ? (int) $row['seq'] : null,
+            retiredAt: isset($row['retired_at']) && $row['retired_at'] !== null
+                ? (string) $row['retired_at']
+                : null,
+        );
+    }
+
+    // --- Internal: memory helpers ----------------------------------------
+
+    /**
+     * True when a memory already exists for this source episode + robot, which
+     * marks the store as already done (idempotency guard, Requirement 8.5).
+     */
+    private function memoryExistsForSource(string $sourceEpisodeId, string $robotId): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM memories '
+            . 'WHERE source_episode_id = :source_episode_id AND robot_id = :robot_id'
+        );
+        $stmt->bindValue(':source_episode_id', $sourceEpisodeId);
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->execute();
+
+        return ((int) $stmt->fetchColumn()) > 0;
+    }
+
+    /**
+     * The id of the memory already stored for this source episode + robot, or
+     * null when there is none (used to relink the slot on a repeat commit).
+     */
+    private function memoryIdForSource(string $sourceEpisodeId, string $robotId): ?int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT id FROM memories '
+            . 'WHERE source_episode_id = :source_episode_id AND robot_id = :robot_id '
+            . 'ORDER BY id ASC LIMIT 1'
+        );
+        $stmt->bindValue(':source_episode_id', $sourceEpisodeId);
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    /**
+     * The verbatim body of one memory by its id, or null when no such row
+     * exists (used to carry the reused body on an 'answered' claim).
+     */
+    private function memoryBodyById(int $id): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT body FROM memories WHERE id = :id');
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false) {
+            return null;
+        }
+
+        return (string) $value;
+    }
+
+    /**
+     * Encode a MemorySnapshot's verbatim bodies as a JSON array string, oldest
+     * first, for storage in a snapshot column. An empty snapshot encodes as
+     * '[]' (never NULL) so a post-feature episode is distinguishable from a
+     * pre-feature one whose column is NULL.
+     */
+    private function encodeSnapshot(MemorySnapshot $snapshot): string
+    {
+        $json = json_encode($snapshot->bodies, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return $json === false ? '[]' : $json;
+    }
+
+    /**
+     * Decode a stored snapshot JSON-array string back into a MemorySnapshot.
+     * Decoded with JSON_THROW_ON_ERROR (PHP 8.2 has no json_validate()); a
+     * malformed snapshot is treated as empty rather than throwing (Requirement
+     * 6.6). Only string entries are kept, preserving order (oldest first).
+     */
+    private function decodeSnapshot(string $json): MemorySnapshot
+    {
+        try {
+            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            return new MemorySnapshot([]);
+        }
+
+        if (!is_array($decoded)) {
+            return new MemorySnapshot([]);
+        }
+
+        $bodies = [];
+        foreach ($decoded as $item) {
+            if (is_string($item)) {
+                $bodies[] = $item;
+            }
+        }
+
+        return new MemorySnapshot($bodies);
     }
 }
