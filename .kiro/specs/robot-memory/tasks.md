@@ -40,14 +40,14 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 3.1, 8.2, 2.5_
 
 - [ ] 3. Memory value objects and row DTOs
-  - [-] 3.1 Implement the value objects in `src/Memory/Values/`:
+  - [x] 3.1 Implement the value objects in `src/Memory/Values/`:
     - `MemoryRow` (readonly: robotId, generation, disaster, sourceEpisodeId, body, status, createdAt, nullable seq, nullable retiredAt)
     - `MemorySnapshot` (readonly: `bodies` string[] oldest first; `isEmpty()`)
     - `ReflectionResult` (readonly: `robots` keyed `robot_a`/`robot_b`) and `RobotReflection` (readonly: answered, nullable memory, activeCount, nullable reason)
     - `MemoryStatus` (readonly: generation, amberActiveCount, amberLengths int[], jadeActiveCount, jadeLengths int[])
     - `ReflectionClaim` (the claim outcome: `claimed` | `reuse` | `skip`, plus the reused body when `reuse`)
     - _Requirements: 2.6, 3.7, 5.2, 6.1_
-  - [ ]* 3.2 Write unit tests in `tests/Memory/Values/` for round-trip construction of each value object; `MemorySnapshot::isEmpty()`; `RobotReflection` carries a reason only when not answered
+  - [x]* 3.2 Write unit tests in `tests/Memory/Values/` for round-trip construction of each value object; `MemorySnapshot::isEmpty()`; `RobotReflection` carries a reason only when not answered
     - _Requirements: 2.6, 3.7, 5.2_
 
 - [ ] 4. EpisodeRepository additions — interface, in-memory fake, and PDO implementation
