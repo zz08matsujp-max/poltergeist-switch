@@ -51,7 +51,7 @@ final class ClaudeRecorderClient implements RecorderClient
      * whenever {@see instructionText()} or the generated prompt changes, so the
      * stored reading always carries the version of the prompt that produced it.
      */
-    private const PROMPT_VERSION = 'recorder-2b';
+    private const PROMPT_VERSION = 'recorder-2c';
 
     private string $apiKey;
 
@@ -252,8 +252,9 @@ final class ClaudeRecorderClient implements RecorderClient
     private function instructionText(): string
     {
         // The exact text between the two `---` lines in
-        // docs/en/recorder-prompt-v2.md. The prompt body is unchanged at
-        // recorder-2b (only the request parameters changed — no temperature).
+        // docs/en/recorder-prompt-v2.md (recorder-2c). The move bullet now
+        // references the "current room" given in the ids-only input so a
+        // same-room spot move names the correct room.
         // A nowdoc so nothing is interpolated; copied character-for-character.
         // A permanent test (RecorderClientTest) asserts this equals that doc
         // block.
@@ -270,7 +271,7 @@ Rules:
 7. If the robot only speaks and does nothing physical, operation is null. If it explicitly stays still and does nothing, operation is "wait".
 
 Operations (use only the ids given below):
-- move: go to another room (targetId = a room key), or to a spot in its own room (targetId = its own room key, targetSpot = a spot name; "near_resident" means next to the man).
+- move: go to another room (targetId = a room key), or to a spot in the room it is in now (targetId = the "current room" given below, targetSpot = a spot name; "near_resident" means next to the man).
 - take: pick up an object (targetId = an object id).
 - use: operate an object, such as turning it on or off (targetId = an object id, which may be the held object).
 - hand_over: give the held object to the man (targetId = the held object id).
@@ -287,8 +288,9 @@ PROMPT;
 
     /**
      * Compose the single user message: the fixed instruction, the ids-only
-     * input (operation names, room keys, this room's object ids, the held
-     * object id, the spot names, the resident id), and the reply to read.
+     * input (operation names, room keys, the robot's current room key, this
+     * room's object ids, the held object id, the spot names, the resident id),
+     * and the reply to read.
      */
     private function userMessage(RecorderInput $input, string $reply): string
     {
@@ -297,6 +299,7 @@ PROMPT;
         $lines[] = '';
         $lines[] = 'operations: ' . implode(', ', $input->operationNames);
         $lines[] = 'rooms: ' . implode(', ', $input->roomKeys);
+        $lines[] = 'current room: ' . $input->currentRoom;
         $lines[] = 'objects: ' . implode(', ', $input->roomObjectIds);
         $lines[] = 'held: ' . ($input->heldObjectId ?? 'none');
         $lines[] = 'spots: ' . implode(', ', $input->spotNames);

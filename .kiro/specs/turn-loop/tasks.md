@@ -224,8 +224,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Add tests with fenced (```json) and prose-wrapped JSON
     - _Requirements: 3.6_
 
-- [ ] 21. Recorder knows the current room (recorder-2c)
-  - [ ] 21.1 Give the recorder the robot's current room:
+- [x] 21. Recorder knows the current room (recorder-2c)
+  - [x] 21.1 Give the recorder the robot's current room:
     - Add the robot's current room key to `RecorderInput` and emit a `current room: <key>` line in the input block; update turn-loop Requirement 3.4
     - Copy the edited instruction text from `docs/en/recorder-prompt-v2.md` into `ClaudeRecorderClient` exactly and set `PROMPT_VERSION` to `recorder-2c`
     - _Requirements: 3.4_

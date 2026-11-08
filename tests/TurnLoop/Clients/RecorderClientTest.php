@@ -122,6 +122,37 @@ class RecorderClientTest extends TestCase
         $this->assertNull($input->heldObjectId);
     }
 
+    public function testRecorderInputCarriesTheRobotsCurrentRoom(): void
+    {
+        // recorder-2c: the recorder is given the robot's current room key so a
+        // same-room spot move names the correct room instead of defaulting to
+        // another one.
+        $world = new WorldModel();
+        $world->reset(Seed::fromInt(2024));
+        $world->robotStates['robot_a']->room = 'bedroom';
+
+        $input = RecorderInput::forRobot($world, 'robot_a');
+
+        $this->assertSame('bedroom', $input->currentRoom);
+    }
+
+    public function testRecorderInputBlockNamesTheCurrentRoom(): void
+    {
+        // The ids-only input block emits a `current room: <key>` line with the
+        // robot's actual room (recorder-2c).
+        $world = new WorldModel();
+        $world->reset(Seed::fromInt(2024));
+        $world->robotStates['robot_a']->room = 'bedroom';
+
+        $input = RecorderInput::forRobot($world, 'robot_a');
+
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $decoded = $client->requestBody($input, 'I kneel beside the futon.');
+        $content = $decoded['messages'][0]['content'];
+
+        $this->assertStringContainsString("\ncurrent room: bedroom\n", $content);
+    }
+
     // ---------- ReadingMapper classification (Requirement 3.3) ----------
 
     public function testMapsSpeakOnlyToSpeakCarryingSpokenLines(): void
@@ -415,10 +446,10 @@ class RecorderClientTest extends TestCase
         $this->assertNotSame('', $client->promptVersion());
     }
 
-    public function testPromptVersionIsRecorderTwoB(): void
+    public function testPromptVersionIsRecorderTwoC(): void
     {
         $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
-        $this->assertSame('recorder-2b', $client->promptVersion());
+        $this->assertSame('recorder-2c', $client->promptVersion());
     }
 
     /**

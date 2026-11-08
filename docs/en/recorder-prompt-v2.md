@@ -1,4 +1,6 @@
-# Recorder prompt v2 (recorder-2, 2026-11-08)
+# Recorder prompt v2 (recorder-2c, 2026-11-08)
+
+History: recorder-2 (first version) → recorder-2b (no temperature; the model rejects it) → recorder-2c (the robot's current room is given, so a move to a spot in the same room names that room; found on the first real run).
 
 Written by Claude from the reading rules that were used by hand on the turn-2 pilot (house-rules-engine Requirement 12.6), at the maintainer's request. `ClaudeRecorderClient` sends the text between the two lines below, followed by the ids-only input and the reply. Bump the version whenever this text changes.
 
@@ -15,7 +17,7 @@ Rules:
 7. If the robot only speaks and does nothing physical, operation is null. If it explicitly stays still and does nothing, operation is "wait".
 
 Operations (use only the ids given below):
-- move: go to another room (targetId = a room key), or to a spot in its own room (targetId = its own room key, targetSpot = a spot name; "near_resident" means next to the man).
+- move: go to another room (targetId = a room key), or to a spot in the room it is in now (targetId = the "current room" given below, targetSpot = a spot name; "near_resident" means next to the man).
 - take: pick up an object (targetId = an object id).
 - use: operate an object, such as turning it on or off (targetId = an object id, which may be the held object).
 - hand_over: give the held object to the man (targetId = the held object id).
