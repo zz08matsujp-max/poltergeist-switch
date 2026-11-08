@@ -429,6 +429,39 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         }
     }
 
+    // --- Ended-episode list (screens spec) -------------------------------
+
+    public function listEndedEpisodes(int $limit): array
+    {
+        // Only ended episodes (Requirement 11.1), ordered by created date
+        // descending then id descending for ties (Requirement 11.2), capped at
+        // $limit. Mirrors the PDO query 'WHERE ended = 1 ORDER BY created_at
+        // DESC, id DESC LIMIT :limit' so TurnService/EpisodeListService behaves
+        // identically against either store.
+        $ended = [];
+        foreach ($this->episodes as $episode) {
+            if ($episode->ended) {
+                $ended[] = $episode;
+            }
+        }
+
+        usort($ended, static function (EpisodeRow $a, EpisodeRow $b): int {
+            // Created date descending; id descending for a tie.
+            $byDate = strcmp($b->createdAt, $a->createdAt);
+            if ($byDate !== 0) {
+                return $byDate;
+            }
+
+            return strcmp($b->id, $a->id);
+        });
+
+        if ($limit >= 0 && count($ended) > $limit) {
+            $ended = array_slice($ended, 0, $limit);
+        }
+
+        return $ended;
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView

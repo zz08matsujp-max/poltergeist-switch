@@ -516,6 +516,35 @@ final class PdoEpisodeRepository implements EpisodeRepository
         }
     }
 
+    // --- Ended-episode list (screens spec) -------------------------------
+
+    public function listEndedEpisodes(int $limit): array
+    {
+        // Only ended episodes, newest-created first with id descending for
+        // ties (screens spec Requirements 11.1, 11.2). The limit is bound as a
+        // parameter, never interpolated; the caller has already validated it to
+        // 1–100 (Requirement 11.6), and it is cast to int here defensively.
+        $sql = 'SELECT * FROM episodes '
+            . 'WHERE ended = 1 '
+            . 'ORDER BY created_at DESC, id DESC '
+            . 'LIMIT :limit';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':limit', (int) $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $episodes = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $episodes[] = $this->episodeRowFrom($row);
+        }
+
+        return $episodes;
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView

@@ -430,6 +430,11 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         return $this->inner->loadAppliedActionsForReplay($episodeId);
     }
 
+    public function listEndedEpisodes(int $limit): array
+    {
+        return $this->inner->listEndedEpisodes($limit);
+    }
+
     public function loadTurnWorldJson(string $episodeId): array
     {
         return $this->inner->loadTurnWorldJson($episodeId);

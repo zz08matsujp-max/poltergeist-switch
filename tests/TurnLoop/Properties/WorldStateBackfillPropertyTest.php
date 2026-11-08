@@ -626,6 +626,11 @@ final class WorldJsonOverrideRepository implements EpisodeRepository
         return $this->inner->loadAppliedActionsForReplay($episodeId);
     }
 
+    public function listEndedEpisodes(int $limit): array
+    {
+        return $this->inner->listEndedEpisodes($limit);
+    }
+
     public function storeAppliedTurn(AppliedTurnRows $rows): void
     {
         $this->inner->storeAppliedTurn($rows);

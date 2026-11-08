@@ -59,7 +59,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 10.1, 10.2, 10.4, 10.5_
 
 - [ ] 4. Ended-episode list endpoint
-  - [~] 4.1 Implement `EpisodeListService` in `src/TurnLoop/EpisodeListService.php` (plain PHP)
+  - [x] 4.1 Implement `EpisodeListService` in `src/TurnLoop/EpisodeListService.php` (plain PHP)
     - Return only episodes whose `ended` is true, ordered by created date descending then id descending (Req 11.1, 11.2); for each item return `{ id, createdDate, turns, startingSituation }` — id, created date, number of turns as a non-negative integer, and the starting-situation one-liner (Req 11.3)
     - Validate `limit`: an integer 1–100 inclusive caps the count; absent → default 20; not an integer, `< 1`, or `> 100` → reject with an out-of-range error and return no list (Req 11.4, 11.5, 11.6)
     - Select only the four fields; include no device id, API key, database credential, or AI provider name (Req 11.7); no ended episodes → an empty list (Req 11.8)

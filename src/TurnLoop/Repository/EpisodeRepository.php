@@ -186,6 +186,26 @@ interface EpisodeRepository
      */
     public function fillMissingWorldJson(string $episodeId, array $worldByTurn): void;
 
+    // --- Ended-episode list (screens spec) -------------------------------
+
+    /**
+     * Return the ended episodes for the Replay_Screen's list, ordered by
+     * created date descending and, for ties, by id descending, capped at
+     * $limit (screens spec Requirements 11.1, 11.2). Only episodes whose
+     * `ended` is true are returned; every not-ended episode is excluded. The
+     * query is `WHERE ended = 1 ORDER BY created_at DESC, id DESC LIMIT :limit`
+     * with the limit bound as a parameter, never interpolated.
+     *
+     * The caller (EpisodeListService) validates $limit (1–100) before calling,
+     * so an out-of-range limit never reaches the query (Requirement 11.6). The
+     * rows carry no device id, key, credential, or provider name beyond the
+     * EpisodeRow DTO; the service reads only id and created date from them
+     * (Requirement 11.7).
+     *
+     * @return EpisodeRow[] the ended episodes, newest first, at most $limit
+     */
+    public function listEndedEpisodes(int $limit): array;
+
     // --- View -------------------------------------------------------------
 
     /**

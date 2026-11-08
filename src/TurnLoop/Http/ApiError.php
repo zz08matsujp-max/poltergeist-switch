@@ -24,7 +24,7 @@ namespace PoltergeistSwitch\TurnLoop\Http;
 final class ApiError extends \RuntimeException
 {
     public function __construct(
-        public readonly int $status,       // HTTP status: 404, 409, or 500
+        public readonly int $status,       // HTTP status: 400, 404, 409, or 500
         public readonly string $errorCode, // short machine code, e.g. 'turn_mismatch'
         public readonly ?int $currentExpectedTurn = null,
         public readonly ?string $turnState = null,
@@ -52,6 +52,18 @@ final class ApiError extends \RuntimeException
     public static function notFound(string $code = 'episode_not_found'): self
     {
         return new self(404, $code);
+    }
+
+    /**
+     * Reject a request with HTTP 400 Bad Request because a query parameter is
+     * out of range — used for the ended-episode list's `limit` when it is not
+     * an integer, is less than 1, or is greater than 100 (screens spec
+     * Requirement 11.6). No episode state is carried; the body is just the
+     * machine code (default 'limit_out_of_range'), and no list is returned.
+     */
+    public static function outOfRange(string $code = 'limit_out_of_range'): self
+    {
+        return new self(400, $code);
     }
 
     /**
