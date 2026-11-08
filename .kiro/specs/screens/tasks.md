@@ -119,7 +119,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - End every turn by calling `houseRenderer.setWorld(turnWorldState)` so every character ends at the recorded position, even for impossible or unknown actions (Req 3.8, 3.9)
     - Under reduced motion, stop the shaking and walking animation and set each character's position directly within 100 ms with no intermediate frames (Req 12.6)
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 9.12, 1.7, 12.6_
-  - [~] 8.2 Implement `voices.js`
+  - [x] 8.2 Implement `voices.js`
     - Use the browser's Web Speech API with a distinct voice, pitch, and rate per character (Amber, Jade, the man) (Req 3.11); read each spoken line aloud in the stored order when Voices are on and read nothing while off (Req 3.4, 3.10); for a Japanese line use a Japanese voice when available, else fall back to `lang = 'ja-JP'` (Req 3.12); never speak a thought (Req 3.13); unlock playback on the first user gesture
     - _Requirements: 3.11, 3.12, 3.13, 3.4, 3.10_
 
