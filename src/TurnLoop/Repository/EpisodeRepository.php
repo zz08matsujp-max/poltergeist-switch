@@ -8,6 +8,7 @@ use PoltergeistSwitch\TurnLoop\Values\AppliedTurnRows;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
 use PoltergeistSwitch\TurnLoop\Values\PromptReplyRow;
+use PoltergeistSwitch\TurnLoop\Values\ReplyRecord;
 use PoltergeistSwitch\TurnLoop\Values\TurnRow;
 
 /**
@@ -93,6 +94,14 @@ interface EpisodeRepository
      * 8.3, 8.4, 11.6).
      */
     public function savePromptAndReply(PromptReplyRow $row): void;
+
+    /**
+     * Return the robot's stored successful reply for a turn, or null when it
+     * has none. A robot with a stored successful reply is reused and never
+     * called again across repeated ask calls (Requirements 5.2, 5.3). The
+     * highest-numbered answered attempt wins when more than one is stored.
+     */
+    public function findSuccessfulReply(string $episodeId, int $turnNumber, string $robotId): ?ReplyRecord;
 
     /**
      * Increment a robot's attempt count for a turn and return the new count;

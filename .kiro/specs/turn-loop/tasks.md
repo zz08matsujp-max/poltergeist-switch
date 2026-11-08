@@ -134,15 +134,15 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Two episodes with the same seed produce identical initial situations; second episode for the same device → 409; sixth running episode → 409; repeated flip leaves the start turn unchanged; flip on an ended episode → 409
     - _Requirements: 4.3, 4.5, 4.6, 9.8, 9.9_
 
-- [ ] 11. TurnService — ask
-  - [ ] 11.1 Implement `TurnService::ask` in `src/TurnLoop/TurnService.php` (**requires engine tasks 28/29**):
+- [x] 11. TurnService — ask
+  - [x] 11.1 Implement `TurnService::ask` in `src/TurnLoop/TurnService.php` (**requires engine tasks 28/29**):
     - Rehydrate the episode's `Engine` via `ReplayEngineFactory`; reject with 409 on turn-number mismatch, ended episode, or a turn already `applied`
     - Call `Engine::prepareTurn($turnNumber)` once before building either robot's text; for each robot with no stored successful reply and fewer than 2 attempts, build its text with `Engine::situationTextFor($robotId)` (no memories) and stage a prepared curl handle
     - Fire the staged robots in parallel through one `curl_multi` handle; as each reply arrives, store it and its prompt with the situation-text version from `Engine::situationTextVersion()`, and increment the robot's attempt count (persisted across repeated `ask` calls)
     - Reuse a robot with a stored successful reply (never call it again); count a failed/abandoned attempt without retrying in this request; at 2 failed attempts with no success, mark the robot no reply and set its recorded action to `unknown`
     - When every robot is answered or marked no reply, set the turn's state to `replies_complete`; otherwise leave it `waiting`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 4.7, 11.5, 11.6, 12.4, 8.3_
-  - [ ]* 11.2 Write unit tests in `tests/TurnLoop/TurnServiceAskTest.php` using fakes:
+  - [x]* 11.2 Write unit tests in `tests/TurnLoop/TurnServiceAskTest.php` using fakes:
     - A single `ask` calls both fakes once; a second `ask` with both successes calls neither; a robot with one stored success is reused and only the missing robot is called; a robot that fails twice is marked no reply with action `unknown`; the stored prompt carries the situation-text version
     - _Requirements: 5.2, 5.3, 5.6, 5.7, 8.3_
 

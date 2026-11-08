@@ -17,6 +17,7 @@ use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
 use PoltergeistSwitch\TurnLoop\Values\PromptReplyRow;
 use PoltergeistSwitch\TurnLoop\Values\Reading;
+use PoltergeistSwitch\TurnLoop\Values\ReplyRecord;
 use PoltergeistSwitch\TurnLoop\Values\RobotFourLayers;
 use PoltergeistSwitch\TurnLoop\Values\TurnRow;
 use PoltergeistSwitch\TurnLoop\Values\TurnStateValue;
@@ -206,6 +207,49 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
     {
         $key = $this->attemptKey($row->episodeId, $row->turnNumber, $row->robotId, $row->attempt);
         $this->promptReplies[$key] = $row;
+    }
+
+    /**
+     * Test-only introspection: every stored prompt/reply attempt for one robot
+     * on one turn, in attempt order. Lets a unit test assert that the stored
+     * prompt carries the situation-text version (Requirement 8.3).
+     *
+     * @return PromptReplyRow[]
+     */
+    public function storedAttempts(string $episodeId, int $turnNumber, string $robotId): array
+    {
+        $rows = [];
+        foreach ($this->promptReplies as $pr) {
+            if ($pr->episodeId === $episodeId
+                && $pr->turnNumber === $turnNumber
+                && $pr->robotId === $robotId
+            ) {
+                $rows[] = $pr;
+            }
+        }
+        usort($rows, static fn (PromptReplyRow $a, PromptReplyRow $b): int => $a->attempt <=> $b->attempt);
+
+        return $rows;
+    }
+
+    public function findSuccessfulReply(string $episodeId, int $turnNumber, string $robotId): ?ReplyRecord
+    {
+        $best = null;
+        $bestAttempt = -1;
+        foreach ($this->promptReplies as $pr) {
+            if ($pr->episodeId !== $episodeId
+                || $pr->turnNumber !== $turnNumber
+                || $pr->robotId !== $robotId
+            ) {
+                continue;
+            }
+            if (!$pr->reply->unanswered && $pr->attempt > $bestAttempt) {
+                $best = $pr->reply;
+                $bestAttempt = $pr->attempt;
+            }
+        }
+
+        return $best;
     }
 
     public function incrementAttempt(string $episodeId, int $turnNumber, string $robotId): int

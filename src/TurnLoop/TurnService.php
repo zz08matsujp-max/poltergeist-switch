@@ -11,6 +11,8 @@ use PoltergeistSwitch\TurnLoop\Repository\EpisodeRepository;
 use PoltergeistSwitch\TurnLoop\Values\AppliedTurnRows;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
+use PoltergeistSwitch\TurnLoop\Values\PromptReplyRow;
+use PoltergeistSwitch\TurnLoop\Values\TurnRow;
 use PoltergeistSwitch\TurnLoop\Values\TurnStateValue;
 
 /**
@@ -31,6 +33,8 @@ class TurnService
     private const ROBOT_A = 'robot_a';
     private const ROBOT_B = 'robot_b';
 
+    private ParallelHttp $parallel;
+
     public function __construct(
         private RobotClient $robotA,          // ClaudeClient in production
         private RobotClient $robotB,          // GptClient in production
@@ -38,7 +42,10 @@ class TurnService
         private EngineFactory $engineFactory, // builds/rehydrates an Engine for an episode
         private EpisodeRepository $repo,
         private Config $config,
-    ) {}
+        ?ParallelHttp $parallel = null,       // fans both robots out through one curl_multi (Req 5.1)
+    ) {
+        $this->parallel = $parallel ?? new ParallelHttp();
+    }
 
     /**
      * Create a new earthquake episode and return its view (Requirement 4.1–4.3,
@@ -179,6 +186,170 @@ class TurnService
         }
 
         return $this->view($episodeId);
+    }
+
+    /**
+     * Build each robot's situation text and collect both replies idempotently
+     * (Requirement 5), for a turn whose Turn_State is `waiting`.
+     *
+     * The engine is rehydrated by replay (Requirement 13.1). The request is
+     * rejected with HTTP 409 when the turn number does not equal the episode's
+     * current expected turn, when the episode has ended, or when the turn is
+     * already `applied` (Requirement 7); an unknown episode id is a 404 raised
+     * by findEpisode's null (Requirement 9.5).
+     *
+     * Engine::prepareTurn is called ONCE before building either robot's text so
+     * the text a robot reads and the world its action is later judged in are
+     * the same turn's world (Requirements 11.5, 12.4). Only robots that have no
+     * stored successful reply AND fewer than 2 attempts are called; each is
+     * built with Engine::situationTextFor (no memories — Requirement 4.7) and a
+     * prepared curl handle, then all staged robots are fired in parallel
+     * through one curl_multi handle (Requirement 5.1).
+     *
+     * As each reply arrives it is stored with its prompt and the situation-text
+     * version from Engine::situationTextVersion (Requirements 8.3, 11.6) and the
+     * robot's attempt count is incremented (persisted across repeated ask calls
+     * — Requirement 5.4). A robot with a stored success is reused and never
+     * called again (Requirements 5.2, 5.3). A failed or abandoned attempt is
+     * counted without a retry in this request (Requirement 5.5). A robot that
+     * reaches 2 failed attempts with no success is marked no reply
+     * (Requirement 5.6). When every robot is answered or marked no reply the
+     * turn becomes `replies_complete`; otherwise it stays `waiting`
+     * (Requirements 5.7, 5.8).
+     */
+    public function ask(string $episodeId, int $turnNumber): EpisodeView
+    {
+        $episode = $this->repo->findEpisode($episodeId);
+        if ($episode === null) {
+            throw ApiError::notFound();
+        }
+
+        // Turn-number / ended / already-applied gate (Requirement 7).
+        if ($episode->ended) {
+            throw ApiError::conflict(
+                'episode_ended',
+                $episode->currentExpectedTurn,
+                $this->currentTurnState($episodeId, $episode->currentExpectedTurn),
+            );
+        }
+        if ($turnNumber !== $episode->currentExpectedTurn) {
+            throw ApiError::conflict(
+                'turn_mismatch',
+                $episode->currentExpectedTurn,
+                $this->currentTurnState($episodeId, $episode->currentExpectedTurn),
+            );
+        }
+
+        $turn = $this->repo->findTurn($episodeId, $turnNumber);
+        if ($turn !== null && $turn->state === TurnStateValue::applied) {
+            // ask on an already-applied turn is a wrong-state call (Req 7.7).
+            throw ApiError::conflict('turn_applied', $episode->currentExpectedTurn, $turn->state->value);
+        }
+
+        // Create the turn row (state `waiting`) before staging. createTurn is
+        // idempotent, so a repeated ask never resets the attempt counts.
+        if ($turn === null) {
+            $this->repo->createTurn($episodeId, $turnNumber);
+            $turn = $this->repo->findTurn($episodeId, $turnNumber);
+        }
+
+        // Rehydrate the engine and prepare the turn ONCE before building either
+        // robot's text (Requirements 11.5, 12.4).
+        $engine = $this->engineFactory->forEpisode($episodeId);
+        $engine->prepareTurn($turnNumber);
+        $version = $engine->situationTextVersion();
+
+        // Stage only the robots that still need a call: no stored successful
+        // reply AND fewer than 2 attempts (Requirements 5.2, 5.3, 5.4).
+        $clients = [self::ROBOT_A => $this->robotA, self::ROBOT_B => $this->robotB];
+
+        /** @var array<string,\CurlHandle> $handles */
+        $handles = [];
+        /** @var array<string,string> $prompts */
+        $prompts = [];
+        foreach ($clients as $robotId => $client) {
+            if ($this->repo->findSuccessfulReply($episodeId, $turnNumber, $robotId) !== null) {
+                continue; // reuse the stored success; never call again (Req 5.2, 5.3)
+            }
+            if ($this->attemptsFor($turn, $robotId) >= 2) {
+                continue; // attempts spent; counted already, no retry (Req 5.5)
+            }
+
+            $prompt = $engine->situationTextFor($robotId); // no memories (Req 4.7)
+            $prompts[$robotId] = $prompt;
+            $handles[$robotId] = $client->prepare($prompt);
+        }
+
+        // Fire the staged robots in parallel through one curl_multi handle
+        // (Requirement 5.1); no retry inside this request (Requirement 5.5).
+        $results = $this->parallel->run($handles);
+
+        foreach ($handles as $robotId => $handle) {
+            $client = $clients[$robotId];
+            $result = $results[$robotId] ?? ['status' => 0, 'body' => null, 'seconds' => 0.0, 'error' => 'no_result'];
+            $record = $client->finish($prompts[$robotId], $result);
+
+            // Count the attempt (persisted across ask calls — Requirement 5.4).
+            $attempt = $this->repo->incrementAttempt($episodeId, $turnNumber, $robotId);
+
+            // Store the prompt and the reply with the situation-text version
+            // (Requirements 8.3, 11.6). A failed/abandoned attempt is stored as
+            // an unanswered record and simply counted (Requirement 5.5).
+            $this->repo->savePromptAndReply(new PromptReplyRow(
+                episodeId: $episodeId,
+                turnNumber: $turnNumber,
+                robotId: $robotId,
+                attempt: $attempt,
+                situationTextVersion: $version,
+                reply: $record,
+            ));
+
+            // No explicit curl_close: it has no effect since PHP 8.0 (and is
+            // deprecated from 8.5), so the handle is freed when $handle goes
+            // out of scope at the end of this request.
+            unset($handle);
+        }
+
+        // Reload the turn so the fresh attempt counts drive the no-reply and
+        // completion decisions below.
+        $turn = $this->repo->findTurn($episodeId, $turnNumber);
+
+        // A robot with 2 spent attempts and no stored success is marked no
+        // reply (Requirement 5.6). Its recorded action becomes `unknown` at
+        // apply time, when a no-reply robot contributes an unknown action.
+        $allSettled = true;
+        foreach ($clients as $robotId => $client) {
+            if ($this->repo->findSuccessfulReply($episodeId, $turnNumber, $robotId) !== null) {
+                continue; // answered
+            }
+            if ($this->attemptsFor($turn, $robotId) >= 2) {
+                $this->repo->markNoReply($episodeId, $turnNumber, $robotId);
+
+                continue; // settled as no reply
+            }
+            $allSettled = false; // still has attempts left; stay `waiting`
+        }
+
+        // When every robot is answered or marked no reply, advance to
+        // `replies_complete`; otherwise leave the turn `waiting` (Req 5.7, 5.8).
+        if ($allSettled) {
+            $this->repo->setTurnState($episodeId, $turnNumber, TurnStateValue::replies_complete->value);
+        }
+
+        return $this->view($episodeId);
+    }
+
+    /**
+     * The robot's persisted attempt count on a turn, 0 when the turn row is
+     * missing. robot_a reads attemptsA, robot_b reads attemptsB.
+     */
+    private function attemptsFor(?TurnRow $turn, string $robotId): int
+    {
+        if ($turn === null) {
+            return 0;
+        }
+
+        return $robotId === self::ROBOT_A ? $turn->attemptsA : $turn->attemptsB;
     }
 
     /**

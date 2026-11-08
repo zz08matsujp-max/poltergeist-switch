@@ -17,6 +17,7 @@ use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
 use PoltergeistSwitch\TurnLoop\Values\PromptReplyRow;
 use PoltergeistSwitch\TurnLoop\Values\Reading;
+use PoltergeistSwitch\TurnLoop\Values\ReplyRecord;
 use PoltergeistSwitch\TurnLoop\Values\RobotFourLayers;
 use PoltergeistSwitch\TurnLoop\Values\TurnRow;
 use PoltergeistSwitch\TurnLoop\Values\TurnStateValue;
@@ -237,6 +238,43 @@ final class PdoEpisodeRepository implements EpisodeRepository
         // (usage + flags) is one row per attempt.
         $this->upsertPrompt($row);
         $this->upsertResponse($row);
+    }
+
+    public function findSuccessfulReply(string $episodeId, int $turnNumber, string $robotId): ?ReplyRecord
+    {
+        // The highest-numbered answered attempt wins (Requirements 5.2, 5.3).
+        // The prompt text lives in the prompts table, one row per robot per
+        // turn, joined here so the returned record carries the full prompt.
+        $stmt = $this->pdo->prepare(
+            'SELECT r.reply_text, r.input_tokens, r.output_tokens, r.seconds, '
+            . 'r.cost, r.truncated, p.prompt_text '
+            . 'FROM responses r '
+            . 'LEFT JOIN prompts p ON p.episode_id = r.episode_id '
+            . 'AND p.turn_number = r.turn_number AND p.robot_id = r.robot_id '
+            . 'WHERE r.episode_id = :episode_id AND r.turn_number = :turn_number '
+            . 'AND r.robot_id = :robot_id AND r.unanswered = 0 '
+            . 'ORDER BY r.attempt DESC LIMIT 1'
+        );
+        $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->bindValue(':turn_number', $turnNumber, PDO::PARAM_INT);
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->execute();
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return new ReplyRecord(
+            prompt: (string) ($row['prompt_text'] ?? ''),
+            reply: (string) ($row['reply_text'] ?? ''),
+            inputTokens: (int) ($row['input_tokens'] ?? 0),
+            outputTokens: (int) ($row['output_tokens'] ?? 0),
+            seconds: (float) ($row['seconds'] ?? 0.0),
+            cost: (float) ($row['cost'] ?? 0.0),
+            unanswered: false,
+            truncated: (bool) (int) ($row['truncated'] ?? 0),
+        );
     }
 
     public function incrementAttempt(string $episodeId, int $turnNumber, string $robotId): int
