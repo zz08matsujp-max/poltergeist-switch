@@ -1,0 +1,29 @@
+{
+  "pbtResults": {
+    "2.2 Write the required round-trip property test in `tests/TurnLoop/Properties/WorldStateRoundTripTest.php`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794124264262
+    }
+  },
+  "executionHistory": {
+    "1. SQL migration adding the per-turn stored world": [
+      {
+        "executionId": "4355f044-80d4-4e5d-83ea-6d14089784ad",
+        "chatSessionId": "sess_8565492f-26d9-4c1f-9f23-d9c8984dff5a",
+        "timestamp": 1794123691849
+      }
+    ],
+    "2. WorldStateSerializer (plain PHP, no I/O)": [
+      {
+        "executionId": "d1b0b83b-cdf5-4f86-8c1e-0ab24c8f256c",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794123976607
+      },
+      {
+        "executionId": "d1b0b83b-cdf5-4f86-8c1e-0ab24c8f256c",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124293360
+      }
+    ]
+  }
+}

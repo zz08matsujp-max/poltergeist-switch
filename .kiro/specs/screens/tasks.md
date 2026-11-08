@@ -20,13 +20,13 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - No secret, credential, or provider name anywhere in the file
     - _Requirements: 10.9_
 
-- [ ] 2. WorldStateSerializer (plain PHP, no I/O)
-  - [ ] 2.1 Implement `WorldStateSerializer` in `src/TurnLoop/WorldStateSerializer.php`
+- [x] 2. WorldStateSerializer (plain PHP, no I/O)
+  - [x] 2.1 Implement `WorldStateSerializer` in `src/TurnLoop/WorldStateSerializer.php`
     - Pure mapper between the engine `WorldModel` and the World_State array: `toArray(WorldModel $w): array` reading only public engine state — `timeOfDay`, `power->value`, `shaking`; each `RobotState`'s `room`, `spot`, `heldObjectId` (as `held`) keyed `robot_a`/`robot_b`; the man's `room`, `spot`, `activity`, `bodyTemp`, `water`, `injury`, `fear`, `weakened`, and `covered` (from `coverFlag`); each `Room`'s `lightLevel->value` under `rooms[key].light`; `objects.broken`/`objects.fallen` as the object ids with those flags true in the fixed room order; and `stove.on` from `objects['gas_stove']->on`
     - `toJson(WorldModel $w): string` = `json_encode(toArray($w))` with `JSON_UNESCAPED_UNICODE` so the stored string round-trips verbatim; read-back parses to the same array
     - Run `php -l` on the new file; PHP 8.2 features only
     - _Requirements: 10.3, 10.6_
-  - [ ] 2.2 Write the required round-trip property test in `tests/TurnLoop/Properties/WorldStateRoundTripTest.php`
+  - [x] 2.2 Write the required round-trip property test in `tests/TurnLoop/Properties/WorldStateRoundTripTest.php`
     - **Property 1: World_State round-trip**
     - **Validates: Requirements 10.6, 10.3**
     - Generate random valid `WorldModel`s (random robot rooms/spots/held, man room/spot/activity/state, power, shaking, time of day, per-room light, broken/fallen sets, stove), serialise and read back, and assert every Requirement-10.3 field equals the value written with no field added, dropped, or altered; use `Eris\TestTrait` with `->limitTo(100)`, tagged `Feature: screens, Property 1: World_State round-trip`
