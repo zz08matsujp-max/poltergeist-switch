@@ -51,11 +51,11 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Required, not optional (decided by the maintainer on 2026-11-08): these tests guard the API keys
     - _Requirements: 2.4, 2.5, 2.6, 1.12_
 
-- [ ] 4. ParallelHttp helper
-  - [ ] 4.1 Implement `ParallelHttp` in `src/TurnLoop/ParallelHttp.php`:
+- [x] 4. ParallelHttp helper
+  - [x] 4.1 Implement `ParallelHttp` in `src/TurnLoop/ParallelHttp.php`:
     - Wrap `curl_multi_init` / `curl_multi_add_handle` / `curl_multi_exec` so each client contributes a configured `CurlHandle` and receives its own result array `{status, body, seconds, error}`, with `CURLOPT_TIMEOUT` set to the configured per-call timeout; no retry inside one request
     - _Requirements: 1.6, 1.7, 5.1, 6.2_
-  - [ ]* 4.2 Write unit tests in `tests/TurnLoop/ParallelHttpTest.php` exercising the result-shaping against prepared handles (no real network; local handles or stub handles), asserting a timed-out/errored handle yields `error` set
+  - [x]* 4.2 Write unit tests in `tests/TurnLoop/ParallelHttpTest.php` exercising the result-shaping against prepared handles (no real network; local handles or stub handles), asserting a timed-out/errored handle yields `error` set
     - _Requirements: 1.6, 1.7_
 
 - [ ] 5. RobotClient interface and the two providers plus the fake
