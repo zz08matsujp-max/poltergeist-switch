@@ -87,7 +87,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 9.6, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.10, 1.11_
   - [x] 5.3 Write a golden test in `tests/Engine/ReflectionTextVersionTest.php` asserting `ReflectionTextBuilder::REFLECTION_TEXT_VERSION === 'reflection-text-2026-11-09'` so any change to the fixed text, lead-in, event-block forms, or question forces a conscious bump (required, not optional)
     - _Requirements: 1.8, 1.9_
-  - [-]* 5.4 Write example tests in `tests/Engine/ReflectionTextBuilderTest.php` for the exact wording not covered universally: the forward count-up heading literals (turn 1 = `0 to 15 seconds after the shaking began:`), the exact lead-in and question literals, a turn event block that includes the man's line heard and the house events perceived (shaking start/continue/stop, lights out, objects falling/breaking where visible) with no per-turn object list repeated, and the `Nothing happened that you noticed.` neutral line
+  - [x]* 5.4 Write example tests in `tests/Engine/ReflectionTextBuilderTest.php` for the exact wording not covered universally: the forward count-up heading literals (turn 1 = `0 to 15 seconds after the shaking began:`), the exact lead-in and question literals, a turn event block that includes the man's line heard and the house events perceived (shaking start/continue/stop, lights out, objects falling/breaking where visible) with no per-turn object list repeated, and the `Nothing happened that you noticed.` neutral line
     - _Requirements: 1.2, 1.3, 1.4, 1.10, 9.7_
 
 - [x] 6. Thread memories into turn texts — SituationTextGenerator / Engine
