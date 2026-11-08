@@ -197,6 +197,36 @@ canvas {
 .tail.show { opacity: 1; }
 .tail.think { border-top-color: #8f80b8; }
 
+/* ── narrow-screen caption strip (under the canvas below 560 CSS px) ───────
+   The House_Renderer inserts this element itself (buildCaption) directly after
+   the .stage and fills it only while the canvas is rendered narrower than
+   560 CSS px, so bubbles never cover or overlap the house at 320–390 px
+   (Req 1.13, 3.4, 3.5, 3.7, 12.3). Spoken lines only — never a thought. When
+   empty it takes no space. */
+.caption-strip {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 9px;
+  background: #15101f;
+  color: var(--bone);
+  border: 2px solid #1a1420;
+  border-radius: 3px;
+  font-size: clamp(12px, 3.4vw, 15px);
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+/* Take no visible space when there are no current spoken lines. */
+.caption-strip:empty { display: none; }
+.caption-line {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.caption-line + .caption-line { margin-top: 3px; }
+.caption-line .cap-name { font-weight: bold; }
+.caption-line.claude .cap-name { color: var(--amber); }
+.caption-line.gpt .cap-name { color: var(--jade); }
+.caption-line.man .cap-name { color: var(--straw); }
+
 /* ── panels for the screen layouts (switches, meters, log, replies) ───────── */
 .board {
   margin-top: 12px;

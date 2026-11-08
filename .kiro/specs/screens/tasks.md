@@ -197,7 +197,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 6.1_
 
 - [ ] 18. Caption strip for narrow screens
-  - [ ] 18.1 Show a caption strip under the canvas below 560 CSS px in `public/js/house-renderer.js`
+  - [x] 18.1 Show a caption strip under the canvas below 560 CSS px in `public/js/house-renderer.js`
     - When the canvas is rendered narrower than 560 CSS px, draw no speech bubble over the canvas; instead show the current spoken lines (name + words, spoken lines only, same ≥ 2.0 s minimum) in a caption strip directly under the canvas, so bubbles never cover the house or overlap each other at 320–390 px; wider screens keep the over-canvas bubbles (update `public/css/screens.css` as needed)
     - _Requirements: 1.13, 3.4, 3.5, 3.7, 12.3_
 

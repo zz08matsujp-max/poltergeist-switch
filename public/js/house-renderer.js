@@ -28,6 +28,13 @@
   var W = 480;
   var H = 236;
 
+  // Below this rendered canvas width (CSS px) the over-canvas speech bubbles
+  // would cover the whole house and overlap each other, so we show the spoken
+  // lines in a caption strip under the canvas instead (Req 1.13, 3.4, 3.5, 3.7;
+  // design "Narrow-screen caption strip"). Evaluated at render time against
+  // cv.clientWidth so it follows the actual layout, not a media query alone.
+  var BUBBLE_MIN_CANVAS_PX = 560;
+
   // ── geometry (ported from pilot/look.php) ────────────────────────────────
   // Ground line, floor line, ceiling line, left margin.
   var GY = 216;
@@ -75,6 +82,7 @@
     var cv = null;      // <canvas>
     var ctx = null;     // 2d context
     var ov = null;      // optional overlay element for name tags / bubbles
+    var cap = null;     // caption strip under the canvas (narrow screens)
     var rafId = 0;      // requestAnimationFrame handle
     var running = false;
     var REDUCE = (typeof window !== 'undefined' && window.matchMedia)
@@ -548,8 +556,28 @@
         ov.appendChild(t); tags[k] = t;
         var b = document.createElement('div'); b.className = 'bubble'; ov.appendChild(b);
         var tl = document.createElement('div'); tl.className = 'tail'; ov.appendChild(tl);
-        bubbles[k] = { el: b, tail: tl, until: 0 };
+        bubbles[k] = { el: b, tail: tl, until: 0, text: '' };
       });
+    }
+
+    // Create the caption strip the renderer owns and insert it DIRECTLY UNDER
+    // the canvas/stage (Req 1.13 / design "Narrow-screen caption strip"). The
+    // strip is used only while narrow; wide screens keep it empty so CSS
+    // (:empty { display:none }) gives it no space. Guarded for no-DOM/test use.
+    function buildCaption() {
+      cap = null;
+      if (typeof document === 'undefined' || !cv) return;
+      cap = document.createElement('div');
+      cap.className = 'caption-strip';
+      cap.setAttribute('aria-hidden', 'true');
+      // Prefer inserting after the enclosing .stage (so the strip sits under
+      // the whole house block), then after the .inner, then after the canvas.
+      var stage = cv.closest ? cv.closest('.stage') : null;
+      var inner = cv.closest ? cv.closest('.inner') : null;
+      var anchor = stage || inner || cv;
+      if (anchor && anchor.parentNode) {
+        anchor.parentNode.insertBefore(cap, anchor.nextSibling);
+      }
     }
 
     // Head height per pose, used to place a tag above the character's head.
@@ -558,8 +586,61 @@
       return ({ sit: 20, lie: 12, bath: 22, duck: 30, cook: 24 }[A.man.pose] || 24);
     }
 
+    // True when the canvas is rendered narrower than the bubble breakpoint, so
+    // the caption strip (not over-canvas bubbles) carries the spoken lines.
+    // Evaluated at render time against the live CSS width (Req 1.13, 12.3).
+    function isNarrow() {
+      return !!(cv && cv.clientWidth && cv.clientWidth < BUBBLE_MIN_CANVAS_PX);
+    }
+
+    // Hide every over-canvas bubble + tail (used while narrow, and when a line
+    // clears). Does not touch each bubble's `until`, which still governs when a
+    // caption line disappears, so the ≥ 2.0 s minimum is preserved identically.
+    function hideAllBubbles() {
+      Object.keys(bubbles).forEach(function (k) {
+        var b = bubbles[k];
+        b.el.classList.remove('show');
+        b.tail.classList.remove('show');
+      });
+    }
+
+    // Render the caption strip from the characters whose spoken line is still
+    // active (now <= until). One "Name: words" line each, in the fixed order,
+    // spoken words only — never a thought, never a company name (Req 1.14, 3.6).
+    // The strip clears (and collapses via CSS :empty) when all lines expire.
+    function renderCaption() {
+      if (!cap) return;
+      var now = perfNow();
+      // Expire any lapsed lines first so `until` keeps driving the ≥ 2.0 s rule.
+      Object.keys(bubbles).forEach(function (k) {
+        var b = bubbles[k];
+        if (b.until && now > b.until) { b.until = 0; b.text = ''; }
+      });
+      cap.innerHTML = '';
+      ['amber', 'jade', 'man'].forEach(function (k) {
+        var b = bubbles[k];
+        if (!b || !b.until || now > b.until || !b.text) return;
+        var line = document.createElement('div');
+        line.className = 'caption-line ' + (k === 'amber' ? 'claude' : (k === 'jade' ? 'gpt' : 'man'));
+        var who = document.createElement('span');
+        who.className = 'cap-name';
+        who.textContent = TAG_TEXT[k] + ': ';
+        line.appendChild(who);
+        line.appendChild(document.createTextNode(b.text));
+        cap.appendChild(line);
+      });
+    }
+
     function placeOverlay() {
       if (!ov || !cv.clientWidth) return;
+      // Narrow: no over-canvas bubbles — hide them and drive the caption strip.
+      if (isNarrow()) {
+        hideAllBubbles();
+        renderCaption();
+      } else if (cap) {
+        // Wide: the strip takes no space; the over-canvas bubbles are shown.
+        cap.innerHTML = '';
+      }
       var sc = cv.clientWidth / W, now = perfNow(), sw = cv.clientWidth, placed = [], bl = [];
       ['man', 'amber', 'jade'].forEach(function (k) {
         var a = A[k], head = headHeight(k);
@@ -741,6 +822,7 @@
         ensureSized();
         ov = overlayEl || null;
         buildOverlay();
+        buildCaption();
         return cv;
       },
 
@@ -815,13 +897,31 @@
        */
       showBubble: function (id, spokenLine, seconds) {
         var b = bubbles[id]; if (!b) return;
-        if (!spokenLine) { b.el.classList.remove('show'); b.tail.classList.remove('show'); b.until = 0; return; }
+        if (!spokenLine) {
+          b.el.classList.remove('show'); b.tail.classList.remove('show');
+          b.until = 0; b.text = '';
+          if (cap && isNarrow()) { renderCaption(); }
+          return;
+        }
+        // Record the current spoken line and its `until` time. The lifetime
+        // (and the ≥ 2.0 s minimum that Act_Out applies via max(2.0 s, actMs))
+        // is unchanged: it governs both the bubble and the caption line, since
+        // both read the same `until`. The default seconds (4) is also kept.
+        var text = String(spokenLine);
+        b.text = text;
+        b.until = perfNow() + (seconds || 4) * 1000;
+        if (isNarrow()) {
+          // Narrow: keep the over-canvas bubble hidden; the strip shows it.
+          b.el.classList.remove('show'); b.tail.classList.remove('show');
+          if (cap) { renderCaption(); }
+          return;
+        }
+        // Wide: show the over-canvas bubble exactly as before.
         b.el.innerHTML = '';
         var who = document.createElement('span'); who.className = 'who'; who.textContent = 'says';
-        b.el.appendChild(who); b.el.appendChild(document.createTextNode(String(spokenLine)));
+        b.el.appendChild(who); b.el.appendChild(document.createTextNode(text));
         b.el.classList.add('show'); b.tail.classList.add('show');
         b.el.classList.remove('think'); b.tail.classList.remove('think');
-        b.until = perfNow() + (seconds || 4) * 1000;
       },
 
       /** start() — begin the requestAnimationFrame draw loop. */
