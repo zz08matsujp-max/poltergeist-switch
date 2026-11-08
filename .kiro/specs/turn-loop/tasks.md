@@ -182,28 +182,28 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Send `Cache-Control: no-store` for the page; show no robot thought or plan beyond the reading and outcome; never name or identify either AI provider
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
 
-- [ ] 16. Property tests (required, Eris limitTo(100))
-  - [ ] 16.1 Write the ask/apply/storage property tests in `tests/TurnLoop/Properties/`:
+- [x] 16. Property tests (required, Eris limitTo(100))
+  - [x] 16.1 Write the ask/apply/storage property tests in `tests/TurnLoop/Properties/`:
     - **Property 1: Ask idempotency** — for any `waiting` turn, repeated `ask` invokes each fake robot at most once across all calls; a stored success is reused; no attempt count exceeds 2
     - **Property 2: Apply advances once** — for any `replies_complete` turn, repeated `apply` invokes `Engine::applyTurn` exactly once, lands `applied`, and writes no duplicate records
     - **Property 3: Four layers stored** — for any turn that reaches `applied`, all four layers are stored for both robots, including a no-reply robot whose action is `unknown`
     - **Property 4: Unbacked actions become unknown** — for any reply and any action quote not an exact substring of the reply, `EvidenceCheck::verify` sets the action to `unknown`; surviving quotes are exact substrings
     - Each test is tagged `Feature: turn-loop, Property N: …` and uses `Eris\TestTrait` with `->limitTo(100)`
     - _Requirements: 14.2, 14.3, 14.4, 14.5_
-  - [ ] 16.2 Write the same-world and rehydration property tests in `tests/TurnLoop/Properties/` (**requires engine tasks 28/29**):
+  - [x] 16.2 Write the same-world and rehydration property tests in `tests/TurnLoop/Properties/` (**requires engine tasks 28/29**):
     - **Property 15: Same world for text and judgement** — for a played turn, the earthquake step and resident line described by `Engine::situationTextFor` equal those in which `Engine::applyTurn` judges that turn, relying on `Engine::prepareTurn` being called before `situationTextFor`
     - **Property 16: Rehydration by replay** — for any sequence of applied turns, an `Engine` rebuilt by `ReplayEngineFactory` from the stored seed, earthquake start turn, and per-turn `action_json` yields the same world snapshot and the same `Engine::situationTextFor` output for both robots as the live-played `Engine`. The live engine the replay is compared against must itself walk the live path — `Engine::prepareTurn($n)` then `Engine::applyTurn($n, …)` for every turn — and flip the earthquake switch at a **random** start turn (cover both an immediate flip at turn 1 and a later flip), so the test proves the replay reproduces the live resident line and the late-flip timing, not just a bare `applyTurn` sequence
     - Property 16 uses `->limitTo(100)`; both are tagged `Feature: turn-loop, Property N: …`
     - _Requirements: 14.9, 14.10, 12.1, 12.2, 12.4, 13.1, 13.2, 13.4_
 
 - [ ] 17. End-to-end earthquake run and language-level check
-  - [ ] 17.1 Write the end-to-end test in `tests/TurnLoop/EndToEndEarthquakeTest.php` (**requires engine tasks 28/29**):
+  - [~] 17.1 Write the end-to-end test in `tests/TurnLoop/EndToEndEarthquakeTest.php` (**requires engine tasks 28/29**):
     - Drive a full earthquake episode with `FakeRobotClient`s and a `FakeRecorderClient` through repeated `ask` and `apply` calls (as the browser would), using the real `ReplayEngineFactory` for rehydration between simulated requests, until `Engine::applyTurn` reports the episode ended
     - Assert the episode is marked ended and that every turn taken is in state `applied`; bound the loop at 100 applied turns and fail if the episode has not ended by then
     - Run `php -l` with no error on every PHP file changed by this spec; use only PHP 8.2 language features (no typed class constants, `json_validate()`, `#[\Override]`, property hooks, asymmetric visibility, or the pipe operator)
     - _Requirements: 14.1, 14.6, 14.7, 14.8_
 
-- [ ] 18. Final checkpoint
+- [~] 18. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

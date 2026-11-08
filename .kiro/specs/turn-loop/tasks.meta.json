@@ -101,6 +101,72 @@
         "chatSessionId": "sess_b4647f93-b95d-4d47-bb01-d9e04695e694",
         "timestamp": 1794108461482
       }
+    ],
+    "13.1 Implement the turn state machine and `TurnService::getEpisode` in `src/TurnLoop/TurnService.php`:": [
+      {
+        "executionId": "0b09c3c6-8373-498f-82c3-245c7fd370ca",
+        "chatSessionId": "sess_8bd64208-8002-4285-be6a-c9b6e0c16962",
+        "timestamp": 1794109639395
+      }
+    ],
+    "14.1 Implement the five `api/` entry points plus `api/bootstrap.php`:": [
+      {
+        "executionId": "5ce65929-4459-43be-8fc6-ed106070a699",
+        "chatSessionId": "sess_8bd64208-8002-4285-be6a-c9b6e0c16962",
+        "timestamp": 1794110302190
+      }
+    ],
+    "15. Debug page": [
+      {
+        "executionId": "be0d4e48-b7c2-4763-bffc-8b21aec38309",
+        "chatSessionId": "sess_ed6a3fd1-421b-4874-bf6e-de1ca17c4547",
+        "timestamp": 1794110974872
+      }
+    ],
+    "16.1 Write the ask/apply/storage property tests in `tests/TurnLoop/Properties/`:": [
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794111928971
+      },
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794111939963
+      }
+    ],
+    "16.2 Write the same-world and rehydration property tests in `tests/TurnLoop/Properties/` (**requires engine tasks 28/29**):": [
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794111929152
+      },
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794111943573
+      }
+    ],
+    "17.1 Write the end-to-end test in `tests/TurnLoop/EndToEndEarthquakeTest.php` (**requires engine tasks 28/29**):": [
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794111929282
+      }
+    ],
+    "18. Final checkpoint": [
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794111929387
+      }
+    ],
+    "16. Property tests (required, Eris limitTo(100))": [
+      {
+        "executionId": "06908552-39fa-4f66-ae04-c0abb7c311ac",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794112312415
+      }
     ]
   }
 }
