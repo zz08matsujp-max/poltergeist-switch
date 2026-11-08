@@ -162,7 +162,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Make every button reachable and operable by keyboard alone with a visible focus indicator of ≥ 3:1 contrast (Req 12.4); announce each new "What happened" log entry through an `aria-live="polite"` region (Req 12.5); send `Cache-Control: no-store` on both pages (Req 12.7); name the robots only Amber and Jade with no AI company in the robots' text (Req 12.8)
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.7, 12.8_
 
-- [~] 12. Final checkpoint
+- [x] 12. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
