@@ -196,6 +196,85 @@ class RobotClientTest extends TestCase
         $this->assertSame('the situation text', $decoded['input'][0]['content'][0]['text']);
     }
 
+    // ---------- Failure reasons (task 19.2) ----------
+
+    public function testHttp400WithAnthropicErrorTypeStoresShortTokenNotMessage(): void
+    {
+        $client = new ClaudeClient(self::PLACEHOLDER_KEY, $this->config());
+
+        $body = json_encode([
+            'type' => 'error',
+            'error' => [
+                'type' => 'invalid_request_error',
+                'message' => 'temperature is deprecated for this model',
+            ],
+        ]);
+
+        $record = $client->finish('p', $this->makeResult(['status' => 400, 'body' => $body]));
+
+        $this->assertTrue($record->unanswered);
+        $this->assertSame('http_400:invalid_request_error', $record->failureReason);
+        // The provider message text is never stored in the reason.
+        $this->assertStringNotContainsStringIgnoringCase('deprecated', (string) $record->failureReason);
+    }
+
+    public function testTimeoutTransportErrorMapsToTimeoutReason(): void
+    {
+        $client = new ClaudeClient(self::PLACEHOLDER_KEY, $this->config());
+
+        $record = $client->finish('p', $this->makeResult(['status' => 0, 'error' => 'Operation timed out after 75000 ms', 'seconds' => 75.0]));
+
+        $this->assertTrue($record->unanswered);
+        $this->assertSame('timeout', $record->failureReason);
+    }
+
+    public function testOtherTransportErrorMapsToTransportError(): void
+    {
+        $client = new GptClient(self::PLACEHOLDER_KEY, $this->config());
+
+        $record = $client->finish('p', $this->makeResult(['status' => 0, 'error' => 'could not resolve host']));
+
+        $this->assertTrue($record->unanswered);
+        $this->assertSame('transport_error', $record->failureReason);
+    }
+
+    public function testUndecodable2xxBodyMapsToInvalidJson(): void
+    {
+        $claude = new ClaudeClient(self::PLACEHOLDER_KEY, $this->config());
+        $gpt = new GptClient(self::PLACEHOLDER_KEY, $this->config());
+
+        $garbled = $this->makeResult(['body' => 'not json at all']);
+
+        $this->assertSame('invalid_json', $claude->finish('p', $garbled)->failureReason);
+        $this->assertSame('invalid_json', $gpt->finish('p', $garbled)->failureReason);
+    }
+
+    public function testSuccessfulCallHasNullFailureReason(): void
+    {
+        $client = new ClaudeClient(self::PLACEHOLDER_KEY, $this->config());
+
+        $body = json_encode([
+            'content' => [['type' => 'text', 'text' => 'done']],
+            'stop_reason' => 'end_turn',
+            'usage' => ['input_tokens' => 10, 'output_tokens' => 5],
+        ]);
+
+        $record = $client->finish('p', $this->makeResult(['body' => $body]));
+
+        $this->assertFalse($record->unanswered);
+        $this->assertNull($record->failureReason);
+    }
+
+    public function testHttpStatusWithNoErrorTypeMapsToBareHttpToken(): void
+    {
+        $client = new ClaudeClient(self::PLACEHOLDER_KEY, $this->config());
+
+        $record = $client->finish('p', $this->makeResult(['status' => 503, 'body' => 'Service Unavailable']));
+
+        $this->assertTrue($record->unanswered);
+        $this->assertSame('http_503', $record->failureReason);
+    }
+
     public function testFakeRobotClientCountsCallsAndOpensNoNetwork(): void
     {
         $fake = new FakeRobotClient(new ReplyRecord('', 'canned', 2, 3, 0.1, 0.0, false, false));

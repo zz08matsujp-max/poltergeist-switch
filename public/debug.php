@@ -16,6 +16,10 @@ declare(strict_types=1);
  * The API is reached through the query-string form api/index.php?route=... so
  * it works even when mod_rewrite is unavailable, and every fetch sends
  * credentials: 'same-origin' so the HttpOnly device cookie round-trips.
+ *
+ * When the URL carries ?episode=<id>, the page instead opens that episode
+ * read-only with a single GET, renders all its applied turns, and offers no
+ * advance (turn-loop Requirement 10.5); Start stays available for a new run.
  */
 
 // Requirement 10.5: the page itself must not be cached by the nginx cache.
@@ -274,11 +278,15 @@ header('Cache-Control: no-store');
       body.textContent = layers.situationText || '';
     }));
 
-    // Layer 2: the robot's reply (absent for a no-reply robot).
+    // Layer 2: the robot's reply (absent for a no-reply robot). A short
+    // machine failure reason, when present, says why the reply is absent.
     box.appendChild(layer('Reply', function (body) {
       if (noReply) {
         body.classList.add('empty');
-        body.textContent = '(no reply)';
+        var reason = layers.replyFailureReason;
+        body.textContent = (typeof reason === 'string' && reason.length > 0)
+          ? '(no reply: ' + reason + ')'
+          : '(no reply)';
         return;
       }
       var quotes = [];
@@ -293,6 +301,13 @@ header('Cache-Control: no-store');
     // unknown; evidence quotes above are highlighted inside the reply.
     box.appendChild(layer('Reading', function (body) {
       var op = noReply ? 'unknown' : (reading.operation || 'unknown');
+      // When the reading is unknown and a short failure reason is present,
+      // show it next to "unknown", e.g. "unknown (http_400:invalid_request_error)".
+      var isUnknown = noReply || reading.unknown === true || op === 'unknown';
+      var reason = reading.failureReason;
+      if (isUnknown && typeof reason === 'string' && reason.length > 0) {
+        op = op + ' (' + reason + ')';
+      }
       var opLine = el('div', 'kv');
       opLine.appendChild(el('b', null, 'operation: '));
       opLine.appendChild(document.createTextNode(op));
@@ -501,8 +516,50 @@ header('Cache-Control: no-store');
       });
   }
 
+  // ---- Read-only view of an existing episode (?episode=<id>). ----
+  // When the URL carries an episode id, load that episode with a GET and render
+  // all its applied turns. No advancing is offered for a loaded episode; Start
+  // stays enabled so a new running episode can still be begun on this device.
+  function episodeIdFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get('episode');
+    return (typeof id === 'string' && id.length > 0) ? id : null;
+  }
+
+  function loadExisting(episodeId) {
+    busy(true);
+    setStatus('Loading episode...');
+    turnsEl.textContent = '';
+    state = { episodeId: null, ended: false, rendered: {} };
+
+    fetch(apiUrl('episodes/' + episodeId), {
+      method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/json' }
+    }).then(readJson).then(function (res) {
+      if (res.status !== 200 || !res.body || !res.body.episodeId) {
+        throw new Error('load failed (' + res.status + ')');
+      }
+      applyView(res.body);
+      // Read-only: never advance a loaded episode. Start stays available.
+      startBtn.disabled = false;
+      advanceBtn.disabled = true;
+      setStatus('Loaded episode (read-only).');
+    }).catch(function (err) {
+      // An unknown id or a failed GET shows an error and does not crash; Start
+      // stays available so the page is still usable.
+      setStatus('Error: ' + (err ? err.message : 'unknown'));
+      startBtn.disabled = false;
+      advanceBtn.disabled = true;
+    });
+  }
+
   startBtn.addEventListener('click', start);
   advanceBtn.addEventListener('click', advance);
+
+  // On load, if the URL names an episode, open it read-only.
+  var loadId = episodeIdFromUrl();
+  if (loadId !== null) {
+    loadExisting(loadId);
+  }
 })();
 </script>
 </body>

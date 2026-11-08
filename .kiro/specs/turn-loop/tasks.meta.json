@@ -172,6 +172,27 @@
         "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
         "timestamp": 1794112312415
       }
+    ],
+    "19.1 Remove `temperature` from the recorder request and bump the recorder prompt version:": [
+      {
+        "executionId": "dd69db7a-495d-400d-9eab-1f072decf2a0",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794114559432
+      }
+    ],
+    "19.2 Store a short machine failure reason and surface it:": [
+      {
+        "executionId": "dd69db7a-495d-400d-9eab-1f072decf2a0",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794114563699
+      }
+    ],
+    "19.3 Debug page can open an existing episode read-only:": [
+      {
+        "executionId": "dd69db7a-495d-400d-9eab-1f072decf2a0",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794114564496
+      }
     ]
   }
 }

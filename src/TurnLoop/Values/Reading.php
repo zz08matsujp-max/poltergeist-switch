@@ -15,6 +15,11 @@ use PoltergeistSwitch\Engine\Values\Action;
  * Reading shape, or when the call fails/times out — Requirements 3.3, 3.6, 3.7).
  * The raw recorder output and the recorder prompt version are stored verbatim
  * (Requirement 8.5).
+ *
+ * When a read fails, a short machine-only failure reason token (never a key,
+ * credential, path, provider name, or provider message) is carried so the
+ * debug page can show why the reading is `unknown`; a successful reading
+ * carries null.
  */
 readonly class Reading
 {
@@ -23,5 +28,6 @@ readonly class Reading
         public bool $unknown,         // true when the reading could not be read (Req 3.6, 3.7)
         public string $rawJson,       // the recorder's raw output, stored verbatim (Req 8.5)
         public string $promptVersion, // recorder prompt version (Req 3.5, 8.5)
+        public ?string $failureReason = null, // short machine token why the read failed; null on success (Req 3.6, 3.7, 8.5)
     ) {}
 }

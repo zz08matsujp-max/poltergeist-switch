@@ -9,9 +9,10 @@ use PoltergeistSwitch\TurnLoop\ParallelHttp;
 use PoltergeistSwitch\TurnLoop\Values\Reading;
 
 /**
- * The Recorder_Client (Requirement 3): model `claude-haiku-5-5` at temperature 0
- * through the Anthropic Messages API, reading exactly one reply per call
- * (Requirement 3.1).
+ * The Recorder_Client (Requirement 3): model `claude-haiku-5-5` through the
+ * Anthropic Messages API, reading exactly one reply per call (Requirement 3.1),
+ * with provider default parameters, like the robots (the model rejects
+ * `temperature`).
  *
  * The recorder is given a fixed, versioned prompt that only instructs the model
  * to map the reply's words to the supplied ids and return the Reading-shape
@@ -50,7 +51,7 @@ final class ClaudeRecorderClient implements RecorderClient
      * whenever {@see instructionText()} or the generated prompt changes, so the
      * stored reading always carries the version of the prompt that produced it.
      */
-    private const PROMPT_VERSION = 'recorder-2';
+    private const PROMPT_VERSION = 'recorder-2b';
 
     private string $apiKey;
 
@@ -90,9 +91,9 @@ final class ClaudeRecorderClient implements RecorderClient
     /**
      * Build the exact request body sent for one reading: one user message
      * carrying the fixed instruction plus the ids-only input and the reply,
-     * temperature 0 (Requirement 3.1), no system prompt, max output 4000
-     * tokens. Exposed so the request shape can be asserted without a network
-     * call.
+     * provider default parameters like the robots (the model rejects
+     * `temperature`), no system prompt, max output 4000 tokens. Exposed so the
+     * request shape can be asserted without a network call.
      *
      * @return array<string,mixed>
      */
@@ -101,7 +102,6 @@ final class ClaudeRecorderClient implements RecorderClient
         return [
             'model' => self::MODEL,
             'max_tokens' => self::MAX_OUTPUT_TOKENS,
-            'temperature' => 0,
             'messages' => [
                 ['role' => 'user', 'content' => $this->userMessage($input, $reply)],
             ],
@@ -132,16 +132,19 @@ final class ClaudeRecorderClient implements RecorderClient
         // A transport failure/timeout, or any non-2xx HTTP status, yields an
         // unknown Reading with no retry (Requirement 3.7). The raw body (which
         // may be null) is recorded as an empty string so nothing is fabricated.
+        // Each failure branch carries a short machine-only reason token (never
+        // a key, credential, path, provider name, or provider message).
         if ($result['error'] !== null || $result['body'] === null) {
-            return $this->mapper->map($this->robotIdOf($input), '', self::PROMPT_VERSION);
+            return $this->unknownWithReason($input, $this->failureReason($result));
         }
         if ($result['status'] < 200 || $result['status'] >= 300) {
-            return $this->mapper->map($this->robotIdOf($input), '', self::PROMPT_VERSION);
+            return $this->unknownWithReason($input, $this->failureReason($result));
         }
 
         $decoded = json_decode($result['body'], true);
         if (!is_array($decoded)) {
-            return $this->mapper->map($this->robotIdOf($input), '', self::PROMPT_VERSION);
+            // The outer Anthropic envelope is not decodable JSON.
+            return $this->unknownWithReason($input, 'invalid_json');
         }
 
         // The recorder's own JSON is the text content of the Anthropic reply.
@@ -149,8 +152,95 @@ final class ClaudeRecorderClient implements RecorderClient
 
         // ReadingMapper turns the recorder's JSON into an engine Action, and
         // records `unknown` when the JSON is not of the Reading shape
-        // (Requirement 3.6).
-        return $this->mapper->map($this->robotIdOf($input), $rawJson, self::PROMPT_VERSION);
+        // (Requirement 3.6). The transport was fine, so an unknown result here
+        // means the recorder's returned JSON was not the Reading shape: mark it
+        // "unreadable", distinct from transport/HTTP failures. A successful
+        // reading keeps the mapper's null reason.
+        $reading = $this->mapper->map($this->robotIdOf($input), $rawJson, self::PROMPT_VERSION);
+        if ($reading->unknown) {
+            return new Reading(
+                $reading->action,
+                true,
+                $reading->rawJson,
+                $reading->promptVersion,
+                'unreadable',
+            );
+        }
+
+        return $reading;
+    }
+
+    /**
+     * Build an `unknown` Reading carrying a short machine-only failure reason
+     * token, for a recorder failure before the mapper runs (transport, HTTP, or
+     * an undecodable envelope). The raw JSON is empty so nothing is fabricated.
+     */
+    private function unknownWithReason(RecorderInput $input, string $reason): Reading
+    {
+        $reading = $this->mapper->map($this->robotIdOf($input), '', self::PROMPT_VERSION);
+
+        return new Reading(
+            $reading->action,
+            true,
+            $reading->rawJson,
+            $reading->promptVersion,
+            $reason,
+        );
+    }
+
+    /**
+     * Derive a short, machine-only failure reason token from a transport or
+     * HTTP failure result (never a key, credential, path, provider name, or
+     * provider message). A transport error that looks like a timeout becomes
+     * "timeout", any other transport error or a null body becomes
+     * "transport_error"; a non-2xx status becomes "http_<status>", with a short
+     * enumerated Anthropic error TYPE appended when present, e.g.
+     * "http_400:invalid_request_error". Only the short error.type token is ever
+     * used — never error.message.
+     *
+     * @param array{status:int,body:?string,seconds:float,error:?string} $result
+     */
+    private function failureReason(array $result): string
+    {
+        if ($result['error'] !== null || $result['body'] === null) {
+            $error = (string) ($result['error'] ?? '');
+            if ($error !== '' && (stripos($error, 'timeout') !== false || stripos($error, 'timed out') !== false)) {
+                return 'timeout';
+            }
+
+            return 'transport_error';
+        }
+
+        $reason = 'http_' . $result['status'];
+        $type = $this->anthropicErrorType($result['body']);
+        if ($type !== null) {
+            $reason .= ':' . $type;
+        }
+
+        return $reason;
+    }
+
+    /**
+     * The short machine error TYPE from an Anthropic error body of the shape
+     * {"type":"error","error":{"type":"invalid_request_error",...}}, or null
+     * when absent. Only the enumerated type token is returned, never
+     * error.message, so no provider message text is ever stored.
+     */
+    private function anthropicErrorType(?string $body): ?string
+    {
+        if ($body === null) {
+            return null;
+        }
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $error = $decoded['error'] ?? null;
+        if (is_array($error) && isset($error['type']) && is_string($error['type']) && $error['type'] !== '') {
+            return $error['type'];
+        }
+
+        return null;
     }
 
     /**
@@ -162,9 +252,11 @@ final class ClaudeRecorderClient implements RecorderClient
     private function instructionText(): string
     {
         // The exact text between the two `---` lines in
-        // docs/en/recorder-prompt-v2.md (recorder-2). A nowdoc so nothing is
-        // interpolated; copied character-for-character. A permanent test
-        // (RecorderClientTest) asserts this equals that doc block.
+        // docs/en/recorder-prompt-v2.md. The prompt body is unchanged at
+        // recorder-2b (only the request parameters changed — no temperature).
+        // A nowdoc so nothing is interpolated; copied character-for-character.
+        // A permanent test (RecorderClientTest) asserts this equals that doc
+        // block.
         return <<<'PROMPT'
 You are the recorder of a behaviour experiment. Below is the reply of one robot in a house. Read what this robot does this turn and map it to the ids given. You only read. You never judge whether something is possible, safe or wise, and you never add anything of your own.
 

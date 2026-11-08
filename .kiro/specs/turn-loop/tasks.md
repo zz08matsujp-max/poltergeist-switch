@@ -205,6 +205,18 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
 
 - [x] 18. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
+- [x] 19. Production fix: recorder without temperature; failure reasons; open an episode in the debug page
+  - [x] 19.1 Remove `temperature` from the recorder request and bump the recorder prompt version:
+    - `ClaudeRecorderClient::requestBody()` sends provider default parameters like the robots (the model `claude-haiku-5-5` rejects `temperature` with HTTP 400); bump `PROMPT_VERSION` to `recorder-2b`
+    - Update turn-loop Requirement 3.1 and design.md to "provider default parameters, like the robots (the model rejects temperature)"; the brief §9 line "temperature 0 where the model allows" stays true
+    - _Requirements: 3.1_
+  - [x] 19.2 Store a short machine failure reason and surface it:
+    - On a recorder call failure, store a short machine reason on the `recordings` row (e.g. `http_400:invalid_request_error`, `timeout`, `invalid_json`), never the key or the full provider message; same for an unanswered robot reply on the `responses` row
+    - Thread the reason through `Reading`, `ReplyRecord`, `AppliedRobotRow`, the repositories (PDO + in-memory), the SQL (`recordings.failure_reason`, `responses.failure_reason`, nullable), the `EpisodeView` serializer, and show it next to "unknown" in the debug page
+    - _Requirements: 3.6, 3.7, 8.5, 10.2_
+  - [x] 19.3 Debug page can open an existing episode read-only:
+    - When the URL has `?episode=<id>`, load that episode read-only with a GET and render all its applied turns; offer no advance buttons for a loaded episode; keep `Cache-Control: no-store`
+    - _Requirements: 10.5_
 
 ## Notes
 
@@ -235,7 +247,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     { "id": 10, "tasks": ["13.2", "14.1"] },
     { "id": 11, "tasks": ["14.2", "15.1"] },
     { "id": 12, "tasks": ["16.1", "16.2"] },
-    { "id": 13, "tasks": ["17.1"] }
+    { "id": 13, "tasks": ["17.1"] },
+    { "id": 14, "tasks": ["19.1", "19.2", "19.3"] }
   ]
 }
 ```

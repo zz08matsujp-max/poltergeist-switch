@@ -115,29 +115,31 @@ final class GptClient implements RobotClient
         $seconds = $result['seconds'];
 
         // A transport failure/timeout, or any non-2xx HTTP status, is
-        // unanswered with no tokens or cost accrued (Requirement 1.8).
+        // unanswered with no tokens or cost accrued (Requirement 1.8). A short
+        // machine-only failure reason is attached (never a key, credential,
+        // path, provider name, or provider message).
         if ($result['error'] !== null || $result['body'] === null) {
-            return ReplyRecord::unanswered($prompt, $seconds);
+            return ReplyRecord::unanswered($prompt, $seconds, $this->failureReason($result));
         }
         if ($result['status'] < 200 || $result['status'] >= 300) {
-            return ReplyRecord::unanswered($prompt, $seconds);
+            return ReplyRecord::unanswered($prompt, $seconds, $this->failureReason($result));
         }
 
         $decoded = json_decode($result['body'], true);
         if (!is_array($decoded)) {
-            return ReplyRecord::unanswered($prompt, $seconds);
+            return ReplyRecord::unanswered($prompt, $seconds, 'invalid_json');
         }
 
         $reply = $this->extractText($decoded);
         $usage = $decoded['usage'] ?? null;
         if ($reply === null || !is_array($usage)) {
-            return ReplyRecord::unanswered($prompt, $seconds);
+            return ReplyRecord::unanswered($prompt, $seconds, 'invalid_json');
         }
 
         $inputTokens = $this->intField($usage, 'input_tokens');
         $outputTokens = $this->intField($usage, 'output_tokens');
         if ($inputTokens === null || $outputTokens === null) {
-            return ReplyRecord::unanswered($prompt, $seconds);
+            return ReplyRecord::unanswered($prompt, $seconds, 'invalid_json');
         }
 
         // Truncated when the Responses call stopped incomplete at the token
@@ -157,6 +159,61 @@ final class GptClient implements RobotClient
             false,
             $truncated,
         );
+    }
+
+    /**
+     * Derive a short, machine-only failure reason token from a transport or
+     * HTTP failure result (never a key, credential, path, provider name, or
+     * provider message). A transport error that looks like a timeout becomes
+     * "timeout", any other transport error or a null body becomes
+     * "transport_error"; a non-2xx status becomes "http_<status>", with a short
+     * enumerated provider error TYPE appended when present, e.g.
+     * "http_400:invalid_request_error". Only the short error.type token is ever
+     * used — never error.message.
+     *
+     * @param array{status:int,body:?string,seconds:float,error:?string} $result
+     */
+    private function failureReason(array $result): string
+    {
+        if ($result['error'] !== null || $result['body'] === null) {
+            $error = (string) ($result['error'] ?? '');
+            if ($error !== '' && (stripos($error, 'timeout') !== false || stripos($error, 'timed out') !== false)) {
+                return 'timeout';
+            }
+
+            return 'transport_error';
+        }
+
+        $reason = 'http_' . $result['status'];
+        $type = $this->providerErrorType($result['body']);
+        if ($type !== null) {
+            $reason .= ':' . $type;
+        }
+
+        return $reason;
+    }
+
+    /**
+     * The short machine error TYPE from a provider error body of the shape
+     * {"error":{"type":"invalid_request_error",...}}, or null when absent. Only
+     * the enumerated type token is returned, never error.message, so no
+     * provider message text is ever stored.
+     */
+    private function providerErrorType(?string $body): ?string
+    {
+        if ($body === null) {
+            return null;
+        }
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $error = $decoded['error'] ?? null;
+        if (is_array($error) && isset($error['type']) && is_string($error['type']) && $error['type'] !== '') {
+            return $error['type'];
+        }
+
+        return null;
     }
 
     /**

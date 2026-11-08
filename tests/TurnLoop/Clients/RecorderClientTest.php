@@ -306,7 +306,7 @@ class RecorderClientTest extends TestCase
         $this->assertTrue($reading->unknown);
     }
 
-    public function testRecorderRequestBodyIsTemperatureZeroOneUserMessageNoSystem(): void
+    public function testRecorderRequestBodyHasNoTemperatureOneUserMessageNoSystem(): void
     {
         $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
         $input = $this->sampleInput();
@@ -314,7 +314,9 @@ class RecorderClientTest extends TestCase
         $decoded = $client->requestBody($input, 'the reply');
 
         $this->assertSame('claude-haiku-5-5', $decoded['model']);
-        $this->assertSame(0, $decoded['temperature']);
+        // The model rejects `temperature`, so the recorder sends provider
+        // default parameters like the robots: no temperature key at all.
+        $this->assertArrayNotHasKey('temperature', $decoded);
         $this->assertSame(4000, $decoded['max_tokens']);
         $this->assertArrayNotHasKey('system', $decoded);
         $this->assertCount(1, $decoded['messages']);
@@ -329,10 +331,10 @@ class RecorderClientTest extends TestCase
         $this->assertNotSame('', $client->promptVersion());
     }
 
-    public function testPromptVersionIsRecorderTwo(): void
+    public function testPromptVersionIsRecorderTwoB(): void
     {
         $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
-        $this->assertSame('recorder-2', $client->promptVersion());
+        $this->assertSame('recorder-2b', $client->promptVersion());
     }
 
     /**
@@ -363,6 +365,96 @@ class RecorderClientTest extends TestCase
         $actual = $method->invoke($client);
 
         $this->assertSame($expected, $actual);
+    }
+
+    // ---------- Failure reasons (task 19.2) ----------
+
+    public function testRecorderHttp400WithErrorTypeStoresShortTokenNotMessage(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        $body = json_encode([
+            'type' => 'error',
+            'error' => [
+                'type' => 'invalid_request_error',
+                'message' => 'temperature is deprecated for this model',
+            ],
+        ]);
+
+        $reading = $client->finish($input, 'reply', $this->makeResult(['status' => 400, 'body' => $body]));
+
+        $this->assertTrue($reading->unknown);
+        $this->assertSame('http_400:invalid_request_error', $reading->failureReason);
+        $this->assertStringNotContainsStringIgnoringCase('deprecated', (string) $reading->failureReason);
+    }
+
+    public function testRecorderTimeoutMapsToTimeoutReason(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        $reading = $client->finish($input, 'reply', $this->makeResult(['status' => 0, 'error' => 'Connection timed out', 'seconds' => 75.0]));
+
+        $this->assertTrue($reading->unknown);
+        $this->assertSame('timeout', $reading->failureReason);
+    }
+
+    public function testRecorderOtherTransportErrorMapsToTransportError(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        $reading = $client->finish($input, 'reply', $this->makeResult(['status' => 0, 'error' => 'could not resolve host']));
+
+        $this->assertTrue($reading->unknown);
+        $this->assertSame('transport_error', $reading->failureReason);
+    }
+
+    public function testRecorderUndecodableEnvelopeMapsToInvalidJson(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        // A 2xx whose outer Anthropic envelope is not decodable JSON.
+        $reading = $client->finish($input, 'reply', $this->makeResult(['body' => 'not json at all']));
+
+        $this->assertTrue($reading->unknown);
+        $this->assertSame('invalid_json', $reading->failureReason);
+    }
+
+    public function testRecorderUnreadableInnerJsonMapsToUnreadable(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        // Transport fine, Anthropic envelope fine, but the recorder's own
+        // returned text is not the Reading shape → "unreadable", distinct from
+        // transport/HTTP failures.
+        $body = json_encode([
+            'content' => [['type' => 'text', 'text' => 'this is not json']],
+        ]);
+
+        $reading = $client->finish($input, 'reply', $this->makeResult(['body' => $body]));
+
+        $this->assertTrue($reading->unknown);
+        $this->assertSame('unreadable', $reading->failureReason);
+    }
+
+    public function testRecorderSuccessfulReadingHasNullFailureReason(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        $recorderJson = json_encode(['operation' => 'wait', 'actionQuote' => 'I wait.']);
+        $body = json_encode([
+            'content' => [['type' => 'text', 'text' => $recorderJson]],
+        ]);
+
+        $reading = $client->finish($input, 'I wait.', $this->makeResult(['body' => $body]));
+
+        $this->assertFalse($reading->unknown);
+        $this->assertNull($reading->failureReason);
     }
 
     // ---------- FakeRecorderClient (Requirement 14.1) ----------

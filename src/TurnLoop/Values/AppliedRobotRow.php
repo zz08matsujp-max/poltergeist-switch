@@ -28,5 +28,6 @@ readonly class AppliedRobotRow
         public string $judgementJson,         // actions.judgement_json (Req 8.6)
         public string $outcomeJson,           // actions.outcome_json (Req 8.6)
         public string $actionJson,            // actions.action_json, verified Action for replay (Req 13.3)
+        public ?string $recorderFailureReason = null, // recordings.failure_reason, short machine token or null (Req 3.6, 8.5)
     ) {}
 }

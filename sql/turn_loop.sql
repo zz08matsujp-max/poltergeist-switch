@@ -52,6 +52,7 @@ CREATE TABLE responses (
   cost          DOUBLE       NOT NULL DEFAULT 0,
   unanswered    TINYINT(1)   NOT NULL DEFAULT 0,
   truncated     TINYINT(1)   NOT NULL DEFAULT 0,
+  failure_reason VARCHAR(64) NULL,
   PRIMARY KEY (episode_id, turn_number, robot_id, attempt)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -62,6 +63,7 @@ CREATE TABLE recordings (
   recorder_json           MEDIUMTEXT  NOT NULL,
   unknown                 TINYINT(1)  NOT NULL DEFAULT 0,
   recorder_prompt_version VARCHAR(32) NOT NULL,
+  failure_reason          VARCHAR(64) NULL,
   PRIMARY KEY (episode_id, turn_number, robot_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

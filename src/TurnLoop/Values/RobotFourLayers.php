@@ -26,5 +26,7 @@ readonly class RobotFourLayers
         public Reading $reading,          // layer 3: the recorder's reading (operation 'unknown' when no reply)
         public Judgement $judgement,      // layer 4a: the rules' judgement
         public Outcome $outcome,          // layer 4b: the outcome
+        public ?string $recorderFailureReason = null, // short machine token why the reading is unknown; null on success (Req 3.6, 10.2)
+        public ?string $replyFailureReason = null,     // short machine token why the reply is absent/unanswered; null when answered (Req 10.2)
     ) {}
 }

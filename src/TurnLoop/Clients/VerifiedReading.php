@@ -42,6 +42,10 @@ final class VerifiedReading
             $unknown,
             $reading->rawJson,
             $reading->promptVersion,
+            // Preserve any machine failure reason the recorder set (transport,
+            // HTTP, unreadable). EvidenceCheck dropping an unbacked quote is not
+            // a provider failure, so it adds no reason of its own.
+            $reading->failureReason,
         );
     }
 }

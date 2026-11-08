@@ -27,7 +27,7 @@ The following are explicitly out of scope for this spec:
 - **Robot_Client**: A client that sends one user message to a provider and returns the reply together with its usage metadata. There are two provider implementations (Claude and GPT) and a fake implementation for tests, all behind one interface.
 - **Claude_Client**: The Robot_Client for the robot driven by Anthropic, using model `claude-haiku-5-5` through the Anthropic Messages API.
 - **GPT_Client**: The Robot_Client for the robot driven by OpenAI, using model `gpt-6-luna` through the OpenAI Responses API.
-- **Recorder_Client**: The client that reads one robot reply into a Reading, using model `claude-haiku-5-5` at temperature 0.
+- **Recorder_Client**: The client that reads one robot reply into a Reading, using model `claude-haiku-5-5` with provider default parameters, like the robots (the model rejects temperature).
 - **Reply_Record**: The stored result of one Robot_Client call — full prompt text, full reply text, input tokens, output tokens, seconds elapsed, cost, an unanswered flag, and a truncated flag.
 - **Truncated**: A reply the provider cut off at the output-token limit — Anthropic `stop_reason = max_tokens`, OpenAI `status = incomplete`.
 - **Reading**: The recorder's reading of one reply, as defined by `house-rules-engine` Requirement 12.1 — the first physical action (operation, target id, spot) with its `actionQuote`, the spoken lines exactly as quoted, and the reported-speech items (`quote`, `heardAs`, `ownForm`).
@@ -83,7 +83,7 @@ The following are explicitly out of scope for this spec:
 
 #### Acceptance Criteria
 
-1. THE Recorder_Client SHALL call model `claude-haiku-5-5` at temperature 0 and SHALL read exactly one reply per call.
+1. THE Recorder_Client SHALL call model `claude-haiku-5-5` with provider default parameters, like the robots (the model rejects temperature), and SHALL read exactly one reply per call.
 2. WHEN the Recorder_Client reads a reply, THE Recorder_Client SHALL return JSON describing the first physical action as an operation, a target id, and a spot, together with its `actionQuote`, the spoken lines exactly as quoted, and the reported-speech items each carrying a `quote`, a `heardAs` form, and an `ownForm` form, following the reading rules of `house-rules-engine` Requirement 12.6.
 3. WHEN a reply only speaks with no physical action, THE Recorder_Client SHALL return a Reading whose operation is `speak` carrying its spoken lines (house-rules-engine Requirement 5.12); WHEN a reply has the robot explicitly stay still or do nothing physical, THE Recorder_Client SHALL return a Reading whose operation is `wait`; and IF no action of any kind can be read from a reply, THEN THE Recorder_Client SHALL return a Reading whose action target and operation are `unknown`, while still returning any spoken lines and reported-speech items it reads.
 4. WHEN the Turn_Loop builds the recorder's input, THE Turn_Loop SHALL supply only the operation names, the room keys, the ids of the objects in that robot's current room, the id of the object the robot is currently holding when one is held, the spot names `window`, `gas_stove`, `under_table`, `beside_futon`, and `near_resident`, and the identifier `resident`, and SHALL supply nothing else.

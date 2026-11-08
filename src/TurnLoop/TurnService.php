@@ -538,6 +538,7 @@ class TurnService
                 judgementJson: $this->encodeJudgement($judgement),
                 outcomeJson: $this->encodeOutcome($outcome),
                 actionJson: ReplayedAction::toJson($action),
+                recorderFailureReason: $reading->failureReason,
             );
         }
 
@@ -607,6 +608,7 @@ class TurnService
             unknown: true,
             rawJson: '',
             promptVersion: $this->recorder->promptVersion(),
+            failureReason: 'no_reply',
         );
     }
 

@@ -485,10 +485,10 @@ final class PdoEpisodeRepository implements EpisodeRepository
     {
         $sql = 'INSERT INTO responses '
             . '(episode_id, turn_number, robot_id, attempt, reply_text, '
-            . 'input_tokens, output_tokens, seconds, cost, unanswered, truncated) '
+            . 'input_tokens, output_tokens, seconds, cost, unanswered, truncated, failure_reason) '
             . 'VALUES '
             . '(:episode_id, :turn_number, :robot_id, :attempt, :reply_text, '
-            . ':input_tokens, :output_tokens, :seconds, :cost, :unanswered, :truncated) '
+            . ':input_tokens, :output_tokens, :seconds, :cost, :unanswered, :truncated, :failure_reason) '
             . 'ON DUPLICATE KEY UPDATE '
             . 'reply_text = VALUES(reply_text), '
             . 'input_tokens = VALUES(input_tokens), '
@@ -496,7 +496,8 @@ final class PdoEpisodeRepository implements EpisodeRepository
             . 'seconds = VALUES(seconds), '
             . 'cost = VALUES(cost), '
             . 'unanswered = VALUES(unanswered), '
-            . 'truncated = VALUES(truncated)';
+            . 'truncated = VALUES(truncated), '
+            . 'failure_reason = VALUES(failure_reason)';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':episode_id', $row->episodeId);
@@ -510,6 +511,11 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt->bindValue(':cost', (string) $row->reply->cost);
         $stmt->bindValue(':unanswered', $row->reply->unanswered ? 1 : 0, PDO::PARAM_INT);
         $stmt->bindValue(':truncated', $row->reply->truncated ? 1 : 0, PDO::PARAM_INT);
+        if ($row->reply->failureReason === null) {
+            $stmt->bindValue(':failure_reason', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue(':failure_reason', $row->reply->failureReason);
+        }
         $stmt->execute();
     }
 
@@ -557,8 +563,8 @@ final class PdoEpisodeRepository implements EpisodeRepository
     {
         // The recorder reading (recordings table, Req 8.5).
         $sql = 'INSERT INTO recordings '
-            . '(episode_id, turn_number, robot_id, recorder_json, unknown, recorder_prompt_version) '
-            . 'VALUES (:episode_id, :turn_number, :robot_id, :recorder_json, :unknown, :version)';
+            . '(episode_id, turn_number, robot_id, recorder_json, unknown, recorder_prompt_version, failure_reason) '
+            . 'VALUES (:episode_id, :turn_number, :robot_id, :recorder_json, :unknown, :version, :failure_reason)';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':episode_id', $episodeId);
@@ -567,6 +573,11 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt->bindValue(':recorder_json', $row->recorderJson);
         $stmt->bindValue(':unknown', $row->recorderUnknown ? 1 : 0, PDO::PARAM_INT);
         $stmt->bindValue(':version', $row->recorderPromptVersion);
+        if ($row->recorderFailureReason === null) {
+            $stmt->bindValue(':failure_reason', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue(':failure_reason', $row->recorderFailureReason);
+        }
         $stmt->execute();
     }
 
@@ -614,7 +625,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt = $this->pdo->prepare(
             'SELECT a.robot_id, a.judgement_json, a.outcome_json, a.action_json, '
             . 'p.prompt_text, '
-            . 'r.recorder_json, r.unknown, r.recorder_prompt_version '
+            . 'r.recorder_json, r.unknown, r.recorder_prompt_version, r.failure_reason '
             . 'FROM actions a '
             . 'LEFT JOIN prompts p ON p.episode_id = a.episode_id '
             . 'AND p.turn_number = a.turn_number AND p.robot_id = a.robot_id '
@@ -640,14 +651,22 @@ final class PdoEpisodeRepository implements EpisodeRepository
             $recorderUnknown = (bool) ($actionRow['unknown'] ?? false);
             $recorderJson = (string) ($actionRow['recorder_json'] ?? '');
             $recorderPromptVersion = (string) ($actionRow['recorder_prompt_version'] ?? '');
+            $recorderFailureReason = $this->nullableString($actionRow, 'failure_reason');
             $reply = $this->bestReplyFor($episodeId, $turnNumber, $robotId);
             $noReply = $recorderUnknown && $reply === '';
+            // When the robot produced no successful reply, surface the reason
+            // its last attempt failed (a short machine token, never a provider
+            // message); an answered robot has none.
+            $replyFailureReason = $reply === ''
+                ? $this->replyFailureReasonFor($episodeId, $turnNumber, $robotId)
+                : null;
 
             $reading = new Reading(
                 action: $this->decodeAction($robotId, (string) ($actionRow['action_json'] ?? '')),
                 unknown: $recorderUnknown,
                 rawJson: $recorderJson,
                 promptVersion: $recorderPromptVersion,
+                failureReason: $recorderFailureReason,
             );
 
             $robots[$robotId] = new RobotFourLayers(
@@ -657,6 +676,8 @@ final class PdoEpisodeRepository implements EpisodeRepository
                 reading: $reading,
                 judgement: $this->decodeJudgement($robotId, (string) ($actionRow['judgement_json'] ?? '')),
                 outcome: $this->decodeOutcome($robotId, (string) ($actionRow['outcome_json'] ?? '')),
+                recorderFailureReason: $recorderFailureReason,
+                replyFailureReason: $replyFailureReason,
             );
         }
 
@@ -684,6 +705,33 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $value = $stmt->fetchColumn();
         if ($value === false) {
             return '';
+        }
+
+        return (string) $value;
+    }
+
+    /**
+     * The failure reason of the robot's highest-numbered attempt on that turn
+     * when it never produced a successful reply, or null when it has none. This
+     * surfaces why an unanswered/no-reply robot has no reply (a short machine
+     * token, never a provider message).
+     */
+    private function replyFailureReasonFor(string $episodeId, int $turnNumber, string $robotId): ?string
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT failure_reason FROM responses '
+            . 'WHERE episode_id = :episode_id AND turn_number = :turn_number '
+            . 'AND robot_id = :robot_id '
+            . 'ORDER BY attempt DESC LIMIT 1'
+        );
+        $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->bindValue(':turn_number', $turnNumber, PDO::PARAM_INT);
+        $stmt->bindValue(':robot_id', $robotId);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false || $value === null) {
+            return null;
         }
 
         return (string) $value;

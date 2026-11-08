@@ -346,6 +346,9 @@ function ps_robot_layers_to_array(RobotFourLayers $layers): array
         'situationText' => $layers->situationText,
         'reply'         => $layers->reply,
         'noReply'       => $layers->noReply,
+        // Short machine token only — never a key, credential, path, provider
+        // name, or provider message.
+        'replyFailureReason' => $layers->replyFailureReason,
         'reading'       => [
             'operation'   => $action->operation,
             'targetId'    => $action->targetId,
@@ -354,6 +357,8 @@ function ps_robot_layers_to_array(RobotFourLayers $layers): array
             'words'       => $action->words,
             'reported'    => $reported,
             'unknown'     => $layers->reading->unknown,
+            // Short machine token only (same safety rule as above).
+            'failureReason' => $layers->reading->failureReason,
         ],
         'judgement'     => [
             'possible'   => $layers->judgement->possible,

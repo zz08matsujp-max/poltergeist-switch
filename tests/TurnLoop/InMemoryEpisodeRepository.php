@@ -474,12 +474,19 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
     {
         $reply = $this->replyTextFor($row);
         $noReply = $row->recorderUnknown && $reply === '';
+        // When the robot produced no successful reply, surface the reason its
+        // last attempt failed (a short machine token); an answered robot has
+        // none.
+        $replyFailureReason = $reply === ''
+            ? $this->replyFailureReasonFor($row)
+            : null;
 
         $reading = new Reading(
             action: $this->decodeAction($row->robotId, $row->actionJson),
             unknown: $row->recorderUnknown,
             rawJson: $row->recorderJson,
             promptVersion: $row->recorderPromptVersion,
+            failureReason: $row->recorderFailureReason,
         );
 
         return new RobotFourLayers(
@@ -489,6 +496,8 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             reading: $reading,
             judgement: $this->decodeJudgement($row->robotId, $row->judgementJson),
             outcome: $this->decodeOutcome($row->robotId, $row->outcomeJson),
+            recorderFailureReason: $row->recorderFailureReason,
+            replyFailureReason: $replyFailureReason,
         );
     }
 
@@ -526,6 +535,42 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         }
 
         return $best;
+    }
+
+    /**
+     * The failure reason of the robot's highest-numbered stored attempt for the
+     * applied turn this row belongs to, or null when it has none. Surfaces why
+     * an unanswered/no-reply robot has no reply (a short machine token).
+     */
+    private function replyFailureReasonFor(AppliedRobotRow $row): ?string
+    {
+        $applied = null;
+        foreach ($this->appliedTurns as $turnRows) {
+            if (isset($turnRows->robots[$row->robotId]) && $turnRows->robots[$row->robotId] === $row) {
+                $applied = $turnRows;
+                break;
+            }
+        }
+        if ($applied === null) {
+            return null;
+        }
+
+        $reason = null;
+        $bestAttempt = -1;
+        foreach ($this->promptReplies as $pr) {
+            if ($pr->episodeId !== $applied->episodeId
+                || $pr->turnNumber !== $applied->turnNumber
+                || $pr->robotId !== $row->robotId
+            ) {
+                continue;
+            }
+            if ($pr->attempt > $bestAttempt) {
+                $reason = $pr->reply->failureReason;
+                $bestAttempt = $pr->attempt;
+            }
+        }
+
+        return $reason;
     }
 
     /**

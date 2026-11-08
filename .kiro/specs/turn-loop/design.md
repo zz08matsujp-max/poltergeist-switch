@@ -206,7 +206,7 @@ readonly class ReplyRecord
 
 ### RecorderClient and the reading contract (Requirement 3)
 
-The recorder reads exactly one reply per call (Requirement 3.1), at temperature 0, using model `claude-haiku-5-5`. It returns the Reading shape of `house-rules-engine` Requirement 12.1 as JSON, which `ReadingMapper` turns into an engine `Action`.
+The recorder reads exactly one reply per call (Requirement 3.1), with provider default parameters, like the robots (the model rejects temperature), using model `claude-haiku-5-5`. It returns the Reading shape of `house-rules-engine` Requirement 12.1 as JSON, which `ReadingMapper` turns into an engine `Action`.
 
 ```php
 interface RecorderClient
