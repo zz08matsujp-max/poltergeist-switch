@@ -44,6 +44,13 @@ class TurnService
     private ParallelHttp $parallel;
 
     /**
+     * Serialises the engine's post-apply (and initial calm) WorldModel to the
+     * per-turn `world_json` (screens spec Requirements 10.1, 10.2). A pure,
+     * I/O-free mapper; constructed here since it holds no state.
+     */
+    private WorldStateSerializer $worldSerializer;
+
+    /**
      * Returns the current wall-clock datetime as a 'Y-m-d H:i:s' string, used
      * to stamp episode activity (touchActivity). Injectable so a test can
      * advance "now" deterministically; defaults to the real clock via date().
@@ -68,6 +75,7 @@ class TurnService
     ) {
         $this->parallel = $parallel ?? new ParallelHttp();
         $this->clock = $clock ?? static fn (): string => date('Y-m-d H:i:s');
+        $this->worldSerializer = new WorldStateSerializer();
     }
 
     /**
@@ -137,19 +145,31 @@ class TurnService
 
         // Play the quiet turn 0 through the engine — no robot calls, no actions,
         // as the engine tests do — so the initial situation is produced from the
-        // seed and the current expected turn lands at 1 (task 10.1).
-        $engine = $this->engineFactory->forEpisode($episodeId);
+        // seed and the current expected turn lands at 1 (task 10.1). Build the
+        // engine together with the world it wraps so the initial calm,
+        // pre-earthquake World_State can be serialised for turn 0 (Req 10.2).
+        $built = $this->engineFactory->forEpisodeWithWorld($episodeId);
+        $engine = $built['engine'];
+        $world = $built['world'];
         $engine->prepareTurn(0);
         $result = $engine->applyTurn(0, []);
 
+        // The initial World_State is the calm, pre-earthquake house after the
+        // quiet turn 0 — no earthquake has been flipped yet (Req 10.2). Store it
+        // as turn 0's world when the turn row is created, so GET returns it and
+        // the Observe screen can show the calm turn-0 house before any turn
+        // runs (design §4 "Start pressed").
+        $initialWorldJson = $this->worldSerializer->toJson($world);
+
         // Persist the quiet turn 0 as an applied turn with no robot records, so
         // replay walks the same path the live loop walked (empty action list).
-        $this->repo->createTurn($episodeId, 0);
+        $this->repo->createTurn($episodeId, 0, $initialWorldJson);
         $this->repo->storeAppliedTurn(new AppliedTurnRows(
             episodeId: $episodeId,
             turnNumber: 0,
             robots: [],
             residentLine: $result->residentLine,
+            worldJson: $initialWorldJson,
         ));
         $this->repo->setTurnState($episodeId, 0, TurnStateValue::applied->value);
 
@@ -507,12 +527,21 @@ class TurnService
             unset($handle);
         }
 
-        // Rehydrate the engine, prepare the turn (idempotent) so the resident
-        // line matches the one the robots read, then apply the turn EXACTLY
-        // ONCE (Requirement 6.3).
-        $engine = $this->engineFactory->forEpisode($episodeId);
+        // Rehydrate the engine together with the world it wraps, prepare the
+        // turn (idempotent) so the resident line matches the one the robots
+        // read, then apply the turn EXACTLY ONCE (Requirement 6.3). The world
+        // handed back is the engine's own, so after applyTurn it holds this
+        // turn's post-apply state (screens spec Requirement 10.1).
+        $built = $this->engineFactory->forEpisodeWithWorld($episodeId);
+        $engine = $built['engine'];
+        $postApplyWorld = $built['world'];
         $engine->prepareTurn($turnNumber);
         $result = $engine->applyTurn($turnNumber, $actions);
+
+        // Serialise the post-apply World_State for this turn; it is written on
+        // the turns row in the same transaction as the four-layer write, via
+        // AppliedTurnRows below (Requirement 10.1).
+        $worldJson = $this->worldSerializer->toJson($postApplyWorld);
 
         // Build the per-robot Four_Layers and store them in one transaction
         // (Requirements 6.4, 8.8, 13.3). On a mid-write failure storeAppliedTurn
@@ -550,6 +579,7 @@ class TurnService
             turnNumber: $turnNumber,
             robots: $robots,
             residentLine: $result->residentLine,
+            worldJson: $worldJson,
         ));
 
         // The write committed: advance the turn to `applied` (Requirement 6.5).

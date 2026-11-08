@@ -321,6 +321,10 @@ function ps_turn_view_to_array(TurnView $turn): array
         'state'        => $turn->state->value,
         'robots'       => $robots,
         'residentLine' => $turn->residentLine,
+        // The per-turn recorded World_State (screens spec Requirement 10.4):
+        // the parsed World_State object the House_Renderer and Act_Out consume,
+        // or null when no world has been recorded for the turn.
+        'world'        => $turn->world,
     ];
 }
 

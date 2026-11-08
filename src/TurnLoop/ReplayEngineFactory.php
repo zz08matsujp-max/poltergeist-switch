@@ -68,6 +68,14 @@ final class ReplayEngineFactory implements EngineFactory
         return $this->build($episodeId)['engine'];
     }
 
+    public function forEpisodeWithWorld(string $episodeId): array
+    {
+        // build() returns the engine and the very world it wraps (the same
+        // object), so a caller that applies a turn on this engine then reads
+        // this world sees the post-apply state (screens spec Requirement 10.1).
+        return $this->build($episodeId);
+    }
+
     public function worldForEpisode(string $episodeId): WorldModel
     {
         // The same replay forEpisode walks; the world returned is the engine's

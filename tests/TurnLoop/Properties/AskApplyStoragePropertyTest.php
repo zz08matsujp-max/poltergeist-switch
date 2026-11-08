@@ -400,6 +400,15 @@ final class CountingEngineFactory implements EngineFactory
         return $this->inner->forEpisode($episodeId);
     }
 
+    public function forEpisodeWithWorld(string $episodeId): array
+    {
+        // A rebuild entry point like forEpisode, counted the same way so a
+        // test can assert how many times apply rebuilt-and-applied the engine.
+        $this->forEpisodeCount++;
+
+        return $this->inner->forEpisodeWithWorld($episodeId);
+    }
+
     public function worldForEpisode(string $episodeId): WorldModel
     {
         $this->worldForEpisodeCount++;

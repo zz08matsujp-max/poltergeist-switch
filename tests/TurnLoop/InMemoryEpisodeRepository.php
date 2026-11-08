@@ -472,7 +472,28 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             state: $turn->state,
             robots: $robots,
             residentLine: $turn->residentLine,
+            world: $this->decodeWorld($turn->worldJson),
         );
+    }
+
+    /**
+     * Decode a turn's stored `world_json` to the parsed World_State array for
+     * the TurnView (screens spec Requirement 10.4), or null when no world has
+     * been recorded. The stored string round-trips verbatim, so the decoded
+     * array equals what WorldStateSerializer produced (Requirement 10.6); a
+     * malformed string degrades to null rather than throwing.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function decodeWorld(?string $worldJson): ?array
+    {
+        if ($worldJson === null) {
+            return null;
+        }
+
+        $decoded = json_decode($worldJson, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 
     /**

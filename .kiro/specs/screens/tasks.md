@@ -37,7 +37,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - In `PdoEpisodeRepository` (and the in-memory test double) persist `world_json` on the `turns` row when a turn is stored and when turn 0 is created, and read it back per turn when loading an episode view; leave all existing turn-loop behaviour unchanged
     - Run `php -l` on changed PHP files
     - _Requirements: 10.1, 10.2_
-  - [~] 3.2 Extend `TurnService` to store the world and include it in the episode view
+  - [x] 3.2 Extend `TurnService` to store the world and include it in the episode view
     - On apply, store the serialiser's output of the post-apply `WorldModel` as that turn's `world_json` (Req 10.1); on episode creation store the initial (calm, pre-earthquake) World_State as turn 0's world (Req 10.2)
     - Add a `world` field to each `TurnView` in the `EpisodeView` so `GET /api/episodes/{id}` returns the stored World_State per turn (Req 10.4); keep `episodes_get.php` thin; a GET for an id that does not exist leaves stored data unchanged and returns the existing not-found error (Req 10.5)
     - _Requirements: 10.1, 10.2, 10.4, 10.5_

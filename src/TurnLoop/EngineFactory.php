@@ -23,6 +23,24 @@ interface EngineFactory
     public function forEpisode(string $episodeId): Engine;
 
     /**
+     * Rebuild the episode's {@see Engine} together with the exact
+     * {@see WorldModel} it wraps, both from one replay (Requirement 13.1).
+     *
+     * {@see forEpisode} hands back only the Engine, whose world is private, so
+     * a caller that advances the Engine with prepareTurn/applyTurn cannot read
+     * the resulting world. This method returns the SAME world object the Engine
+     * holds, so after the caller applies a turn on the returned Engine the
+     * returned WorldModel reflects that turn's post-apply state. TurnService
+     * uses it to serialise the post-apply world for the per-turn
+     * `world_json` (screens spec Requirement 10.1) without changing the turn
+     * flow: the returned Engine is prepared and applied exactly as
+     * {@see forEpisode}'s would be.
+     *
+     * @return array{engine: Engine, world: WorldModel}
+     */
+    public function forEpisodeWithWorld(string $episodeId): array;
+
+    /**
      * Rebuild the episode's {@see WorldModel} to the start of its current turn
      * by the same replay {@see forEpisode} walks (Requirement 13.1), so apply
      * can build the ids-only {@see \PoltergeistSwitch\TurnLoop\Clients\RecorderInput}
