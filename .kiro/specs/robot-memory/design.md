@@ -19,7 +19,7 @@ Scope is earthquake only, one episode per device, no change to the turn rules or
 ### Key design decisions
 
 - **The reflection text is built by the engine, from the recorded episode, not from replies.** In the pilot one robot wrote imagined objects into its memory and reused them as facts (Requirement 1.11, decided 2026-11-08). So the Reflection_Text is a pure engine render of the stored `TurnRecord`s — what the robot did, said, heard, and saw — and never includes the robot's own reply text, thoughts, judgement data, or meter values.
-- **Reflection walks the episode forwards and counts time up; turn texts count a 15-second window backwards.** The turn-text recent-events headings are a backward countdown (`In the last 15 seconds:`, `15 to 30 seconds ago:`, …; `house-rules-engine` Requirement 9.17). The reflection recap is a chronological record of the whole episode, so it uses its own forward heading form that counts up from the start of the shaking (`At 0 seconds:`, `At 15 seconds:`, …). This is the reflection's own form, distinct from the turn texts' countdown, and it reuses the exact *line* forms of Requirement 9.16 within each block.
+- **Reflection walks the episode forwards and counts time up; turn texts count a 15-second window backwards.** The turn-text recent-events headings are a backward countdown (`In the last 15 seconds:`, `15 to 30 seconds ago:`, …; `house-rules-engine` Requirement 9.17). The reflection recap is a chronological record of the whole episode, so it uses its own forward heading form that counts up from the start of the shaking, in the same *style* as the turn texts' countdown (`0 to 15 seconds after the shaking began:`, `15 to 30 seconds after the shaking began:`, …). This is the reflection's own form, distinct from the turn texts' countdown, and it reuses the exact *line* forms of Requirement 9.16 within each block. The recap covers every played turn: in the implemented turn loop turn 0 is the quiet turn applied at create time with no AI call, flipping the earthquake sets `earthquakeStartTurn = 0`, and turn 1 (offset 1) is the first shaking turn and the first turn the robots play, so the recap runs from turn 1 to the last played turn.
 - **The snapshot is stored with the episode so a rebuild needs no memory query.** `ReplayEngineFactory` must produce turn text byte-identical to the live run. A live memory query at rebuild time would drift if a reset or a new reflection happened in between, so the ordered verbatim memory bodies are frozen into the episode row at creation and read from there on every rebuild (Requirement 6.6).
 - **The long AI call never sits inside a held row lock.** A reflection call can take tens of seconds, which is too long to hold an InnoDB row lock. So reflect uses a short *claim* transaction to mark a per-episode-per-robot reflection slot in-progress, makes the AI call outside any lock, then uses a short *commit* transaction to store the answer and any retirement atomically. A second concurrent call sees the in-progress or answered slot and does not double-ask (Requirements 2.8, 2.9, 2.10).
 - **Secrets and provider names never leak.** The reflect, reset, and status endpoints return only memory data and robot-facing names (Amber / Jade); no response body carries a key, a credential, a device id, or an AI provider or model name.
@@ -153,8 +153,9 @@ tests/
 final class ReflectionTextBuilder
 {
     /** Bump whenever the fixed body/house text, the lead-in, the event-block forms,
-     *  or the question wording changes (Req 1.9). Stored with the reflection prompt (Req 1.8). */
-    const REFLECTION_TEXT_VERSION = 'reflection-v1';
+     *  or the question wording changes (Req 1.9). Stored with the reflection prompt (Req 1.8).
+     *  Follows the project's dated version scheme and fits the 32-character version column. */
+    const REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09';
 
     public function __construct(
         private SituationTextGenerator $textGen,  // reuse the fixed body/house, shake and resident wording
@@ -164,8 +165,9 @@ final class ReflectionTextBuilder
      * Build the fact-only Reflection_Text for one robot and one ended episode.
      *
      * @param string        $robotId    'robot_a' or 'robot_b'
-     * @param TurnRecord[]   $records    the episode's turns, first to last (oldest first)
-     * @param int            $earthquakeStartTurn  so headings count up from the first shaking turn
+     * @param TurnRecord[]   $records    the episode's played turns, turn 1 to the last (oldest first)
+     * @param int            $earthquakeStartTurn  always 0 in the implemented loop; the first played/shaking
+     *                                             turn is turn 1 = offset 1, so headings count up from turn 1
      * @param WorldModel     $finalWorld the world after the last turn, for the "Right now:" paragraph
      * @param MemorySnapshot $snapshot   this robot's memories in this episode (may be empty)
      */
@@ -208,29 +210,36 @@ The fixed body and fixed house sections are the same constants `SituationTextGen
 **The fixed lead-in line (Requirement 1.2).** The single English sentence that introduces the turn-by-turn recap, placed after the memories block (or after the house section when there is no block) and before the first event block, is literally:
 
 ```
-Here is what happened, from the moment the shaking began until it was over:
+Here is what happened after the shaking began:
 ```
+
+("until it was over" would be false when an episode ends at the 40-turn limit while the shaking is still described, so the lead-in makes no claim that the shaking stopped.)
 
 This is engine-authored, fact-only, and contains no banned word.
 
-**The event-block headings (Requirements 1.4, 1.3).** Each turn's event block is headed by the elapsed time since the shaking began, counting **up** from the first shaking turn in 15-second steps (the earthquake's 15 s per turn, `house-rules-engine` §4). The first shaking turn (offset 1 from `earthquakeStartTurn`) is headed `At 0 seconds:`; the next `At 15 seconds:`; then `At 30 seconds:`, `At 45 seconds:`, and so on. The literal heading for the k-th shaking turn (k = 0 for the first) is:
+**The event-block headings (Requirements 1.4, 1.3).** Each turn's event block is headed by the elapsed-time window since the shaking began, counting **up** from the first shaking turn in 15-second steps (the earthquake's 15 s per turn, `house-rules-engine` §4). Because `earthquakeStartTurn = 0`, the first played/shaking turn is turn 1 = offset 1 (k = 0); the heading form is in the same *style* as the turn texts' countdown but counts forward. The literal heading for the k-th shaking turn (k = 0 for the first played turn) is:
 
 ```
-At {15 * k} seconds:
+{15 * k} to {15 * (k + 1)} seconds after the shaking began:
 ```
 
-This forward, count-up form is the reflection's own heading, deliberately distinct from the turn texts' backward countdown (`In the last 15 seconds:` / `15 to 30 seconds ago:`), because the reflection is a chronological record of the whole episode read after it ended, not a 15-second rolling window read mid-turn. The two pre-earthquake setup turns (turns 0 and 1, before the switch) are not part of the shaking recap and are not given a block; the recap begins at the first shaking turn. (If the maintainer later wants the two calm turns in the recap, that is a version bump; v1 starts at the shaking.)
+so turn 1 is headed `0 to 15 seconds after the shaking began:`, turn 2 `15 to 30 seconds after the shaking began:`, turn 3 `30 to 45 seconds after the shaking began:`, and so on. This forward, count-up form is the reflection's own heading, deliberately distinct from the turn texts' backward countdown (`In the last 15 seconds:` / `15 to 30 seconds ago:`), because the reflection is a chronological record of the whole episode read after it ended, not a 15-second rolling window read mid-turn. Turn 0 is the quiet turn applied at create time with no AI call and is not a played turn, so the recap begins at turn 1 (the first played/shaking turn, k = 0) and covers every played turn to the last.
 
-**Within each event block (Requirement 1.3).** The lines follow the exact order and wording of `house-rules-engine` Requirement 9.16, extended with the man's line and the house events that robot perceived that turn. For robot R in the turn whose record is `rec`:
+**Within each event block (Requirement 1.3).** A robot perceives first and acts second: the man's line and the house events in a turn's record are what the robot *heard and saw at the start of that turn* (they were in that turn's situation text), and its own action and words came after. So within each event block the perceived items come first, then the acted items. The lines reuse the exact wording of `house-rules-engine` Requirement 9.16 (for the actions and speech) and Requirements 9.10–9.11 and 9.14 (for the man's line and the house events). For robot R in the turn whose record is `rec`, in this order:
 
-1. The result of R's own action — `rec.outcomes[R].whatHappenedText` — on its own line; omitted when R's action that turn was `unknown` (empty text).
-2. One line per line R spoke: `You said, "{line}"` (each `rec.robotActions[R].words[i]`, verbatim).
-3. One line per own reported-speech item: `You {ownForm}.` (each `rec.robotActions[R].reported[i].ownForm`).
-4. The other robot's action — `rec.outcomes[other].seenByOtherText` — on its own line, **only when rule A says the two robots shared a room at the start or the end of that turn** (`rec.roomsAtStart[a] === rec.roomsAtStart[b]` or their rooms in `rec.snapshot` are equal); omitted when they did not share a room or when the other's action was `unknown`.
-5. One line per line the other robot spoke: `The other robot said, "{line}"` when they shared a room, otherwise `You heard the other robot say, "{line}"` (each `rec.robotActions[other].words[i]`).
-6. One line per other reported-speech item, in every room: `You heard the other robot {heardAs}.` (each `rec.robotActions[other].reported[i].heardAs`).
-7. The man's line R heard that turn — `rec.residentLine` — rendered as in `house-rules-engine` Requirements 9.10–9.11: `The man shouts, "{line}"` when the man was in R's room, `You hear the man shout, "{line}"` otherwise. Omitted when there was no line that turn.
-8. The house events R perceived that turn, rendered as in the shaking paragraph of `house-rules-engine` Requirement 9.14: `Suddenly the floor begins to shake hard.` on the first shaking turn; the room shake text for R's room (e.g. `Dishes are rattling in the cupboard.`); `The lights go out.` on the lights-out turn; `The shaking has stopped.` on the stop turn; and any object falling or breaking **where R could see it** (R's room, not dark), rendered in the same wording the turn texts use.
+*Perceived at the start of the turn:*
+
+1. The man's line R heard that turn — `rec.residentLine` — rendered as in `house-rules-engine` Requirements 9.10–9.11: `The man shouts, "{line}"` when the man was in R's room, `You hear the man shout, "{line}"` otherwise. Omitted when there was no line that turn.
+2. The house events R perceived that turn, rendered as in the shaking paragraph of `house-rules-engine` Requirement 9.14: `Suddenly the floor begins to shake hard.` on the first shaking turn; the room shake text for R's room (e.g. `Dishes are rattling in the cupboard.`); `The lights go out.` on the lights-out turn; `The shaking has stopped.` on the stop turn; and any object falling or breaking **where R could see it** (R's room, not dark), rendered in the same wording the turn texts use.
+
+*Acted during the turn:*
+
+3. The result of R's own action — `rec.outcomes[R].whatHappenedText` — on its own line; omitted when R's action that turn was `unknown` (empty text).
+4. One line per line R spoke: `You said, "{line}"` (each `rec.robotActions[R].words[i]`, verbatim).
+5. One line per own reported-speech item: `You {ownForm}.` (each `rec.robotActions[R].reported[i].ownForm`).
+6. The other robot's action — `rec.outcomes[other].seenByOtherText` — on its own line, **only when rule A says the two robots shared a room at the start or the end of that turn** (`rec.roomsAtStart[a] === rec.roomsAtStart[b]` or their rooms in `rec.snapshot` are equal); omitted when they did not share a room or when the other's action was `unknown`.
+7. One line per line the other robot spoke: `The other robot said, "{line}"` when they shared a room, otherwise `You heard the other robot say, "{line}"` (each `rec.robotActions[other].words[i]`).
+8. One line per other reported-speech item, in every room: `You heard the other robot {heardAs}.` (each `rec.robotActions[other].reported[i].heardAs`).
 
 The block does **not** repeat the static list of the room's objects for each turn (Requirement 1.3) — that list appears only in the "Right now:" paragraph and, implicitly, in the body/house sections. A turn whose block would have no lines (nothing done, said, heard, or seen) is still headed and shows a single neutral fact line `Nothing happened that you noticed.` so the chronological count-up stays unbroken; this neutral line is engine-authored and banned-word clean. (Design choice: keeping every shaking turn's heading makes the elapsed-time count-up readable; the alternative of skipping empty turns would make the headings jump.)
 
@@ -248,7 +257,7 @@ Is there anything from what happened this time that you want to remember?
 
 **Banned-word rule (Requirement 1.6).** The engine-authored parts of the Reflection_Text are checked against the `house-rules-engine` Requirement 9.15 word set (`Claude`, `ChatGPT`, `GPT`, `Anthropic`, `OpenAI`, `dangerous`, `danger`, `safe`, `careful`, `should`, `must`, `warning`). The memory bodies in the memories block are the robot's own words, passed verbatim, and are exempt (Requirement 6.7); the robots' quoted speech (`You said, "…"`, `The other robot said, "…"`), reported speech (`heardAs` / `ownForm`), and the man's quoted line are exempt as quoted content — only the engine's wrapper wording is checked. This reuses `SituationTextGenerator::bannedWordCheck`'s exclusion rules.
 
-**The version string (Requirements 1.8, 1.9).** `REFLECTION_TEXT_VERSION = 'reflection-v1'` is a plain class constant on `ReflectionTextBuilder` (PHP 8.2 plain constant, not a typed class constant), mirroring the way `SituationTextGenerator` holds the situation-text version. It is returned by `version()` and stored with the reflection prompt (separate from the situation-text version). The maintainer bumps it whenever the fixed body/house text, the lead-in, any event-block form, or the question wording changes; a golden test on the literal guards against silent drift.
+**The version string (Requirements 1.8, 1.9).** `REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09'` is a plain class constant on `ReflectionTextBuilder` (PHP 8.2 plain constant, not a typed class constant), mirroring the way `SituationTextGenerator` holds the situation-text version (`situation-text-2026-11-08c`). It follows the project's dated version scheme and fits within the 32-character version column. It is returned by `version()` and stored with the reflection prompt (separate from the situation-text version). The maintainer bumps it — to the next dated string — whenever the fixed body/house text, the lead-in, any event-block form, or the question wording changes; a golden test on the literal guards against silent drift.
 
 ### Threading memories into turn texts (Requirement 6)
 
@@ -282,7 +291,7 @@ The `SituationTextGenerator::generate` signature already accepts an optional `?s
 
 - **Verbatim and exempt (Requirement 6.7).** The memory bodies are the robot's own words, passed through unchanged, and are exempt from the banned-word check; every engine-authored part of the situation text (body, house, "Right now:", shaking paragraph) stays checked, as today.
 
-- **Situation-text version bump (Requirement 6.8).** Because adding the block changes the generator's output format, the situation-text version exposed by `Engine::situationTextVersion()` is bumped (its constant on `SituationTextGenerator` moves to the next value, e.g. from `situation-v2` to `situation-v3`); a golden test on the literal records the bump.
+- **Situation-text version bump (Requirement 6.8).** Because adding the block changes the generator's output format, the situation-text version exposed by `Engine::situationTextVersion()` is bumped (its constant on `SituationTextGenerator` moves to the next dated value, from `situation-text-2026-11-08c` to `situation-text-2026-11-09`, which fits the 32-character version column); a golden test on the literal records the bump.
 
 ### ReflectService — asking (Requirement 2)
 
@@ -307,11 +316,11 @@ final class ReflectService
 
 **Flow for `reflect($episodeId)`:**
 
-1. **Guard: ended episodes only (Requirements 2.2, 2.11).** Load the episode. If it does not exist, 404. If it has not ended (including an episode released after 5 idle minutes — it is not marked ended), reject with 409, change no stored state, and make no `RobotClient` call.
+1. **Guard: ended, reflectable episodes only (Requirements 2.2, 2.11).** Load the episode. If it does not exist, 404. If it has not ended (including an episode released after 5 idle minutes — it is not marked ended), reject with 409 and code `not_ended`, change no stored state, and make no `RobotClient` call. If the episode predates this feature — its `memory_generation` / snapshot columns are NULL because it was created before the migration ran (today's six existing episodes) — reject with 409 and code `not_reflectable`, so robots' memories start only from episodes run after this feature ships; change no stored state and make no `RobotClient` call.
 2. **Rebuild the episode.** Use `EngineFactory::forEpisode($episodeId)` (the turn-loop replay factory, which now also sets the memories from the stored snapshot) to obtain the episode's ordered `TurnRecord`s, its `earthquakeStartTurn`, and its final `WorldModel`.
 3. **Per robot, claim a slot (short transaction).** For each of `robot_a`, `robot_b`, attempt to claim its reflection slot (the locking design below). A robot already **answered** for this episode is skipped and its stored answer reused (Requirement 2.8). A robot currently **in progress** (claimed by a concurrent call) is skipped so it is not double-asked (Requirement 2.9). A robot **unclaimed** or whose earlier attempt **failed** is claimed now (Requirement 2.10).
 4. **Build text and fan out (outside any lock).** For each newly claimed robot, build its Reflection_Text with `ReflectionTextBuilder::build(...)`. Send the texts as-is to the claimed robots in parallel through one `curl_multi` handle, with one user message, no system prompt, provider default parameters, max output 4000 tokens, and the same per-call timeout and failure handling as a turn (Requirements 2.3, 2.4). The Reflection_Text already ends with the question, so the question is not appended again (Requirement 2.3).
-5. **Store the prompt and response (like a turn) (Requirement 2.5).** For each called robot, store the full prompt text with `REFLECTION_TEXT_VERSION` and the full response text with its usage metadata (tokens, seconds, cost, truncated, unanswered), using the same `prompts`/`responses` storage shape as a turn via a reflection-scoped turn number (see Data Models).
+5. **Store the prompt and response (like a turn) (Requirement 2.5).** For each called robot, store the full prompt text with `REFLECTION_TEXT_VERSION` and the full response text with its usage metadata (tokens, seconds, cost, truncated, unanswered), using the same `prompts`/`responses` storage shape as a turn but tagged `kind = 'reflection'` so no turn read ever picks it up (see Data Models, "Storing reflection prompts and responses").
 6. **Commit the answer or the failure (short transaction) (Requirements 2.6, 2.7).** For each called robot: if the answer is non-empty, store it verbatim as one `Memory` tagged with the robot, the episode's generation, the episode's disaster, the source episode id, and a created time, applying the cap/retirement in the same transaction (Requirement 8.4), and mark the slot answered. If the answer is empty, or the call failed or was abandoned under the per-call timeout, add no memory, record the reason on the slot, and release the slot to `failed` so a later call may retry (Requirements 2.7, 2.10).
 7. **Return** a `ReflectionResult` per robot: answered (with the body and the robot's new active count) or failed (with a short reason). The response carries no device id, key, credential, or AI company/model name (Requirement 2.12).
 
@@ -394,10 +403,13 @@ interface EpisodeRepository // … existing turn-loop methods …
 
     // --- Memories: write with cap + retirement, atomic (Req 8.4) ---
     /**
-     * Store one memory and, if this is the 7th active for ($robotId,$disaster,$generation),
-     * retire the oldest active of that triple — all in a single transaction so the committed
-     * active count never exceeds 6 (Req 3.3, 3.4, 8.4). Idempotent per ($episodeId,$robotId):
-     * a second store for the same episode+robot leaves records unchanged and creates no
+     * Store one memory and retire oldest-active rows for ($robotId,$disaster,$generation)
+     * until at most 6 remain active (Req 3.3, 3.4, 8.4). The whole operation runs in a single
+     * transaction that FIRST takes a locking read (SELECT ... FOR UPDATE) over that triple's
+     * active rows, so two interleaved commits for the same triple — even from two different
+     * episodes — serialize and never leave more than 6 active (see "Reflection idempotency and
+     * the MySQL 5.7 locking design" below). Idempotent per ($sourceEpisodeId,$robotId): a second
+     * store for the same source episode + robot leaves records unchanged and creates no
      * duplicate (Req 8.5).
      */
     public function appendMemory(MemoryRow $memory): void;
@@ -440,7 +452,7 @@ readonly class MemorySnapshot
 
 A reflection AI call can take tens of seconds (the per-call timeout is the same as a turn, draft 75 s). That is far too long to hold an InnoDB row lock. So the slot is claimed and committed in two short transactions, with the AI call in between, outside any lock. The chosen mechanism is a **per-episode-per-robot `reflections` row claimed with `SELECT … FOR UPDATE`** inside a short transaction — recommended over `GET_LOCK()` (a named lock would have to be held across the whole call, which we are avoiding) and over a bare `INSERT … ON DUPLICATE KEY` (which cannot by itself express the three states claimed/answered/failed cleanly). MySQL 5.7 supports InnoDB row locks and `SELECT … FOR UPDATE`; it does **not** support `SKIP LOCKED`, which this design never uses.
 
-The `reflections` table has a unique key on `(episode_id, robot_id)` and a `status` column with values `in_progress`, `answered`, `failed`.
+The `reflections` table has a unique key on `(episode_id, robot_id)` and a `status` column with values `in_progress`, `answered`, `failed`, plus `claimed_at` so a dead claim can be recovered.
 
 **Claim (short transaction):**
 
@@ -450,8 +462,9 @@ START TRANSACTION;
 INSERT INTO reflections (episode_id, robot_id, status, claimed_at)
   VALUES (:eid, :rid, 'in_progress', NOW())
   ON DUPLICATE KEY UPDATE episode_id = episode_id;   -- no-op if it already exists
--- now lock and read the authoritative state:
-SELECT status FROM reflections
+-- now lock and read the authoritative state, including how old any in-progress claim is:
+SELECT status, claimed_at, (claimed_at < NOW() - INTERVAL 120 SECOND) AS stale
+  FROM reflections
   WHERE episode_id = :eid AND robot_id = :rid
   FOR UPDATE;
 ```
@@ -460,41 +473,46 @@ Decision on the locked status:
 
 - `answered` → do **not** claim; the caller reuses the stored answer (`reflectionAnswer`) and makes no AI call (Requirement 2.8).
 - `in_progress` whose row was just inserted by *this* transaction (the `INSERT` created it) → this caller owns the claim; set nothing further, `COMMIT`, proceed to the AI call.
-- `in_progress` that already existed (a concurrent caller owns it) → do **not** claim; skip this robot so it is not double-asked (Requirement 2.9). `COMMIT`.
+- `in_progress` that already existed and is **fresh** (`claimed_at` within the last 120 seconds) → a concurrent caller owns it; do **not** claim; skip this robot so it is not double-asked (Requirement 2.9). `COMMIT`.
+- `in_progress` that already existed and is **stale** (`claimed_at < NOW() - INTERVAL 120 SECOND`) → the owning request died (the per-request limit is ~85 s, so a claim older than 120 s cannot still be running); re-claim it: `UPDATE reflections SET status = 'in_progress', claimed_at = NOW(), reason = NULL WHERE …`; `COMMIT`; proceed to the AI call. This keeps a crashed reflection from stranding a robot forever (Requirement 2.10).
 - `failed` → re-claim: `UPDATE reflections SET status = 'in_progress', claimed_at = NOW(), reason = NULL WHERE …`; `COMMIT`; proceed to the AI call (Requirement 2.10).
 
-`claimReflectionSlot` returns a `ReflectionClaim` telling the service one of: `claimed` (call this robot), `reuse` (answered already — reuse the stored body), or `skip` (another call is in progress — do nothing).
+`claimReflectionSlot` returns a `ReflectionClaim` telling the service one of: `claimed` (call this robot — new, failed, or stale re-claim), `reuse` (answered already — reuse the stored body), or `skip` (a fresh in-progress claim exists — do nothing).
 
-Because the `INSERT … ON DUPLICATE KEY` plus `SELECT … FOR UPDATE` happen in one short transaction, two concurrent claim attempts serialize on the row lock: exactly one sees the row as newly `in_progress` with itself as owner (or flips `failed`→`in_progress`), and the other sees `in_progress`/`answered` and skips. The lock is released at `COMMIT`, long before the AI call.
+Because the `INSERT … ON DUPLICATE KEY` plus `SELECT … FOR UPDATE` happen in one short transaction, two concurrent claim attempts serialize on the row lock: exactly one sees the row as newly `in_progress` with itself as owner (or flips `failed`/stale `in_progress`→fresh `in_progress`), and the other sees a fresh `in_progress`/`answered` and skips. The lock is released at `COMMIT`, long before the AI call.
 
 **The AI call** then runs entirely outside any held lock, in parallel for the robots this caller claimed.
 
-**Commit the answer (short transaction) (Requirements 2.6, 8.4):**
+**Commit the answer (short transaction) (Requirements 2.6, 8.4).** Two reflections for the *same* `(robot, disaster, generation)` can come from two *different* episodes and commit at nearly the same time. Under REPEATABLE READ each would count from its own snapshot, see 7, and retire the same single oldest row — leaving 7 active. To close that hole the commit **serializes per `(robot, disaster, generation)`**: it FIRST takes a locking read over that triple's active rows (`SELECT … FOR UPDATE`), so a second commit for the same triple blocks until the first commits and then reads the first's committed state. It THEN inserts the new memory, and THEN retires oldest-active rows *while the active count still exceeds 6* (a loop / repeated delete-down, not a single-row retire), so the committed active count lands at exactly 6 no matter how the two interleave.
 
 ```sql
 START TRANSACTION;
--- append the memory with its finish-order seq (auto-increment id doubles as seq):
+-- 1. SERIALIZE: lock this triple's active rows so concurrent commits for the same
+--    (robot, disaster, generation) cannot both count from a stale snapshot.
+SELECT id FROM memories
+  WHERE robot_id = :rid AND disaster = :dis AND generation = :gen AND status = 'active'
+  FOR UPDATE;
+-- 2. append the new memory with its finish-order seq (auto-increment id doubles as seq):
 INSERT INTO memories (robot_id, generation, disaster, source_episode_id, body, status, created_at)
   VALUES (:rid, :gen, :dis, :eid, :body, 'active', NOW());
--- if this is now the 7th active for (robot,disaster,generation), retire the oldest active:
+-- 3. retire oldest-active rows down to at most 6. Repeat this statement while it affects a row
+--    (equivalently: retire the oldest active rows whose active-rank from the newest is > 6).
+--    The oldest-active predicate is in the outer WHERE (ORDER BY id ASC = oldest first):
 UPDATE memories SET status = 'retired', retired_at = NOW()
-  WHERE id = (
+  WHERE id IN (
     SELECT id FROM (
       SELECT id FROM memories
        WHERE robot_id = :rid AND disaster = :dis AND generation = :gen AND status = 'active'
-       ORDER BY id ASC LIMIT 1
-    ) AS oldest
-  )
-  AND (SELECT c FROM (
-         SELECT COUNT(*) AS c FROM memories
-          WHERE robot_id = :rid AND disaster = :dis AND generation = :gen AND status = 'active'
-       ) AS cnt) > 6;
--- mark the slot answered so repeat/concurrent calls reuse it:
+       ORDER BY id ASC
+       LIMIT 100 OFFSET 6              -- every active row older than the 6 newest
+    ) AS surplus
+  );
+-- 4. mark the slot answered so repeat/concurrent calls reuse it:
 UPDATE reflections SET status = 'answered', answered_memory_id = LAST_INSERT_ID() WHERE episode_id = :eid AND robot_id = :rid;
 COMMIT;
 ```
 
-The derived-table wrapping (`SELECT id FROM (SELECT … LIMIT 1) AS oldest`) is the MySQL idiom for updating a table you also select from with a `LIMIT`, and it is 5.7-compatible. Because the insert and the conditional retirement are in one transaction, the committed active count for a `(robot, disaster, generation)` triple is never greater than 6 (Requirement 8.4). Storing an answer when the slot is already `answered` is prevented by the claim step (`reuse`), so no duplicate memory is created for the same episode+robot (Requirement 8.5); `appendMemory` additionally guards on `(source_episode_id, robot_id)` so a direct repeat is a no-op.
+The step-1 locking read serializes commits for the same triple: the second waits on those row locks, so when it runs step 3 it sees the first's committed insert and retirement and retires its own surplus correctly — two interleaved commits for the same `(robot, disaster, generation)` never leave more than 6 active (Requirement 8.4). Step 3 retires *all* surplus oldest-active rows (`OFFSET 6`, i.e. everything past the 6 newest active), so even if two inserts raced the count returns to 6; the derived-table wrapping (`SELECT id FROM (SELECT … ORDER BY id ASC LIMIT … OFFSET 6) AS surplus`) is the 5.7-compatible idiom for updating a table you also select from. In the normal one-at-a-time case the surplus is exactly the single oldest active row, matching Requirement 3.4. Storing an answer when the slot is already `answered` is prevented by the claim step (`reuse`), so no duplicate memory is created for the same episode+robot (Requirement 8.5); `appendMemory` additionally guards on `(source_episode_id, robot_id)` so a direct repeat is a no-op.
 
 **Commit a failure (short transaction) (Requirement 2.7):**
 
@@ -504,7 +522,7 @@ UPDATE reflections SET status = 'failed', reason = :reason WHERE episode_id = :e
 
 This adds no memory and records the reason. A later `reflect` call for the same episode re-claims the `failed` slot and asks that robot again (Requirement 2.10).
 
-**Finish order (Requirement 3.6).** Memories are appended in the order their reflection commits finish. The `memories.id` auto-increment is the finish-order sequence: a memory committed later has a higher id, so ordering reads by `id ASC` yields oldest-first by finish order, and the oldest-active pick for retirement is `ORDER BY id ASC LIMIT 1`.
+**Finish order (Requirement 3.6).** Memories are appended in the order their reflection commits finish. The `memories.id` auto-increment is the finish-order sequence: a memory committed later has a higher id, so ordering reads by `id ASC` yields oldest-first by finish order, and retirement retires the active rows past the 6 newest via `ORDER BY id ASC … OFFSET 6`, which in the ordinary one-at-a-time case is exactly the single oldest active row.
 
 ---
 
@@ -515,12 +533,14 @@ This adds no memory and records the reason. A later `reflect` call for the same 
 MySQL 5.7-compatible, InnoDB, utf8mb4 everywhere so multibyte memory bodies round-trip without loss. No `CHECK` constraints are relied on (5.7 parses but does not enforce them). No secret, credential, or provider name appears anywhere (Requirement 8.3).
 
 ```sql
--- Robot memory: store, generations, per-episode snapshot, reflection slots.
+-- Robot memory: store, generations, per-episode snapshot, reflection slots,
+-- and a `kind` column on prompts/responses to separate reflection rows from turn rows.
 -- MySQL 5.7, InnoDB, utf8mb4. Schema only; no secrets.
 
 -- One stored memory. The auto-increment id doubles as the finish-order sequence
 -- (Req 3.6): a later-committed memory has a higher id, so oldest-first = id ASC
--- and the oldest active to retire = id ASC LIMIT 1 (Req 3.4).
+-- and retirement retires the active rows past the 6 newest (id ASC, OFFSET 6),
+-- which in the one-at-a-time case is the single oldest active row (Req 3.4).
 CREATE TABLE memories (
   id                BIGINT       NOT NULL AUTO_INCREMENT,
   robot_id          VARCHAR(16)  NOT NULL,              -- 'robot_a' | 'robot_b'
@@ -569,13 +589,34 @@ ALTER TABLE episodes
   ADD COLUMN memory_generation       INT        NOT NULL DEFAULT 1 AFTER earthquake_start_turn,
   ADD COLUMN robot_a_memory_snapshot MEDIUMTEXT NULL                AFTER memory_generation,
   ADD COLUMN robot_b_memory_snapshot MEDIUMTEXT NULL                AFTER robot_a_memory_snapshot;
+
+-- A `kind` column on the turn-loop prompt/response tables separates reflection rows
+-- from turn rows (Req 2.5). Existing turn rows default to 'turn'; reflection rows are
+-- written with kind = 'reflection'. EVERY existing turn read is filtered on kind = 'turn'
+-- (ReplayEngineFactory, the episode view, the debug page), so no turn read ever picks up
+-- a reflection row, and no reflection read ever picks up a turn row.
+ALTER TABLE prompts
+  ADD COLUMN kind VARCHAR(12) NOT NULL DEFAULT 'turn' AFTER robot_id;
+ALTER TABLE responses
+  ADD COLUMN kind VARCHAR(12) NOT NULL DEFAULT 'turn' AFTER robot_id;
 ```
+
+**Pre-feature episodes (Requirement 2.2).** `memory_generation` is `NOT NULL DEFAULT 1`, but the six episodes created before this migration ran get the default only when the column is added; to distinguish them the reflect guard treats an episode whose snapshot columns (`robot_a_memory_snapshot` / `robot_b_memory_snapshot`) are still NULL as pre-feature and not reflectable (code `not_reflectable`). A new episode created after the migration always writes both snapshot columns (even as an empty JSON array `[]`), so a NULL snapshot unambiguously marks a pre-feature episode.
+
+### Storing reflection prompts and responses (Requirement 2.5)
+
+A reflection's prompt and response are stored in the same `prompts` and `responses` tables the turn loop uses, so the usage metadata (tokens, seconds, cost, truncated, unanswered) is recorded in exactly one place and read by the same cost tooling. The `kind` column keeps the two apart:
+
+- **A turn row** keeps `kind = 'turn'` (the default) and is keyed as today by `(episode_id, turn_number, robot_id)` for a prompt and `(episode_id, turn_number, robot_id, attempt)` for a response.
+- **A reflection row** is written with `kind = 'reflection'`. A reflection has no turn number, so the primary key's `turn_number` is set to a single reserved sentinel value `-1` for every reflection of an episode (one reflection per robot per episode; `attempt` stays `0`). The row is therefore addressed by `(episode_id, turn_number = -1, robot_id, kind = 'reflection')` — unique because there is at most one reflection per `(episode, robot)`. Reflection reads (the End_Card result and any cost reporting of reflections) filter on `kind = 'reflection'`; every existing turn read filters on `kind = 'turn'` and additionally never queries `turn_number = -1`, so the two never collide.
+
+Using the sentinel turn number `-1` (rather than widening the key) means no schema change to the composite primary keys and no risk of a reflection row ever sorting into or being fetched by a turn read, which always iterates the real turn numbers `0 … n`.
 
 **Why the snapshot lives on the `episodes` row as JSON text, not as a join table.** The snapshot must be read on every turn and every engine rebuild to produce byte-identical text (Requirement 6.6). Freezing the ordered verbatim bodies as a JSON-array string on the episode row means a rebuild reads the exact bodies with one row fetch and no dependence on the mutable `memories` table — a later reset or reflection cannot change what a running or replayed episode sees (Requirement 4.4). A separate `episode_memory_snapshots` table would work but needs a join and an ordering column on every read for no benefit here; the body list is small (≤18 short strings). The column is JSON *text* (`MEDIUMTEXT`), not the MySQL `JSON` type, so it behaves identically on the 5.7-class server and in the in-memory fake, and is decoded with `json_decode(..., flags: JSON_THROW_ON_ERROR)` (PHP 8.2 has no `json_validate()`).
 
 **How reflect-finish order maps to memory order (Requirement 3.6).** Each successful reflection commit inserts one `memories` row; the auto-increment `id` is assigned in commit order, so "oldest first" is `id ASC` and the memory order reflects when each reflection completed. The snapshot's JSON array is built with the same `id ASC` order at episode creation.
 
-**How retirement marks the oldest active row (Requirement 3.4).** The commit transaction, after inserting the new active memory, checks the active count for the `(robot, disaster, generation)` triple; if it now exceeds 6, it sets the oldest active row (`ORDER BY id ASC LIMIT 1`) to `status = 'retired', retired_at = NOW()`. The row is never deleted and is excluded from every snapshot and status read by the `status = 'active'` predicate in `idx_snapshot` / `idx_active_pick`.
+**How retirement marks the oldest active rows (Requirement 3.4).** The commit transaction first takes a locking read over the `(robot, disaster, generation)` triple's active rows, inserts the new active memory, then retires every active row older than the 6 newest (`ORDER BY id ASC … OFFSET 6`) by setting `status = 'retired', retired_at = NOW()`. In the ordinary one-at-a-time case the surplus is the single oldest active row; the locking read plus retire-down-to-6 also covers two interleaved commits for the same triple, so the committed active count is always exactly 6 and never 7. Retired rows are never deleted and are excluded from every snapshot and status read by the `status = 'active'` predicate in `idx_snapshot` / `idx_active_pick`.
 
 ### How the snapshot is used by `ReplayEngineFactory` (Requirement 6.6)
 
@@ -587,11 +628,11 @@ With an empty snapshot, `setMemories` is given empty lists, `situationTextFor` p
 
 ## API Design
 
-Three new endpoints plus the extended create endpoint. All send `Cache-Control: no-store` and a JSON body; `api/` entry points only parse, call the service, and write JSON. No response body carries a device id, API key, database credential, or AI company/model name (Requirements 2.12, 4.5, 5.4). An unknown episode id is 404; a not-ended episode on reflect is 409.
+Three new endpoints plus the extended create endpoint. All send `Cache-Control: no-store` and a JSON body; `api/` entry points only parse, call the service, and write JSON. No response body carries a device id, API key, database credential, or AI company/model name (Requirements 2.12, 4.5, 5.4). An unknown episode id is 404; a not-ended or pre-feature episode on reflect is 409 with a short code.
 
 | Endpoint | Success | Error |
 |---|---|---|
-| `POST /api/episodes/{id}/reflect` | 200 per-robot reflection result | 404 unknown; 409 not ended (Req 2.2, 2.11) |
+| `POST /api/episodes/{id}/reflect` | 200 per-robot reflection result | 404 unknown; 409 `not_ended` (Req 2.2, 2.11); 409 `not_reflectable` for a pre-feature episode (Req 2.2) |
 | `POST /api/memory/reset` | 200 `{ "generation": N }` | — |
 | `GET /api/memory` | 200 generation + per-robot counts/lengths | — |
 
@@ -602,12 +643,17 @@ Three new endpoints plus the extended create endpoint. All send `Cache-Control: 
   "episodeId": "…",
   "robots": {
     "amber": { "answered": true,  "memory": "I will turn off the gas before…", "activeCount": 4, "reason": null },
-    "jade":  { "answered": false, "memory": null, "activeCount": 2, "reason": "no_reply" }
+    "jade":  { "answered": false, "memory": null, "activeCount": 2, "reason": "empty_answer" }
   }
 }
 ```
 
-A robot that was reused (already answered) reports `answered: true` with its stored body. The reasons are short machine codes (`no_reply`, `empty_answer`, `timeout`), never a provider name.
+A robot that was reused (already answered) reports `answered: true` with its stored body. The reasons are short machine codes, never a provider name, and they distinguish two different "no memory" cases:
+
+- `empty_answer` — the call succeeded but the robot answered that it wants to keep nothing. This is a normal outcome, not a failure.
+- `no_reply` / `timeout` — the call itself failed or was abandoned under the per-call timeout, so no answer came back.
+
+The End_Card phrases these two cases differently (see Screen Changes).
 
 **`POST /api/memory/reset` response** (the page drives it after an in-page confirmation):
 
@@ -662,12 +708,15 @@ All three screens send `Cache-Control: no-store` for their page response (Requir
 
 - **Status line (Requirement 7.1).** On load and after each reset, `observe.js` calls `GET /api/memory` and renders a line of the form `Generation N · Amber remembers k · Jade remembers k`, using the `activeCount`s from the status payload. Rendered by a small `memory-ui.js` helper so the Replay screen and the End card can reuse the formatting.
 - **All reset with in-page confirmation (Requirement 7.2).** An "All reset" button reveals an in-page confirmation panel (a div in `index.php`, styled in `screens.css`) with "Confirm" / "Cancel" — no browser `alert`/`confirm`. On Confirm, `observe.js` calls `POST /api/memory/reset` and refreshes the status line with the returned generation.
+- **Missed-reflection catch-up.** On load, if this device's last episode has ended but has not yet been reflected (for example the viewer closed the page before the End_Card ran), `observe.js` calls `POST /api/episodes/{id}/reflect` once so the memory is not lost. This relies on reflect's idempotency (Requirements 2.8, 2.9): it is safe even if the End_Card also fired, because a robot already answered is reused and never asked twice. A pre-feature episode that returns `not_reflectable` is simply ignored by the catch-up.
 
 ### End card (the Observe End_Card, in `public/js/observe.js` + `memory-ui.js`)
 
 - **Reflect on end (Requirement 7.3).** When `apply` reports the episode ended, the End_Card calls `POST /api/episodes/{id}/reflect` and shows `Writing down what to remember…` while the call is awaited.
 - **Show the new memories (Requirement 7.4).** When the reflect response returns, for each robot that `answered` the End_Card shows that robot's new memory in full inside a collapsible element (a `<details>`), with the robot's new active count from `activeCount`.
-- **Failure is plain (Requirement 7.5).** For a robot whose result is `answered: false`, the End_Card states plainly that the reflection failed for that robot (e.g. "Jade didn't write anything down this time."), with no provider name.
+- **Empty answer vs failed call are phrased differently (Requirement 7.5).** For a robot whose result is `answered: false`, the End_Card distinguishes the two reason cases, with no provider name in either:
+  - `empty_answer` — the robot chose to keep nothing. Phrased as a normal outcome, e.g. "Jade chose not to write anything down."
+  - `no_reply` / `timeout` — the call itself failed. Phrased plainly as a failure, e.g. "Jade's reflection did not come back."
 
 ### Replay (`public/replay.php`, `public/js/replay.js`)
 
@@ -677,10 +726,12 @@ All three screens send `Cache-Control: no-store` for their page response (Requir
 
 ## Error Handling
 
-- **Reflect on a not-ended episode (Requirements 2.2, 2.11).** Returns 409, changes no stored state, makes no `RobotClient` call. An episode released after 5 idle minutes is not marked ended, so it is treated the same way.
-- **Robot call failure / timeout / empty answer (Requirement 2.7).** The slot is committed as `failed` with a short reason (`no_reply`, `timeout`, `empty_answer`); no memory is added; a later `reflect` re-claims the `failed` slot and retries that robot (Requirement 2.10). No provider exception propagates to `api/`.
-- **Concurrent reflect (Requirement 2.9).** The second caller's claim sees `in_progress` or `answered` and skips that robot, so it is never asked twice. The row lock is released at `COMMIT` before the AI call, so the long call never blocks a second request from reading the slot.
-- **Store atomicity (Requirement 8.4).** The memory insert and the conditional retirement are one transaction; on any exception the transaction rolls back, so the committed active count never exceeds 6 and no partial state persists.
+- **Reflect on a not-ended episode (Requirements 2.2, 2.11).** Returns 409 with code `not_ended`, changes no stored state, makes no `RobotClient` call. An episode released after 5 idle minutes is not marked ended, so it is treated the same way.
+- **Reflect on a pre-feature episode (Requirement 2.2).** An episode created before this migration (its snapshot columns are NULL) returns 409 with code `not_reflectable`, changes no stored state, and makes no `RobotClient` call, so robots' memories start only from episodes run after the feature ships. The Observe catch-up ignores this code.
+- **Robot call failure / timeout vs empty answer (Requirement 2.7).** A failed or abandoned call commits the slot as `failed` with a short reason (`no_reply`, `timeout`); an empty answer commits `failed` with reason `empty_answer` (the call succeeded, the robot kept nothing). Either way no memory is added; a later `reflect` re-claims the `failed` slot and retries that robot (Requirement 2.10). No provider exception propagates to `api/`.
+- **Stale claim recovery.** If the PHP request dies during the AI call (the per-request limit is ~85 s), its slot would stay `in_progress` forever and the robot could never be asked again. The claim step treats an `in_progress` slot whose `claimed_at` is older than 120 seconds as re-claimable, so the next `reflect` re-claims the stale slot and asks that robot; a fresh `in_progress` (within 120 s) is still a concurrent owner and is skipped (Requirement 2.10).
+- **Concurrent reflect (Requirement 2.9).** The second caller's claim sees a fresh `in_progress` or `answered` and skips that robot, so it is never asked twice. The row lock is released at `COMMIT` before the AI call, so the long call never blocks a second request from reading the slot.
+- **Store atomicity and the cap under concurrency (Requirement 8.4).** The commit transaction first takes a locking read over the `(robot, disaster, generation)` triple's active rows, then inserts, then retires every active row past the 6 newest — all in one transaction; on any exception it rolls back. The locking read serializes two commits for the same triple from different episodes, so neither can count from a stale snapshot and leave 7 active: the committed active count is always at most 6 and no partial state persists.
 - **Duplicate store (Requirement 8.5).** The `uq_source (source_episode_id, robot_id)` unique key plus the `answered` slot check make a repeated store a no-op; no duplicate memory is created.
 - **Invalid stored snapshot JSON.** `json_decode(..., flags: JSON_THROW_ON_ERROR)` wrapped in try/catch; a malformed snapshot is treated as empty (no block) rather than failing the turn, and the failure is logged server-side without leaking content.
 - **No secret / provider leak (Requirements 2.12, 4.5, 5.4, 7.7).** Reflect, reset, and status bodies, and the screen text, carry only memory data and the names Amber / Jade; error bodies carry only a short machine code.
@@ -695,7 +746,7 @@ The memory store and the reflection text are a good fit for property-based testi
 
 ### Property 1: Cap, retirement, and read-ordering
 
-*For any* sequence of memory appends across robots, disasters, and generations, the number of `Active_Memory` rows for every `(robot, disaster, generation)` triple is at most 6 at every committed state; when a 7th active memory for a triple is added the oldest active of that triple becomes retired while its row remains in the store and no memory of any other generation is retired; a retired memory never appears in any snapshot or read; and reading the active memories of a `(robot, generation)` returns them oldest first across all disasters with every retired and other-generation memory excluded.
+*For any* sequence of memory appends across robots, disasters, and generations — including two interleaved commits for the same `(robot, disaster, generation)` from two different episodes — the number of `Active_Memory` rows for every `(robot, disaster, generation)` triple is at most 6 at every committed state; when a 7th active memory for a triple is added the oldest active of that triple becomes retired while its row remains in the store and no memory of any other generation is retired; a retired memory never appears in any snapshot or read; and reading the active memories of a `(robot, generation)` returns them oldest first across all disasters with every retired and other-generation memory excluded.
 
 **Validates: Requirements 3.3, 3.4, 3.5, 3.8, 8.4**
 
@@ -731,9 +782,9 @@ The memory store and the reflection text are a good fit for property-based testi
 
 ### Property 7: Reflection_Text structure, count-up headings, and memories-block presence
 
-*For any* ended episode, the Reflection_Text presents its sections in order — body, house, the memories block when and only when the robot had memories this episode, the fixed lead-in, one event block per shaking turn oldest first each headed `At {15·k} seconds:`, the "Right now:" paragraph, a blank line, then the exact question — and the memories block, when present, uses the Appendix A heading with each body in its own `"""` block oldest first.
+*For any* ended episode, the Reflection_Text presents its sections in order — body, house, the memories block when and only when the robot had memories this episode, the fixed lead-in `Here is what happened after the shaking began:`, one event block per played turn oldest first (turn 1 first, k = 0) each headed `{15·k} to {15·(k+1)} seconds after the shaking began:`, the "Right now:" paragraph, a blank line, then the exact question; within each event block the perceived items (the man's line, then the house events) come before the acted items (own action result, own spoken lines, own reported speech, then the other robot's action under rule A, its spoken lines, its reported speech); and the memories block, when present, uses the Appendix A heading with each body in its own `"""` block oldest first.
 
-**Validates: Requirements 1.2, 1.4, 1.7, 1.10**
+**Validates: Requirements 1.2, 1.3, 1.4, 1.7, 1.10**
 
 ### Property 8: Status reports exactly the current generation's active counts and lengths
 
@@ -760,9 +811,9 @@ The memory store and the reflection text are a good fit for property-based testi
 ### Dual approach
 
 - **Property tests (Eris, `limitTo(100)`).** The ten properties above cover the cap and retirement, the verbatim round-trip and finish order, reset-to-zero, snapshot correctness including rebuild equality, reflect idempotency, the banned-word / no-reply-text invariant with the memory exemption, the reflection-text structure and count-up headings, the status counts, and the non-leak / no-store invariants.
-- **Unit and example tests.** Cases that are not universal: the exact heard/saw wording in a reflection event block and the absence of a per-turn object list (Requirement 1.3); the exact question literal (Requirement 1.10); the Memories_Block Appendix A format and its position between the house and recent-events sections (Requirements 6.3, 6.4); a reset during a running episode keeping the running episode's generation and snapshot while its later reflection is stored under its own generation (Requirement 4.4); the retry path after a failed robot (Requirement 2.10); the empty/failed reason path (Requirement 2.7); the not-ended / idle-released guard (Requirements 2.2, 2.11); and the screen renderings (the Observe status line and in-page confirm, the End_Card reflect-and-show and failure text, the Replay started-with counts) (Requirement 7).
-- **Golden tests.** With no memories the S0–S5 situation texts are byte-for-byte unchanged (Requirement 6.5); `Engine::situationTextVersion()` equals its new expected literal so adding the block forces a conscious bump (Requirement 6.8); `ReflectionTextBuilder::REFLECTION_TEXT_VERSION` equals `'reflection-v1'` so any change to the fixed text, lead-in, event-block forms, or question forces a conscious bump (Requirement 1.9).
-- **Smoke / integration.** The three routes resolve to their service methods (Requirements 2.1, 4.1, 5.1); the migration file exists and declares utf8mb4 (Requirements 3.1, 8.2); the reflect client is invoked with one user message, no system prompt, and max 4000 tokens under the turn-loop timeout (Requirement 2.4); a repository scan finds no secret literal in the files this spec changes (Requirement 8.3). These do not vary meaningfully with input and are not property tests.
+- **Unit and example tests.** Cases that are not universal: the exact heard/saw wording in a reflection event block, the perceived-first/acted-second line order, and the absence of a per-turn object list (Requirements 1.3, 1.2); the forward count-up heading form (`0 to 15 seconds after the shaking began:`, `15 to 30 seconds after the shaking began:`, …) with turn 1 as the k = 0 block (Requirement 1.4); the exact lead-in literal `Here is what happened after the shaking began:` and the exact question literal (Requirements 1.2, 1.10); the Memories_Block Appendix A format and its position between the house and recent-events sections (Requirements 6.3, 6.4); a reset during a running episode keeping the running episode's generation and snapshot while its later reflection is stored under its own generation (Requirement 4.4); the retry path after a failed robot (Requirement 2.10); the stale-claim re-claim path (an `in_progress` slot older than 120 s is re-claimable and the robot is asked again, while a fresh `in_progress` is skipped) (Requirement 2.10); the empty-answer vs failed-call reason paths and their distinct End_Card phrasing — `empty_answer` → "chose not to write anything down", `no_reply`/`timeout` → "reflection did not come back" (Requirements 2.7, 7.5); the not-ended / idle-released guard and the pre-feature `not_reflectable` guard, including that a pre-feature episode makes no `RobotClient` call (Requirements 2.2, 2.11); the Observe missed-reflection catch-up calling reflect once on load and being safe under idempotency (Requirements 2.8, 7); and the other screen renderings (the Observe status line and in-page confirm, the End_Card reflect-and-show, the Replay started-with counts) (Requirement 7).
+- **Golden tests.** With no memories the S0–S5 situation texts are byte-for-byte unchanged (Requirement 6.5); `Engine::situationTextVersion()` equals its new expected literal `'situation-text-2026-11-09'` so adding the block forces a conscious bump (Requirement 6.8); `ReflectionTextBuilder::REFLECTION_TEXT_VERSION` equals `'reflection-text-2026-11-09'` so any change to the fixed text, lead-in, event-block forms, or question forces a conscious bump (Requirement 1.9). Both literals fit the 32-character version column.
+- **Smoke / integration.** The three routes resolve to their service methods (Requirements 2.1, 4.1, 5.1); the migration file exists, declares utf8mb4, and adds the `kind` column to `prompts` and `responses` (Requirements 3.1, 8.2); a reflection prompt/response is stored with `kind = 'reflection'` and turn number `-1`, and every existing turn read (`kind = 'turn'`, turn numbers `0 … n`) never returns it (Requirement 2.5); the reflect client is invoked with one user message, no system prompt, and max 4000 tokens under the turn-loop timeout (Requirement 2.4); a repository scan finds no secret literal in the files this spec changes (Requirement 8.3). These do not vary meaningfully with input and are not property tests.
 
 ### No real network (Requirement 9.1)
 
@@ -770,7 +821,7 @@ All reflect tests use `FakeRobotClient` from the turn-loop spec, which returns a
 
 ### Simulating concurrency (Property 5, Requirement 9.5)
 
-True parallelism is not run in a unit test. The concurrency of Requirement 2.9 is modelled by interleaving two reflect flows against the repository fake: both call `claimReflectionSlot` before either commits, and the fake enforces the same claim semantics as the `SELECT … FOR UPDATE` design (the first claim wins `in_progress`, the second sees `in_progress` and returns `skip`). The property asserts the fake `RobotClient` is invoked at most once per robot across the interleaving. The `PdoEpisodeRepository` locking test (where MySQL is available) adds a real two-connection check that a second `claimReflectionSlot` blocks and then reads the committed state.
+True parallelism is not run in a unit test. The concurrency of Requirement 2.9 is modelled by interleaving two reflect flows against the repository fake: both call `claimReflectionSlot` before either commits, and the fake enforces the same claim semantics as the `SELECT … FOR UPDATE` design (the first claim wins `in_progress`, the second sees a fresh `in_progress` and returns `skip`; a slot whose `claimed_at` is older than 120 s is re-claimable). The property asserts the fake `RobotClient` is invoked at most once per robot across the interleaving. The cap-under-concurrency case of Property 1 is modelled by interleaving two commits for the same `(robot, disaster, generation)` from two different episodes and asserting the committed active count never exceeds 6. The `PdoEpisodeRepository` locking test (where MySQL is available) adds a real two-connection check that a second `claimReflectionSlot` blocks and then reads the committed state, and that two concurrent per-triple commits serialize on the locking read and leave exactly 6 active.
 
 ### Property-test configuration
 
