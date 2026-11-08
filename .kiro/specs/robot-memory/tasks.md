@@ -73,7 +73,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 8.4, 8.5, 2.8, 2.9, 2.10_
 
 - [ ] 5. ReflectionTextBuilder (pure engine)
-  - [-] 5.1 Implement `ReflectionTextBuilder` in `src/Engine/ReflectionTextBuilder.php`:
+  - [x] 5.1 Implement `ReflectionTextBuilder` in `src/Engine/ReflectionTextBuilder.php`:
     - a pure class taking a robot id, the episode's ordered `TurnRecord`s (first played turn to last), the earthquake start turn, the post-episode `WorldModel`, and the robot's `MemorySnapshot`; makes no AI, HTTP, or database/external-memory call
     - assembles, in order separated by blank lines: the fixed body section, the fixed house section (reused from `SituationTextGenerator`), the `Memories_Block` (Appendix A form) only when the snapshot is non-empty, the fixed lead-in `Here is what happened after the shaking began:`, one event block per played turn oldest first, the `Right now:` paragraph for the world after the last turn, a blank line, then the exact question `Is there anything from what happened this time that you want to remember?`
     - each event block headed `{15·k} to {15·(k+1)} seconds after the shaking began:` counting up from the first played/shaking turn (k = 0 for turn 1); within a block perceived items first (the man's line rendered per Req 9.10–9.11, then the house events rendered per Req 9.14) then acted items (own action result, own spoken lines `You said, "…"`, own reported speech `You {ownForm}.`, then under rule A the other robot's action, its spoken lines, its reported speech `You heard the other robot {heardAs}.`); a block with no lines shows the neutral line `Nothing happened that you noticed.`; never repeats the static room-object list per turn
