@@ -63,7 +63,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - `appendMemory` runs in one transaction that first takes a locking read (`SELECT … FOR UPDATE`) over the `(robot, disaster, generation)` active rows, inserts the new memory, then retires every active row past the 6 newest (`ORDER BY id ASC … OFFSET 6`), guarded idempotent by `uq_source`; `claimReflectionSlot` uses `INSERT … ON DUPLICATE KEY` then `SELECT … FOR UPDATE` in a short transaction with the 120 s stale recovery; commit-answer and commit-failure are short transactions; generation read/advance; snapshot store/read as JSON text decoded with `json_decode(..., flags: JSON_THROW_ON_ERROR)`; a malformed snapshot is treated as empty
     - every existing turn read (`ReplayEngineFactory`, the episode view, the debug page) is filtered on `kind = 'turn'` and never queries `turn_number = -1`; reflection rows are written with `kind = 'reflection'` and `turn_number = -1`; no `SKIP LOCKED`
     - _Requirements: 8.1, 8.4, 8.5, 2.5, 2.8, 2.9, 2.10, 3.4, 4.1, 4.2, 6.6_
-  - [~] 4.4 Write the cap/retirement property test in `tests/Memory/Properties/CapRetirementPropertyTest.php`:
+  - [-] 4.4 Write the cap/retirement property test in `tests/Memory/Properties/CapRetirementPropertyTest.php`:
     - **Property 1: Cap, retirement, and read-ordering** — for any sequence of appends across robots, disasters, and generations (including two interleaved commits for the same `(robot, disaster, generation)` from two different episodes), the active count per triple is at most 6 at every committed state; adding a 7th retires the oldest active of that triple while its row remains and no other-generation memory is retired; a retired memory never appears in any read; `activeMemories` returns oldest first across all disasters excluding retired and other-generation rows
     - **Property 2: Memories round-trip verbatim with their tags in finish order** — storing a non-empty answer appends exactly one memory whose body equals the answer byte-for-byte with matching robot, generation, disaster, source episode, and created time, read back in finish order
     - Each tagged `Feature: robot-memory, Property N: …`, `Eris\TestTrait`, `->limitTo(100)`
@@ -72,7 +72,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - the atomic store commits only after insert + retire; a duplicate store for the same source episode + robot creates no duplicate; a stale `in_progress` (older than 120 s) is re-claimable while a fresh one returns `skip`; the PDO two-connection test asserts a second `claimReflectionSlot` blocks then reads committed state and two per-triple commits serialize to exactly 6 active
     - _Requirements: 8.4, 8.5, 2.8, 2.9, 2.10_
 
-- [ ] 5. ReflectionTextBuilder (pure engine)
+- [x] 5. ReflectionTextBuilder (pure engine)
   - [x] 5.1 Implement `ReflectionTextBuilder` in `src/Engine/ReflectionTextBuilder.php`:
     - a pure class taking a robot id, the episode's ordered `TurnRecord`s (first played turn to last), the earthquake start turn, the post-episode `WorldModel`, and the robot's `MemorySnapshot`; makes no AI, HTTP, or database/external-memory call
     - assembles, in order separated by blank lines: the fixed body section, the fixed house section (reused from `SituationTextGenerator`), the `Memories_Block` (Appendix A form) only when the snapshot is non-empty, the fixed lead-in `Here is what happened after the shaking began:`, one event block per played turn oldest first, the `Right now:` paragraph for the world after the last turn, a blank line, then the exact question `Is there anything from what happened this time that you want to remember?`
@@ -97,11 +97,11 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - bump the situation-text version constant on `SituationTextGenerator` from `situation-text-2026-11-08c` to `situation-text-2026-11-09` (within 32 chars), exposed by `Engine::situationTextVersion()`
     - `ReplayEngineFactory::forEpisode` reads the episode's stored snapshots and calls `Engine::setMemories` before any `situationTextFor`, so a rebuild uses the frozen verbatim bodies and matches the live run byte-for-byte
     - _Requirements: 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8_
-  - [~] 6.2 Write the snapshot/rebuild-equality property test in `tests/Memory/Properties/SnapshotEqualityPropertyTest.php`:
+  - [-] 6.2 Write the snapshot/rebuild-equality property test in `tests/Memory/Properties/SnapshotEqualityPropertyTest.php`:
     - **Property 4: The snapshot is the generation's active memories, and every turn — live and rebuilt — uses the same block** — each robot's stored snapshot equals its current-generation active bodies across all disasters, oldest first, capped at 18; every turn renders the same `Memories_Block`; an `Engine` rebuilt by `ReplayEngineFactory` from the stored snapshot produces turn text byte-identical to the live run for both robots
     - Tagged `Feature: robot-memory, Property 4: …`, `->limitTo(100)` (required, not optional)
     - _Requirements: 9.4, 6.1, 6.2, 6.6_
-  - [~] 6.3 Write the golden tests in `tests/Engine/SituationTextMemoriesBlockTest.php`:
+  - [x] 6.3 Write the golden tests in `tests/Engine/SituationTextMemoriesBlockTest.php`:
     - with no memories the S0–S5 situation texts are byte-for-byte unchanged (required, not optional)
     - `Engine::situationTextVersion()` equals `'situation-text-2026-11-09'` so adding the block forces a conscious bump (required, not optional)
     - _Requirements: 9.8, 6.5, 6.8_
