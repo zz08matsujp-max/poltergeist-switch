@@ -317,6 +317,8 @@ The animation target comes from `reading.action.targetId` / `targetSpot` through
 
 **Reduced motion (Requirement 12.6):** while the system requests reduced motion, Act_Out stops the shaking and walking animation and sets each character's position directly within 100 ms with no intermediate frames (positions jump).
 
+**Narrow-screen caption strip (Requirement 1.13, 3.4, 3.5, 3.7).** At 320–390 CSS px the scaled canvas is too small for over-canvas speech bubbles: they would cover the whole house and overlap each other. So when the canvas is rendered narrower than 560 CSS px the House_Renderer draws no speech bubble over the canvas; instead the current spoken lines (name + the spoken words only, with the same ≥ 2.0 s minimum) are shown in a caption strip directly under the canvas, so no bubble covers the house or overlaps another (Requirement 1.13). At 560 CSS px and wider the over-canvas bubbles are kept. Thoughts never appear in the strip (Requirement 1.14, 3.6).
+
 ### 5. Voices module (`public/js/voices.js`)
 
 Ported from the pilot's speech code, using the browser's Web Speech API (`speechSynthesis`). Per-character voice, pitch, and rate (Requirement 3.11):
@@ -355,6 +357,8 @@ A distinct English voice is chosen for each character where available. For a lin
 - When `apply` reports the episode ended: stop advancing and send no further `ask`/`apply` for that episode (Requirement 5.11).
 
 **End card (Requirement 6):** when the episode ends, show the End_Card with the total number of turns taken as a non-negative integer, a per-robot summary of each robot's actions drawn from the outcome texts, the man's final state, and the full stored replies for Amber and Jade (Requirement 6.1). If the episode ended with zero completed turns, show a turn count of 0 and a summary that no robot actions occurred (Requirement 6.2). The card names the robots only as Amber and Jade and includes no AI company name in the robots' text (Requirement 6.5). It shows "Watch again" and "Close" buttons (Requirement 6.3); Close dismisses the card (Requirement 6.4); "Watch again" opens the Replay_Screen for this episode's id (Requirement 6.6). If the Replay_Screen cannot be opened for the id, keep the End_Card visible and show an error that the replay could not be opened (Requirement 6.7).
+
+**Viewer-facing text for the log and the End_Card summary (Requirements 5.10, 6.1).** The "What happened" log and the End_Card per-robot summary are written for the viewer in the third person, not in the robot's own second-person voice. Each action line is built from the outcome's `seenByOtherText` with its leading "The other robot" replaced by the acting robot's name (so "The other robot moved to the living room." becomes "Amber moved to the living room."); `whatHappenedText` is used only as a fallback when `seenByOtherText` is empty, and a "You …" sentence is never shown. A robot that both acts and speaks gets two entries: the action line and a separate spoken line `<Name> said: "<words>"` (spoken words only — never a thought, never an AI company name). A line that would exceed its display length is truncated at a sentence boundary and given a trailing ellipsis (never mid-word), via a small shared helper used by both the log and the summary. The End_Card keeps the full stored replies (Requirement 6.1) but places each robot's replies in a `<details>` collapsed by default, with a summary such as "Amber — full replies (13 turns)", so the card does not open to its full height.
 
 **Slot and resume handling (Requirement 7):**
 
@@ -403,7 +407,7 @@ ALTER TABLE turns ADD COLUMN world_json MEDIUMTEXT NULL AFTER resident_line;
 
 - Only episodes whose `ended` is true, excluding every not-ended episode (Requirement 11.1).
 - Ordered by created date descending, then by id descending for ties (Requirement 11.2). Backed by `SELECT ... FROM episodes WHERE ended = 1 ORDER BY created_at DESC, id DESC LIMIT :limit`.
-- Each item: `{ id, createdDate, turns, startingSituation }` — the id, created date, the number of turns as a non-negative integer (count of stored turns), and the starting situation text (Requirement 11.3).
+- Each item: `{ id, createdDate, turns, startingSituation }` — the id, created date, the number of turns as a non-negative integer counting only applied turns after turn 0 (the robot turns taken, excluding the turn-0 setup, matching the End_Card's "turns taken"), and the starting situation text (Requirement 11.3).
 - `limit` validation (Requirement 11.4–11.6): an integer 1–100 inclusive caps the count; absent → default 20; not an integer, `< 1`, or `> 100` → reject with an "out of range" error and return no list.
 - The response includes **no** device id, API key, database credential, or AI provider name (Requirement 11.7); the service selects only the four fields above and never touches `device_id` or secrets.
 - No ended episodes → an empty list (Requirement 11.8).
@@ -480,7 +484,7 @@ These properties cover the two PHP API additions, which are pure data transforma
 - **Property 1 — World_State round-trip:** generate random valid `WorldModel`s (random robot rooms/spots/held, man room/spot/activity/state, power, shaking, time of day, per-room light, broken/fallen sets, stove), serialise and read back, assert every Requirement-10.3 field is equal.
 - **Property 2 — backfill fills only missing turns, exactly once:** generate ended episodes with a random subset of turns missing `world_json`, read once, assert the missing turns are filled, the present ones are unchanged, and the replay ran exactly once (spy on `ReplayEngineFactory`).
 - **Property 3 — backfill failure persists nothing:** inject a replay that fails at a random turn, assert no stored value changed, nothing partial was persisted, and a backfill-failed error is returned.
-- **Property 4 — list only ended, newest first:** generate random mixes of ended/not-ended episodes with random created dates and ids, assert the result contains exactly the ended ones in created-date-desc then id-desc order.
+- **Property 4 — list only ended, newest first:** generate random mixes of ended/not-ended episodes with random created dates and ids, assert the result contains exactly the ended ones in created-date-desc then id-desc order. The list's `turns` count asserts applied turns after turn 0 (robot turns taken, excluding turn 0), matching the End_Card.
 - **Property 5 — limit bounds count:** for random limits in 1–100 and the absent case, assert the result size is at most the limit (or at most 20 when absent).
 - **Property 6 — out-of-range limit rejected:** for random non-integer / `<1` / `>100` limits, assert an out-of-range error and no list.
 - **Property 7 — no leaked identifiers:** generate ended episodes with random device ids, assert no device id / key / credential / provider name appears anywhere in the serialised list response.

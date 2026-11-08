@@ -67,8 +67,8 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Add the repository query `WHERE ended = 1 ORDER BY created_at DESC, id DESC LIMIT :limit` to `PdoEpisodeRepository` (and the in-memory double); run `php -l` on changed PHP files
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 8.5_
   - [x] 4.2 Implement the thin handler `api/episodes_list.php` and wire the route
-    - [x] Parse `ended` and `limit` from the query, call `EpisodeListService`, and write the JSON list; all validation lives in `src/`, matching the existing `episodes_get.php` pattern; wire `GET /api/episodes?ended=1&limit=20` through `router.php`
-    - [x] Send `Cache-Control: no-store` on the response (Req 11.9); no rules logic in `api/`; run `php -l` on changed PHP files
+    - Parse `ended` and `limit` from the query, call `EpisodeListService`, and write the JSON list; all validation lives in `src/`, matching the existing `episodes_get.php` pattern; wire `GET /api/episodes?ended=1&limit=20` through `router.php`
+    - Send `Cache-Control: no-store` on the response (Req 11.9); no rules logic in `api/`; run `php -l` on changed PHP files
     - _Requirements: 11.9, 11.4, 11.5, 11.6_
   - [x] 4.3 Write the required list property tests in `tests/TurnLoop/Properties/`
     - **Property 4: List returns only ended episodes, newest first**
@@ -165,6 +165,57 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
 - [x] 12. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
+- [ ] 13. Fix hidden elements showing on Replay
+  - [ ] 13.1 Add `[hidden] { display: none !important; }` to `public/css/screens.css`
+    - A `display: grid`/`flex` rule currently overrides the `hidden` attribute, so replay.php shows the house, the reply panels and the controls under the episode list before any episode is chosen; the global `[hidden]` rule restores `hidden`'s effect so those regions stay hidden until an episode is loaded
+    - _Requirements: 8.2, 8.7_
+
+- [ ] 14. Fix the resident meters never filling
+  - [ ] 14.1 Make `.meter .fill` `display: block` in `public/css/screens.css`
+    - The fill is an inline `<span>`, so its width and height were ignored and the bars never filled even though the values were right (fear went 0→9→0 in the live run); `display: block` lets the width/height apply
+    - _Requirements: 4.10, 5.10_
+
+- [ ] 15. Fix the Replay episode list being unreadable
+  - [ ] 15.1 Style the `.episode-list .item` buttons in `public/css/screens.css`
+    - The items are `<button>`s that kept the browser's default black text and font on the dark brown panel; set `color: var(--bone); font: inherit; text-align: left; width: 100%; cursor: pointer;` plus a visible focus style so the list is readable and keyboard-focusable
+    - _Requirements: 8.2, 8.5, 12.4_
+
+- [ ] 16. Build viewer-facing log and End_Card text
+  - [ ] 16.1 Describe each robot action in the third person in `public/js/observe.js`
+    - Build each "What happened" log action entry and each End_Card per-robot summary from `outcome.seenByOtherText` with its leading "The other robot" replaced by the robot's name (Amber/Jade); fall back to `whatHappenedText` only when `seenByOtherText` is empty; never emit a "You …" sentence
+    - _Requirements: 5.10, 6.1, 12.8_
+  - [ ] 16.2 Show spoken words as a separate `<Name> said: "<words>"` line
+    - A robot that both acts and speaks shows both the action entry and a separate spoken-line entry, in `public/js/observe.js`; keep thoughts and AI company names out
+    - _Requirements: 5.10, 6.1, 1.14, 12.8_
+  - [ ] 16.3 Truncate long log/summary lines at a sentence boundary
+    - Add a small shared helper that cuts an over-long line at the end of a sentence and appends an ellipsis, never mid-word (the End_Card no longer ends with "wardrob")
+    - _Requirements: 5.10, 6.1_
+
+- [ ] 17. Collapse the End_Card full replies
+  - [ ] 17.1 Put each robot's full replies in a collapsed `<details>` in `public/js/observe.js`
+    - Keep the full replies (Req 6.1) but render each robot's replies inside a `<details>` collapsed by default, with a summary like "Amber — full replies (N turns)", so the End_Card no longer opens ~9,000 px tall
+    - _Requirements: 6.1_
+
+- [ ] 18. Caption strip for narrow screens
+  - [ ] 18.1 Show a caption strip under the canvas below 560 CSS px in `public/js/house-renderer.js`
+    - When the canvas is rendered narrower than 560 CSS px, draw no speech bubble over the canvas; instead show the current spoken lines (name + words, spoken lines only, same ≥ 2.0 s minimum) in a caption strip directly under the canvas, so bubbles never cover the house or overlap each other at 320–390 px; wider screens keep the over-canvas bubbles (update `public/css/screens.css` as needed)
+    - _Requirements: 1.13, 3.4, 3.5, 3.7, 12.3_
+
+- [ ] 19. Replay usability and the turn count
+  - [ ] 19.1 Show "Turn N of M" next to the Replay controls
+    - In `public/js/replay.js` (and `public/replay.php`/`public/css/screens.css` as needed), show the current position as "Turn N of M", where M is the turns taken (applied turns excluding turn 0)
+    - _Requirements: 9.1, 9.8, 9.9, 9.10, 9.11_
+  - [ ] 19.2 Move the Replay control row directly under the canvas
+    - Place the Play/Pause/Step controls under the canvas rather than after the long reply column, in `public/replay.php` (and CSS as needed)
+    - _Requirements: 9.1, 12.3_
+  - [ ] 19.3 Add a "Choose another episode" button that returns to the list
+    - Add the control on the Replay screen so the viewer can leave playback and return to the Episode_List
+    - _Requirements: 8.2_
+  - [ ] 19.4 Count only turns after turn 0 in `EpisodeListService`
+    - The list said "14 turns" for an episode the End_Card calls "13 turns taken" because `EpisodeListService` counts turn 0; count only applied turns after turn 0 (robot turns taken) for the `turns` field, matching the End_Card, and update the list property test accordingly
+    - _Requirements: 11.3_
+
+
 ## Notes
 
 - **(a) API additions first, with required tests.** Tasks 1–4 add `world_json` and the ended-episode list to the already-built turn-loop; their property tests (2.2, 3.4, 4.3) and the list/world unit tests are required, not optional — only sub-tasks marked `*` may be skipped for a faster MVP.
@@ -198,7 +249,13 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     { "id": 13, "tasks": ["9.3"] },
     { "id": 14, "tasks": ["9.4", "10.1"] },
     { "id": 15, "tasks": ["10.2"] },
-    { "id": 16, "tasks": ["11.1"] }
+    { "id": 16, "tasks": ["11.1"] },
+    { "id": 17, "tasks": ["13.1", "14.1", "15.1"] },
+    { "id": 18, "tasks": ["16.1"] },
+    { "id": 19, "tasks": ["16.2", "16.3"] },
+    { "id": 20, "tasks": ["17.1"] },
+    { "id": 21, "tasks": ["18.1"] },
+    { "id": 22, "tasks": ["19.1", "19.2", "19.3", "19.4"] }
   ]
 }
 ```

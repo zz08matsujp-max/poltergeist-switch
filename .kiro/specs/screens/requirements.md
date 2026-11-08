@@ -142,6 +142,10 @@ The following are explicitly out of scope for this spec:
 9. WHEN the viewer presses Step while paused, THE Observe_Screen SHALL play exactly one more turn and then stop advancing.
 10. WHEN a turn is applied, THE Observe_Screen SHALL update the resident meters and append that turn's entry to the "What happened" log.
 11. WHEN `apply` reports that the episode has ended, THE Observe_Screen SHALL stop advancing to new turns and SHALL NOT send any further `ask` or `apply` call for that episode.
+12. WHEN a turn is applied, THE Observe_Screen SHALL describe each robot's action in the "What happened" log in the third person for the viewer, using that robot's outcome `seenByOtherText` with its leading "The other robot" replaced by that robot's name (Amber or Jade), and SHALL fall back to `whatHappenedText` only when `seenByOtherText` is empty.
+13. THE Observe_Screen SHALL NOT show any second-person ("You …") sentence in the "What happened" log.
+14. WHEN a robot both acts and speaks on a turn, THE Observe_Screen SHALL show that robot's action entry and, as a separate entry, its spoken line in the form `<Name> said: "<words>"` in the "What happened" log.
+15. WHERE a "What happened" log line would exceed its display length, THE Observe_Screen SHALL truncate it at a sentence boundary and append an ellipsis, never truncating mid-word.
 
 ### Requirement 6: Observe Screen End Card
 
@@ -156,6 +160,8 @@ The following are explicitly out of scope for this spec:
 5. THE End_Card SHALL name the two robots as Amber and Jade and SHALL NOT include any AI company name in the robots' text.
 6. WHEN the viewer presses "Watch again", THE Observe_Screen SHALL open the Replay_Screen for this episode's id.
 7. IF the Replay_Screen cannot be opened for this episode's id, THEN THE Observe_Screen SHALL keep the End_Card visible and SHALL show an error indication that the replay could not be opened.
+8. THE End_Card per-robot summary SHALL be built the same viewer-facing way as the "What happened" log: third-person text from the outcome `seenByOtherText` with its leading "The other robot" replaced by the robot's name, falling back to `whatHappenedText` only when `seenByOtherText` is empty; a spoken line shown separately as `<Name> said: "<words>"`; long lines truncated at a sentence boundary with an ellipsis; and no second-person ("You …") sentence, no robot thought, and no AI company name.
+9. THE End_Card SHALL present each robot's full stored replies inside a disclosure element (a `<details>`) collapsed by default, whose summary states the robot's name and the number of turns (for example "Amber — full replies (13 turns)"), so the full replies of criterion 1 remain available without the End_Card expanding to them by default.
 
 ### Requirement 7: Observe Screen Slot and Resume Handling
 
@@ -228,7 +234,7 @@ The following are explicitly out of scope for this spec:
 
 1. WHEN `GET /api/episodes?ended=1&limit=20` is called, THE Turn_Loop_API SHALL return only episodes whose ended state is true, excluding every episode that has not ended.
 2. THE Turn_Loop_API SHALL order the returned ended episodes by created date descending, and for episodes sharing the same created date, by id descending.
-3. THE Turn_Loop_API SHALL return for each ended episode its id, its created date, its number of turns as a non-negative integer, and its starting situation text.
+3. THE Turn_Loop_API SHALL return for each ended episode its id, its created date, its number of turns as a non-negative integer counting only applied turns after turn 0 (the robot turns taken, excluding the turn-0 setup), and its starting situation text.
 4. WHEN the `limit` value is an integer between 1 and 100 inclusive, THE Turn_Loop_API SHALL return at most that number of ended episodes.
 5. IF the `limit` value is absent, THEN THE Turn_Loop_API SHALL return at most 20 ended episodes.
 6. IF the `limit` value is not an integer, is less than 1, or is greater than 100, THEN THE Turn_Loop_API SHALL reject the request with an error response indicating the limit is out of range, and SHALL NOT return any episode list.
