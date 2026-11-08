@@ -58,17 +58,17 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
   - [x]* 4.2 Write unit tests in `tests/TurnLoop/ParallelHttpTest.php` exercising the result-shaping against prepared handles (no real network; local handles or stub handles), asserting a timed-out/errored handle yields `error` set
     - _Requirements: 1.6, 1.7_
 
-- [ ] 5. RobotClient interface and the two providers plus the fake
-  - [ ] 5.1 Implement the `RobotClient` interface in `src/TurnLoop/Clients/RobotClient.php` (`call`, `prepare`, `finish`) and `ClaudeClient` + `GptClient`:
+- [-] 5. RobotClient interface and the two providers plus the fake
+  - [x] 5.1 Implement the `RobotClient` interface in `src/TurnLoop/Clients/RobotClient.php` (`call`, `prepare`, `finish`) and `ClaudeClient` + `GptClient`:
     - `ClaudeClient` calls model `claude-haiku-5-5` through the Anthropic Messages API; truncated when `stop_reason === "max_tokens"`; tokens from `usage.input_tokens`/`usage.output_tokens`
     - `GptClient` calls model `gpt-6-luna` through the OpenAI Responses API; truncated when `status === "incomplete"`; tokens from the response usage fields
     - Both send exactly one user message, no system prompt, provider default parameters, `max output = 4000` tokens, identical per-call timeout; API key supplied at construction from `SecretLoader`, never a literal
     - A failure or timeout yields a `ReplyRecord` with `unanswered = true`, no tokens or cost accrued, and no retry within one request; cost computed from `Config` rates
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 1.8, 1.9, 1.10_
-  - [ ] 5.2 Implement `FakeRobotClient` in `src/TurnLoop/Clients/FakeRobotClient.php`:
+  - [x] 5.2 Implement `FakeRobotClient` in `src/TurnLoop/Clients/FakeRobotClient.php`:
     - Returns a configured `ReplyRecord` for a given prompt deterministically, opens no network connection, and counts invocations (so ask-idempotency can assert "at most once per turn")
     - _Requirements: 1.1, 14.1_
-  - [ ]* 5.3 Write unit tests in `tests/TurnLoop/Clients/RobotClientTest.php`:
+  - [x]* 5.3 Write unit tests in `tests/TurnLoop/Clients/RobotClientTest.php`:
     - `finish` maps a `stop_reason=max_tokens` body to `truncated=true` (Claude) and `status=incomplete` to `truncated=true` (GPT); an error/timeout result maps to `unanswered=true` with zero tokens/cost; the request body carries one user message, no system prompt, `max output 4000`; `FakeRobotClient` counts calls
     - _Requirements: 1.2, 1.4, 1.5, 1.8_
 

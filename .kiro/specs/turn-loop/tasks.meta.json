@@ -19,6 +19,20 @@
         "chatSessionId": "sess_67d4dec4-79b5-4507-b29e-9cafbbe18cc3",
         "timestamp": 1794098472450
       }
+    ],
+    "4. ParallelHttp helper": [
+      {
+        "executionId": "125d4d5b-97fa-4f18-9fef-90db0b0f1f6c",
+        "chatSessionId": "sess_bf278fe3-3895-406a-957f-988f660f3b45",
+        "timestamp": 1794099200579
+      }
+    ],
+    "5. RobotClient interface and the two providers plus the fake": [
+      {
+        "executionId": "83516131-1c17-495e-9407-93e747dc41d0",
+        "chatSessionId": "sess_fb4b5001-773e-4cae-ae5d-62a8bd5946a6",
+        "timestamp": 1794099713744
+      }
     ]
   }
 }
