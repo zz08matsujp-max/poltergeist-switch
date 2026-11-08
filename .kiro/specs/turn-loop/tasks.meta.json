@@ -66,6 +66,13 @@
         "chatSessionId": "sess_b98c87d1-1c46-43c4-9183-a0226ea2b983",
         "timestamp": 1794103980969
       }
+    ],
+    "8.3 Implement `PdoEpisodeRepository` in `src/TurnLoop/Repository/PdoEpisodeRepository.php`:": [
+      {
+        "executionId": "5a260fee-1454-4886-8eac-06bf0a4bbe6c",
+        "chatSessionId": "sess_b98c87d1-1c46-43c4-9183-a0226ea2b983",
+        "timestamp": 1794104346080
+      }
     ]
   }
 }

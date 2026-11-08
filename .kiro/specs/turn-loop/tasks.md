@@ -106,7 +106,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
   - [x] 8.2 Implement `InMemoryEpisodeRepository` in `tests/TurnLoop/` (or a shared test double) for driving `TurnService` without a database:
     - Lazy idle-slot release: an episode counts as running only when `ended = 0` AND `last_activity_at` is within `idleSlotReleaseSeconds`; `storeAppliedTurn` is idempotent (a repeat creates no duplicates)
     - _Requirements: 8.7, 8.8, 8.10, 9.7, 9.8, 9.9, 9.10_
-  - [ ] 8.3 Implement `PdoEpisodeRepository` in `src/TurnLoop/Repository/PdoEpisodeRepository.php`:
+  - [x] 8.3 Implement `PdoEpisodeRepository` in `src/TurnLoop/Repository/PdoEpisodeRepository.php`:
     - PDO/MySQL implementation; `storeAppliedTurn` runs inside `beginTransaction()`/`commit()` with `rollBack()` on any exception and reports failure; idempotent re-store guarded by the `(episode_id, turn_number, robot_id)` keys; device/slot queries apply the lazy 5-minute idle release
     - _Requirements: 8.1, 8.7, 8.8, 8.9, 8.10, 9.7, 9.8, 9.9, 9.10_
   - [ ]* 8.4 Write unit tests in `tests/TurnLoop/Repository/EpisodeRepositoryTest.php` against the in-memory fake (required behaviour), with the `PdoEpisodeRepository` tests guarded/skipped when no MySQL is available:
