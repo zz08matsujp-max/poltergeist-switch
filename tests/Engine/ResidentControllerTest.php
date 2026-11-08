@@ -357,23 +357,25 @@ class ResidentControllerTest extends TestCase
     // 8. Earthquake line fires on earthquakeStartTurn, ignoring cooldown.
     // ------------------------------------------------------------------
 
-    public function testEarthquakeLineFiresOnEarthquakeStartTurn(): void
+    public function testEarthquakeLineFiresOnFirstShakingTurn(): void
     {
         $world  = $this->makeWorld();
         $config = new EpisodeConfig();
 
+        // The earthquake starts on turn 3, so the first shaking turn is
+        // offset 1 — turn 4 (earthquakeStartTurn + 1).
         $world->earthquakeStartTurn = 3;
 
-        $line = (new ResidentController())->emitDialogueLine($world, $config, 3);
+        $line = (new ResidentController())->emitDialogueLine($world, $config, 4);
 
         $this->assertSame(
             "What's happening?!",
             $line,
-            'The earthquake shout fires on the turn the earthquake starts'
+            'The earthquake shout fires on the first shaking turn (offset 1)'
         );
     }
 
-    public function testEarthquakeLineDoesNotFireOnOtherTurns(): void
+    public function testEarthquakeLineDoesNotFireOnOffsetZeroTurn(): void
     {
         $world  = $this->makeWorld();
         $config = new EpisodeConfig();
@@ -381,8 +383,21 @@ class ResidentControllerTest extends TestCase
         $world->earthquakeStartTurn = 3;
 
         $this->assertNull(
-            (new ResidentController())->emitDialogueLine($world, $config, 4),
-            'The earthquake shout only fires on the earthquakeStartTurn itself'
+            (new ResidentController())->emitDialogueLine($world, $config, 3),
+            'The earthquake shout does not fire on the offset-0 turn (earthquakeStartTurn itself)'
+        );
+    }
+
+    public function testEarthquakeLineDoesNotFireOnLaterShakingTurns(): void
+    {
+        $world  = $this->makeWorld();
+        $config = new EpisodeConfig();
+
+        $world->earthquakeStartTurn = 3;
+
+        $this->assertNull(
+            (new ResidentController())->emitDialogueLine($world, $config, 5),
+            'The earthquake shout only fires on the first shaking turn (offset 1), not later ones'
         );
     }
 
@@ -393,17 +408,18 @@ class ResidentControllerTest extends TestCase
 
         $controller = new ResidentController();
 
-        // The earthquake start turn is 3, and the earthquake line was
-        // "delivered" on turn 3 (one turn ago). Despite being inside the
-        // cooldown window, the shout still fires because turnNumber still
-        // equals earthquakeStartTurn — the earthquake line has no cooldown.
+        // The earthquake start turn is 3, so the first shaking turn is offset 1
+        // (turn 4). The line was "delivered" on turn 4 already; despite being
+        // inside the cooldown window, the shout still fires because turnNumber
+        // still equals earthquakeStartTurn + 1 — the earthquake line has no
+        // cooldown.
         $world->earthquakeStartTurn = 3;
-        $world->residentState->lastLineDeliveredOn = ['earthquake' => 3];
+        $world->residentState->lastLineDeliveredOn = ['earthquake' => 4];
 
         $this->assertSame(
             "What's happening?!",
-            $controller->emitDialogueLine($world, $config, 3),
-            'The earthquake shout ignores the cooldown and fires whenever turnNumber == earthquakeStartTurn'
+            $controller->emitDialogueLine($world, $config, 4),
+            'The earthquake shout ignores the cooldown and fires whenever turnNumber == earthquakeStartTurn + 1'
         );
     }
 
@@ -556,15 +572,16 @@ class ResidentControllerTest extends TestCase
         $world  = $this->makeWorld();
         $config = new EpisodeConfig();
 
-        // Satisfy every condition at once: earthquake start this turn, high
-        // fear, low water, and a dark resident room. Priority order is
+        // Satisfy every condition at once on the first shaking turn: the
+        // earthquake started on turn 4, so offset 1 is turn 5; high fear, low
+        // water, and a dark resident room also hold. Priority order is
         // earthquake, fear, water, darkness — so the earthquake shout wins.
         $world->earthquakeStartTurn       = 4;
         $world->residentState->fear       = $config->fearSpeechThreshold;
         $world->residentState->water      = $config->waterSpeechThreshold;
         $world->getRoom($world->residentState->room)->lightLevel = LightLevel::dark;
 
-        $line = (new ResidentController())->emitDialogueLine($world, $config, 4);
+        $line = (new ResidentController())->emitDialogueLine($world, $config, 5);
 
         $this->assertSame(
             "What's happening?!",

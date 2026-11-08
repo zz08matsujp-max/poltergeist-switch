@@ -938,6 +938,13 @@
         "chatSessionId": "sess_f1a354ca-6c0d-48ad-bc91-d96c053c818d",
         "timestamp": 1794102472124
       }
+    ],
+    "31.1 Fire the earthquake-start shout on offset 1 (the first shaking turn):": [
+      {
+        "executionId": "04c635f0-09ee-43ab-a2f6-606a060db471",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794117269447
+      }
     ]
   }
 }

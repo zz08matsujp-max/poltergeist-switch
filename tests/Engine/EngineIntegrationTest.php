@@ -1197,25 +1197,35 @@ class EngineIntegrationTest extends TestCase
 
     /**
      * The earthquake start shout "What's happening?!" is the resident line the
-     * engine fixes for the earthquake-start turn (offset 0). prepareTurn fixes
-     * it once; applyTurn records exactly that line (Req 7.1, Req 13.8). The
-     * line fires on `turnNumber == earthquakeStartTurn`, so it belongs to the
-     * offset-0 turn the switch opens — the turn immediately before the first
-     * shaking turn (offset 1). This test pins that shout to the start turn so a
-     * regression that silently drops or relocates it is caught.
+     * engine fixes for the first shaking turn (offset 1). prepareTurn fixes it
+     * once; applyTurn records exactly that line (Req 7.1, Req 13.8). The line
+     * fires on `turnNumber == earthquakeStartTurn + 1`, so it belongs to the
+     * first shaking turn — the turn whose shaking paragraph opens "Suddenly the
+     * floor begins to shake hard." This test pins that shout to the first
+     * shaking turn so a regression that silently drops or relocates it is
+     * caught.
      */
-    public function testEarthquakeShoutIsTheStartTurnResidentLine(): void
+    public function testEarthquakeShoutIsTheFirstShakingTurnResidentLine(): void
     {
         [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
 
-        // Start the earthquake on turn 1 (offset 0 = turn 1). The earthquake
-        // line fires on earthquakeStartTurn.
+        // Start the earthquake on turn 1 (offset 0 = turn 1); the first shaking
+        // turn is offset 1 = turn 2, where the earthquake line fires.
         $engine->applyTurn(0, []);
         $world->earthquakeStartTurn = 1;
 
+        // Offset 0 turn (turn 1): the shout does not fire yet.
         $engine->prepareTurn(1);
-        $result = $engine->applyTurn(1, []);
-        $this->assertSame("What's happening?!", $result->residentLine);
+        $result1 = $engine->applyTurn(1, []);
+        $this->assertNull(
+            $result1->residentLine,
+            'The earthquake shout does not fire on the offset-0 start turn.',
+        );
+
+        // First shaking turn (offset 1 = turn 2): the shout is this turn's line.
+        $engine->prepareTurn(2);
+        $result2 = $engine->applyTurn(2, []);
+        $this->assertSame("What's happening?!", $result2->residentLine);
     }
 
     /**
@@ -1316,18 +1326,24 @@ class EngineIntegrationTest extends TestCase
      * No turn's resident line is emitted twice: when a turn is prepared, the
      * line fixed in prepareTurn is the same line applyTurn records, not a
      * second line from a repeated emitDialogueLine call. Preparing and then
-     * applying the earthquake-start turn yields the shout exactly as the
-     * turn's single resident line (Req 13.8).
+     * applying the first shaking turn yields the shout exactly as the turn's
+     * single resident line (Req 13.8).
      */
     public function testPreparedTurnEmitsExactlyOneResidentLine(): void
     {
         [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
 
-        // Earthquake starts on turn 0; the earthquake shout is turn 0's line.
+        // Earthquake starts on turn 0; the earthquake shout is the first
+        // shaking turn's line (offset 1 = turn 1).
         $world->earthquakeStartTurn = 0;
 
+        // Offset 0 (turn 0): quiet start turn, no shout yet.
         $engine->prepareTurn(0);
-        $result = $engine->applyTurn(0, []);
+        $engine->applyTurn(0, []);
+
+        // First shaking turn (offset 1 = turn 1): the shout is its single line.
+        $engine->prepareTurn(1);
+        $result = $engine->applyTurn(1, []);
 
         // The line applyTurn recorded is exactly the prepared earthquake shout.
         $this->assertSame("What's happening?!", $result->residentLine);

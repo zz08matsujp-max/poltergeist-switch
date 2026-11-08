@@ -85,6 +85,42 @@ class EngineSituationTextTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Offset 1 (first shaking turn): the earthquake shout reaches both robots
+    // inside the shaking paragraph (Req 7.1, Req 9.10–9.11).
+    // ------------------------------------------------------------------
+
+    public function testEarthquakeShoutAppearsOnFirstShakingTurnForBothRobots(): void
+    {
+        [$engine, $world] = $this->makeEngine($this->nightSpec());
+
+        // The earthquake begins on turn 0 (offset 0); the first shaking turn is
+        // offset 1 — turn 1. The resident sits in the living room while robot_a
+        // is in the kitchen and robot_b in the bedroom, so each hears the shout
+        // from another room ("You hear the man shout, ...").
+        $world->earthquakeStartTurn = 0;
+
+        // Prepare turn 1 so the situation text renders that turn's world, then
+        // read the text before applying — this mirrors the real server flow
+        // where the robots read the prompt for the turn about to be played.
+        $engine->applyTurn(0, []);
+        $engine->prepareTurn(1);
+
+        $textA = $engine->situationTextFor('robot_a');
+        $textB = $engine->situationTextFor('robot_b');
+
+        $this->assertStringContainsString('Suddenly the floor begins to shake hard.', $textA);
+        $this->assertStringContainsString('Suddenly the floor begins to shake hard.', $textB);
+        $this->assertStringContainsString(
+            'You hear the man shout, "What\'s happening?!"',
+            $textA,
+        );
+        $this->assertStringContainsString(
+            'You hear the man shout, "What\'s happening?!"',
+            $textB,
+        );
+    }
+
+    // ------------------------------------------------------------------
     // Offset 2: "The lights go out." for both robots (Req 9.14).
     // ------------------------------------------------------------------
 

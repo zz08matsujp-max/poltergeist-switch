@@ -75,11 +75,11 @@ This spec covers only the pure rules engine: no I/O, no AI calls, no database, n
 
 #### Acceptance Criteria
 
-1. WHEN the earthquake phase begins at turn T, THE World_Model SHALL record T as the earthquake start turn and define the earthquake phase as lasting exactly 13 turns (turn offset 1 through 13, where turn offset N corresponds to turn T+N−1).
+1. WHEN the earthquake phase begins at turn T, THE World_Model SHALL record T as the earthquake start turn and define the earthquake phase as lasting exactly 13 turn offsets (1 through 13), where the turn offset is `current_turn − T`; turn offset 1 is the first shaking turn (turn T+1) and turn offset N corresponds to turn T+N, so the phase covers turns T+1 through T+13.
 2. WHILE the earthquake phase is active, IF the current turn offset is 1, 2, 3, 4, or 12, THEN THE House_State SHALL be marked `shaking=true`; otherwise THE House_State SHALL be marked `shaking=false`.
 3. WHEN the turn offset is 2, THE House_State SHALL transition to `power=outage`; `power=outage` SHALL remain in effect until the episode ends (no restoration rule exists in this spec).
 4. WHILE THE House_State is marked `shaking=true`, THE World_Model SHALL use the seed combined with the current turn offset as the deterministic input to select which subset (zero or more) of breakable objects — defined as all objects flagged `breakable=true` in the kitchen and living_room — fall and break on that turn.
-5. IF the gas stove flame is `on=true` at the moment the earthquake phase begins, THEN THE World_Model SHALL, at turn offset 6 (turn T+5), set the stove `on=false`, place the pot as `fallen=true`, and mark the kitchen with a `hot_water_injury_hazard=true`; IF the stove flame is set to `on=false` by any action before turn offset 6, THEN THE World_Model SHALL NOT apply the delayed hazard placement at turn offset 6.
+5. IF the gas stove flame is `on=true` at the moment the earthquake phase begins, THEN THE World_Model SHALL, at turn offset 6 (turn T+6), set the stove `on=false`, place the pot as `fallen=true`, and mark the kitchen with a `hot_water_injury_hazard=true`; IF the stove flame is set to `on=false` by any action before turn offset 6, THEN THE World_Model SHALL NOT apply the delayed hazard placement at turn offset 6.
 6. THE World_Model SHALL NOT close the gas main as a result of the earthquake phase, regardless of stove state.
 7. WHILE the earthquake phase is active, THE World_Model SHALL advance the world clock by exactly 15 seconds per turn.
 8. WHEN given the same seed and no robot actions, THE World_Model SHALL produce the same object-fall sequence and hazard-placement outcomes on every execution.
@@ -155,7 +155,7 @@ This spec covers only the pure rules engine: no I/O, no AI calls, no database, n
 
 #### Acceptance Criteria
 
-1. WHEN the earthquake phase begins on turn T, THE Resident SHALL emit the scripted line "What's happening?!" as a dialogue event on turn T.
+1. WHEN the earthquake phase begins on turn T, THE Resident SHALL emit the scripted line "What's happening?!" as a dialogue event on the first shaking turn (turn offset 1, turn T+1), with no cooldown.
 2. IF Resident_State.fear is greater than or equal to the fear-speech threshold defined in EpisodeConfig AND the last delivery of the "I'm scared..." line was within the preceding 5 turns (i.e., the line was last delivered on turn T−1 through T−5 inclusive), THEN THE Resident SHALL NOT emit the "I'm scared..." line. (draft — threshold 70)
 3. IF Resident_State.fear is greater than or equal to the fear-speech threshold defined in EpisodeConfig AND the last delivery of the "I'm scared..." line was more than 5 turns ago (i.e., on turn T−6 or earlier, or never delivered), THEN THE Resident SHALL emit the scripted line "I'm scared..." as a dialogue event. (draft — threshold 70)
 4. IF Resident_State.water is less than or equal to the water-speech threshold defined in EpisodeConfig AND the last delivery of the "Water..." line was more than 5 turns ago (i.e., on turn T−6 or earlier, or never delivered), THEN THE Resident SHALL emit the scripted line "Water... give me some water." as a dialogue event. (draft — threshold 40)

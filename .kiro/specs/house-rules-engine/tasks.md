@@ -500,6 +500,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x]* 30.3 Tests in `tests/Engine/RulesEvaluatorTest.php` and `tests/Engine/ActionExecutorTest.php`: a same-room move is possible and changes only the spot; `near_resident` with the man present is possible; `near_resident` with the man absent is `possible=false, reason="resident_not_here"`; a same-room move to a window spot while shaking is `dangerous=true, danger_code=R1`; a same-room move onto the gas_stove spot while shaking records `danger_code=R2a`; a genuinely non-adjacent room stays `not_adjacent`. All existing tests still pass.
   - _Requirements: Req 30.1–30.6, Req 4.2, Req 4.8, Req 4.9_
 
+- [x] 31. Earthquake shout on the first shaking turn (added 2026-11-08)
+  - [x] 31.1 Fire the earthquake-start shout on offset 1 (the first shaking turn):
+    - In `ResidentController::emitDialogueLine`, the earthquake line fires when the turn offset is 1 (i.e. `turnNumber == earthquakeStartTurn + 1`), not on offset 0, so the shout "What's happening?!" appears on the first shaking turn as in all six experiment-0 texts ("You hear the man shout, \"What's happening?!\"")
+    - Fix Requirement 3.1 (offset wording: offset = turn - T; offset 1 is the first shaking turn, so the shout is emitted on turn T+1) and Requirement 7.1 to match the code
+    - Update the existing ResidentController tests that asserted firing on `earthquakeStartTurn` itself; add an engine/integration check that after create + flip the first prompt for both robots contains the shout in the shaking paragraph
+    - _Requirements: Req 3.1, Req 7.1_
+
 ---
 
 ## Notes
@@ -547,7 +554,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 21, "tasks": ["27.1", "27.2", "27.3"] },
     { "id": 22, "tasks": ["28.1", "28.2", "29.1"] },
     { "id": 23, "tasks": ["28.3", "29.2"] },
-    { "id": 24, "tasks": ["30.1", "30.2", "30.3"] }
+    { "id": 24, "tasks": ["30.1", "30.2", "30.3"] },
+    { "id": 25, "tasks": ["31.1"] }
   ]
 }
 ```

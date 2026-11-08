@@ -142,7 +142,8 @@ class ResidentController
      * later turns (Req 7.6).
      *
      * Line conditions:
-     *   earthquake — fires when `turnNumber == earthquakeStartTurn`; it is the
+     *   earthquake — fires on the first shaking turn, i.e. offset 1
+     *                (`turnNumber == earthquakeStartTurn + 1`); it is the
      *                earthquake-start shout and carries no cooldown (Req 7.1).
      *   fear       — fires when `fear >= fearSpeechThreshold` (Req 7.2–7.3).
      *   water      — fires when `water <= waterSpeechThreshold` (Req 7.4).
@@ -295,8 +296,11 @@ class ResidentController
         $resident = $world->residentState;
 
         return match ($lineKey) {
+            // The shout fires on the first shaking turn — offset 1, i.e.
+            // turnNumber == earthquakeStartTurn + 1 — not on the offset-0 turn
+            // the robots never read as a shaking turn (Req 7.1).
             'earthquake' => $world->earthquakeStartTurn !== null
-                && $turnNumber === $world->earthquakeStartTurn,
+                && $turnNumber === $world->earthquakeStartTurn + 1,
             'fear'     => $resident->fear >= $config->fearSpeechThreshold,
             'water'    => $resident->water <= $config->waterSpeechThreshold,
             'darkness' => $world->getRoom($resident->room)->lightLevel === LightLevel::dark,
