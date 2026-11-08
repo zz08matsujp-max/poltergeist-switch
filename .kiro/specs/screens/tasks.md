@@ -171,7 +171,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 8.2, 8.7_
 
 - [ ] 14. Fix the resident meters never filling
-  - [ ] 14.1 Make `.meter .fill` `display: block` in `public/css/screens.css`
+  - [x] 14.1 Make `.meter .fill` `display: block` in `public/css/screens.css`
     - The fill is an inline `<span>`, so its width and height were ignored and the bars never filled even though the values were right (fear went 0→9→0 in the live run); `display: block` lets the width/height apply
     - _Requirements: 4.10, 5.10_
 

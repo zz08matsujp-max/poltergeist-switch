@@ -293,7 +293,7 @@ canvas {
   border-radius: 3px;
   overflow: hidden;
 }
-.meter .fill { height: 100%; width: 0; background: var(--jade); transition: width .25s; }
+.meter .fill { display: block; height: 100%; width: 0; background: var(--jade); transition: width .25s; }
 .meter.injury .fill, .meter.fear .fill { background: var(--alarm); }
 .meter .val { font-size: 13px; color: var(--bone); min-width: 4ch; text-align: right; }
 
