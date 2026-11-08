@@ -893,22 +893,89 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
     // =====================================================================
     // Robot-memory additions (robot-memory spec, Requirement 8.1)
     //
-    // STUBS ONLY. Task 4.1 extends the EpisodeRepository interface; the real
-    // in-memory logic (cap/retirement, claim/commit semantics) lands in task
-    // 4.2. These stubs keep the fake instantiable so `php -l` and the existing
-    // turn-loop suite stay green until 4.2 replaces each body. TASK 4.2:
-    // replace every stub below.
+    // The in-memory mirror of PdoEpisodeRepository's memory storage. It carries
+    // the logic the properties depend on (the PDO MySQL locking/atomicity tests
+    // SKIP when no test database is available), so these behaviours must match
+    // the "Reflection idempotency and the MySQL 5.7 locking design" exactly:
+    //   - one memory store per robot accumulated across every episode of every
+    //     run kind, keyed only by (robot, disaster, generation) and never by
+    //     run kind (Requirements 3.2, 6.1);
+    //   - appendMemory enforces the active cap of 6 per (robot, disaster,
+    //     generation) by retiring every active row past the 6 newest, oldest
+    //     first by finish-order seq, never deleting a retired row (Req 3.3,
+    //     3.4, 3.5, 8.4), and is idempotent per (sourceEpisodeId, robotId)
+    //     (Req 8.5);
+    //   - activeMemories returns the active rows of (robot, generation) across
+    //     all disasters oldest first, capped, excluding retired and
+    //     other-generation rows (Req 3.8, 6.1);
+    //   - the reflection claim mirrors SELECT ... FOR UPDATE: first claim wins
+    //     in_progress, a fresh in_progress (within 120 s) skips, an answered
+    //     slot reuses the stored body, a failed or stale in_progress is
+    //     re-claimable (Req 2.8, 2.9, 2.10).
+    // A single PHP process runs the fake, so "serialize per triple" needs no
+    // real lock: appendMemory retires down to 6 on every call, so however two
+    // commits for the same triple interleave the committed active count never
+    // exceeds 6 (Req 8.4).
     // =====================================================================
+
+    /**
+     * The single memory store, one list of memory rows accumulated across every
+     * episode of every run kind (Req 3.2). Each entry is kept verbatim with its
+     * finish-order seq and status; a retired row stays in the list (never
+     * deleted) but is excluded from every read (Req 3.5).
+     *
+     * @var array<int, MemoryRow>
+     */
+    private array $memories = [];
+
+    /**
+     * The current memory generation (Req 4.1). Defaults to generation 1, matching
+     * the migration's seeded memory_generation row; advanceGeneration moves it
+     * forward (Req 4.2) and never deletes a memory.
+     */
+    private int $currentGeneration = 1;
+
+    /** The finish-order sequence shared by appended memories (the auto-increment id). */
+    private int $nextMemorySeq = 1;
+
+    /**
+     * Per-episode stored generation and both robots' frozen snapshots
+     * (Req 6.1). Keyed by episode id; a snapshot is the verbatim bodies, oldest
+     * first, frozen at creation so a rebuild matches the live run.
+     *
+     * @var array<string, array{generation:int, robot_a:MemorySnapshot, robot_b:MemorySnapshot}>
+     */
+    private array $episodeMemory = [];
+
+    /**
+     * Per-(episode, robot) reflection slot, mirroring the `reflections` row
+     * claimed with SELECT ... FOR UPDATE (Req 2.8–2.10). Keyed by
+     * "{episodeId}#{robotId}". `claimedAt` is a Unix timestamp from the
+     * injected clock so a test can advance "now" and prove the 120 s stale
+     * recovery; `answer` holds the stored MemoryRow once answered.
+     *
+     * @var array<string, array{status:string, claimedAt:int, reason:?string, answer:?MemoryRow}>
+     */
+    private array $reflections = [];
+
+    // --- Generations -----------------------------------------------------
 
     public function currentGeneration(): int
     {
-        throw new \LogicException('not implemented');
+        return $this->currentGeneration;
     }
 
     public function advanceGeneration(): int
     {
-        throw new \LogicException('not implemented');
+        // Move the current generation forward and delete nothing (Req 4.2): new
+        // episodes start with no memories while every earlier-generation row is
+        // kept but excluded from reads.
+        $this->currentGeneration++;
+
+        return $this->currentGeneration;
     }
+
+    // --- Per-episode snapshot + generation -------------------------------
 
     public function storeEpisodeMemory(
         string $episodeId,
@@ -916,51 +983,309 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         MemorySnapshot $robotA,
         MemorySnapshot $robotB
     ): void {
-        throw new \LogicException('not implemented');
+        // Freeze the two ordered body lists and the generation with the episode
+        // (Req 6.1). Rebuilt turns read these back verbatim rather than
+        // re-querying the live store, so replay matches the live run.
+        $this->episodeMemory[$episodeId] = [
+            'generation' => $generation,
+            'robot_a' => $robotA,
+            'robot_b' => $robotB,
+        ];
     }
 
     public function episodeGeneration(string $episodeId): int
     {
-        throw new \LogicException('not implemented');
+        // A running episode keeps its own stored generation even after a reset
+        // advances the current one (Req 4.4); a pre-feature / unknown episode
+        // falls back to the current generation.
+        return $this->episodeMemory[$episodeId]['generation'] ?? $this->currentGeneration;
     }
 
     public function episodeSnapshot(string $episodeId, string $robotId): MemorySnapshot
     {
-        throw new \LogicException('not implemented');
+        // A pre-feature episode (no stored snapshot) yields an empty snapshot,
+        // matching the PDO path that treats a NULL / malformed snapshot column
+        // as empty (Req 6.6).
+        $stored = $this->episodeMemory[$episodeId] ?? null;
+        if ($stored === null) {
+            return new MemorySnapshot([]);
+        }
+
+        return $stored[$robotId] ?? new MemorySnapshot([]);
     }
+
+    // --- Memories: read --------------------------------------------------
 
     public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
     {
-        throw new \LogicException('not implemented');
+        // Active rows of (robot, generation) across ALL disasters, oldest first
+        // by finish-order seq, excluding retired and other-generation rows
+        // (Req 3.8, 6.1). The cap keeps only the newest $cap when more exist,
+        // so the oldest beyond the cap are dropped from the snapshot (not the
+        // store) — the snapshot still reads oldest first.
+        $rows = [];
+        foreach ($this->memories as $memory) {
+            if ($memory->robotId === $robotId
+                && $memory->generation === $generation
+                && $memory->status === 'active'
+            ) {
+                $rows[] = $memory;
+            }
+        }
+
+        usort($rows, static fn (MemoryRow $a, MemoryRow $b): int => ($a->seq ?? 0) <=> ($b->seq ?? 0));
+
+        if ($cap >= 0 && count($rows) > $cap) {
+            // Keep the newest $cap, still presented oldest first.
+            $rows = array_slice($rows, count($rows) - $cap);
+        }
+
+        $bodies = [];
+        foreach ($rows as $memory) {
+            $bodies[] = $memory->body;
+        }
+
+        return new MemorySnapshot($bodies);
     }
 
     public function activeCount(string $robotId, int $generation, string $disaster): int
     {
-        throw new \LogicException('not implemented');
+        // Active rows of the (robot, disaster, generation) triple, excluding
+        // retired and other-generation rows (Req 3.3). The per-triple cap is 6.
+        $count = 0;
+        foreach ($this->memories as $memory) {
+            if ($memory->robotId === $robotId
+                && $memory->generation === $generation
+                && $memory->disaster === $disaster
+                && $memory->status === 'active'
+            ) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
+
+    // --- Memories: write with cap + retirement, atomic -------------------
 
     public function appendMemory(MemoryRow $memory): void
     {
-        throw new \LogicException('not implemented');
+        // Idempotent per (sourceEpisodeId, robotId): a second store for the same
+        // source episode + robot leaves the store unchanged and creates no
+        // duplicate (Req 8.5), mirroring the PDO uq_source guard.
+        foreach ($this->memories as $existing) {
+            if ($existing->sourceEpisodeId === $memory->sourceEpisodeId
+                && $existing->robotId === $memory->robotId
+            ) {
+                return;
+            }
+        }
+
+        // Append in finish order: the next seq is the auto-increment id, so a
+        // later-committed memory has a higher seq (Req 3.6). The created time
+        // and tags are stored verbatim; status starts active.
+        $this->memories[] = new MemoryRow(
+            robotId: $memory->robotId,
+            generation: $memory->generation,
+            disaster: $memory->disaster,
+            sourceEpisodeId: $memory->sourceEpisodeId,
+            body: $memory->body,
+            status: 'active',
+            createdAt: $memory->createdAt,
+            seq: $this->nextMemorySeq++,
+            retiredAt: null,
+        );
+
+        // Retire oldest-active rows of this triple down to at most 6 (Req 3.3,
+        // 3.4, 8.4). Retiring every active row past the 6 newest (oldest first
+        // by seq) means that however two interleaved commits for the same
+        // triple order their appends, the committed active count never exceeds
+        // 6: the second append still retires its own surplus. A retired row is
+        // kept in the store (status flipped, retired_at set), never deleted
+        // (Req 3.5), and only this triple is touched so no other-generation or
+        // other-disaster memory is retired.
+        $this->retireSurplus($memory->robotId, $memory->disaster, $memory->generation);
     }
+
+    /**
+     * Retire the oldest active rows of ($robotId, $disaster, $generation) until
+     * at most 6 remain active, oldest first by finish-order seq (Req 3.4, 8.4).
+     * Flips status to 'retired' and sets retired_at in place; never deletes.
+     */
+    private function retireSurplus(string $robotId, string $disaster, int $generation): void
+    {
+        $cap = 6;
+
+        // Indexes of this triple's active rows, oldest first by seq.
+        $activeIndexes = [];
+        foreach ($this->memories as $index => $existing) {
+            if ($existing->robotId === $robotId
+                && $existing->disaster === $disaster
+                && $existing->generation === $generation
+                && $existing->status === 'active'
+            ) {
+                $activeIndexes[] = $index;
+            }
+        }
+        usort(
+            $activeIndexes,
+            fn (int $a, int $b): int =>
+                ($this->memories[$a]->seq ?? 0) <=> ($this->memories[$b]->seq ?? 0)
+        );
+
+        $surplus = count($activeIndexes) - $cap;
+        if ($surplus <= 0) {
+            return;
+        }
+
+        $retiredAt = $this->now();
+        for ($i = 0; $i < $surplus; $i++) {
+            $index = $activeIndexes[$i];
+            $row = $this->memories[$index];
+            $this->memories[$index] = new MemoryRow(
+                robotId: $row->robotId,
+                generation: $row->generation,
+                disaster: $row->disaster,
+                sourceEpisodeId: $row->sourceEpisodeId,
+                body: $row->body,
+                status: 'retired',
+                createdAt: $row->createdAt,
+                seq: $row->seq,
+                retiredAt: $retiredAt,
+            );
+        }
+    }
+
+    // --- Reflection slot claim/commit (idempotency) ----------------------
 
     public function claimReflectionSlot(string $episodeId, string $robotId): ReflectionClaim
     {
-        throw new \LogicException('not implemented');
+        $key = $this->reflectionKey($episodeId, $robotId);
+        $now = ($this->clock)();
+        $slot = $this->reflections[$key] ?? null;
+
+        // No row yet: this caller owns a fresh claim (Req 2.8). Mirrors the
+        // INSERT ... ON DUPLICATE KEY creating the row, then owning it.
+        if ($slot === null) {
+            $this->reflections[$key] = [
+                'status' => 'in_progress',
+                'claimedAt' => $now,
+                'reason' => null,
+                'answer' => null,
+            ];
+
+            return ReflectionClaim::claimed();
+        }
+
+        // Already answered: reuse the stored body, make no call (Req 2.9).
+        if ($slot['status'] === 'answered' && $slot['answer'] !== null) {
+            return ReflectionClaim::reuse($slot['answer']->body);
+        }
+
+        // A previously failed slot is re-claimable (Req 2.10).
+        if ($slot['status'] === 'failed') {
+            $this->reflections[$key] = [
+                'status' => 'in_progress',
+                'claimedAt' => $now,
+                'reason' => null,
+                'answer' => null,
+            ];
+
+            return ReflectionClaim::claimed();
+        }
+
+        // An in-progress slot: fresh (within 120 s) → a concurrent caller owns
+        // it, so skip and do not double-ask (Req 2.9); stale (older than 120 s)
+        // → the owner died, so re-claim it (Req 2.10).
+        if ($slot['status'] === 'in_progress') {
+            $stale = ($now - $slot['claimedAt']) >= 120;
+            if ($stale) {
+                $this->reflections[$key] = [
+                    'status' => 'in_progress',
+                    'claimedAt' => $now,
+                    'reason' => null,
+                    'answer' => null,
+                ];
+
+                return ReflectionClaim::claimed();
+            }
+
+            return ReflectionClaim::skip();
+        }
+
+        // Any unexpected state is treated as skippable rather than claimed, so a
+        // bad slot can never cause a double-ask.
+        return ReflectionClaim::skip();
     }
 
     public function commitReflectionAnswer(string $episodeId, string $robotId, MemoryRow $memory): void
     {
-        throw new \LogicException('not implemented');
+        // Append the memory with the cap/retirement applied (Req 2.6, 8.4);
+        // appendMemory is idempotent per (sourceEpisodeId, robotId), so a
+        // repeated commit of an already-stored answer creates no duplicate
+        // (Req 8.5). Then mark the slot answered so repeat/concurrent calls
+        // reuse it.
+        $this->appendMemory($memory);
+
+        // The stored answer carried on the slot is the persisted row (with its
+        // seq/status), so reflectionAnswer and a later reuse read it back
+        // verbatim.
+        $stored = $this->findStoredMemory($memory->sourceEpisodeId, $memory->robotId) ?? $memory;
+
+        $key = $this->reflectionKey($episodeId, $robotId);
+        $existing = $this->reflections[$key] ?? null;
+        $this->reflections[$key] = [
+            'status' => 'answered',
+            'claimedAt' => $existing['claimedAt'] ?? ($this->clock)(),
+            'reason' => null,
+            'answer' => $stored,
+        ];
     }
 
     public function commitReflectionFailure(string $episodeId, string $robotId, string $reason): void
     {
-        throw new \LogicException('not implemented');
+        // Add no memory, record the short reason, and release the slot to
+        // 'failed' so a later reflect may ask that robot again (Req 2.7, 2.10).
+        $key = $this->reflectionKey($episodeId, $robotId);
+        $existing = $this->reflections[$key] ?? null;
+        $this->reflections[$key] = [
+            'status' => 'failed',
+            'claimedAt' => $existing['claimedAt'] ?? ($this->clock)(),
+            'reason' => $reason,
+            'answer' => null,
+        ];
     }
 
     public function reflectionAnswer(string $episodeId, string $robotId): ?MemoryRow
     {
-        throw new \LogicException('not implemented');
+        // The stored memory when the slot is answered, so the caller reuses it
+        // without a new AI call (Req 2.8, 2.9); null otherwise.
+        $slot = $this->reflections[$this->reflectionKey($episodeId, $robotId)] ?? null;
+        if ($slot === null || $slot['status'] !== 'answered') {
+            return null;
+        }
+
+        return $slot['answer'];
+    }
+
+    /**
+     * The persisted memory row for one (sourceEpisodeId, robotId), or null when
+     * none exists. Used so a committed answer carries the stored row (with its
+     * finish-order seq) rather than the caller's pre-store draft.
+     */
+    private function findStoredMemory(string $sourceEpisodeId, string $robotId): ?MemoryRow
+    {
+        foreach ($this->memories as $memory) {
+            if ($memory->sourceEpisodeId === $sourceEpisodeId && $memory->robotId === $robotId) {
+                return $memory;
+            }
+        }
+
+        return null;
+    }
+
+    private function reflectionKey(string $episodeId, string $robotId): string
+    {
+        return $episodeId . '#' . $robotId;
     }
 }
