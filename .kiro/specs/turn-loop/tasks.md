@@ -14,7 +14,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
 
 ## Tasks
 
-- [ ] 1. Composer/autoload and test scaffold for the TurnLoop namespace
+- [x] 1. Composer/autoload and test scaffold for the TurnLoop namespace
   - Extend the existing `composer.json` autoload with PSR-4 `"PoltergeistSwitch\\TurnLoop\\" => "src/TurnLoop/"` (the engine under `PoltergeistSwitch\Engine` is already built and is consumed unchanged)
   - Confirm `autoload-dev` PSR-4 covers `tests/TurnLoop/` (via the existing `"PoltergeistSwitch\\Tests\\" => "tests/"` mapping)
   - Create the directory skeleton: `src/TurnLoop/Clients/`, `src/TurnLoop/Repository/`, `src/TurnLoop/Values/`, `src/TurnLoop/Http/`, `tests/TurnLoop/Properties/`
@@ -22,14 +22,14 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
   - **Engine-prereq note:** `house-rules-engine` tasks 28 (`Engine::prepareTurn`) and 29 (`Engine::situationTextVersion`) are external prerequisites for the ask/apply/text tasks and the same-world and rehydration property tests; do not start tasks 11, 12, 16, or 17 until both engine tasks are complete
   - _Requirements: none (infrastructure only); engine tasks 28/29 are external prerequisites_
 
-- [ ] 2. Value objects and row DTOs
-  - [ ] 2.1 Implement the TurnLoop value objects in `src/TurnLoop/Values/`:
+- [x] 2. Value objects and row DTOs
+  - [x] 2.1 Implement the TurnLoop value objects in `src/TurnLoop/Values/`:
     - `ReplyRecord` (readonly: `prompt`, `reply`, `inputTokens`, `outputTokens`, `seconds`, `cost`, `unanswered`, `truncated`) with non-negative token counts; an unanswered record carries empty reply, zero tokens, zero cost
     - `Reading` (readonly: `action` (engine `Action`), `unknown`, `rawJson`, `promptVersion`)
     - `TurnStateValue` (enum or value object with `waiting`, `replies_complete`, `applied`; forward-only ordering helper)
     - `EpisodeView` (the GET response shape: `episodeId`, `disaster`, `currentExpectedTurn`, `earthquakeStartTurn`, `ended`, `turns[]` each with per-robot Four_Layers)
     - _Requirements: 1.4, 1.5, 1.8, 8.4_
-  - [ ] 2.2 Implement the repository row DTOs in `src/TurnLoop/Values/`:
+  - [x] 2.2 Implement the repository row DTOs in `src/TurnLoop/Values/`:
     - `EpisodeRow`, `TurnRow`, `PromptReplyRow`, `AppliedTurnRows` mirroring the MySQL tables of the design
     - _Requirements: 8.2, 8.3, 8.4, 8.5, 8.6_
   - [ ]* 2.3 Write unit tests in `tests/TurnLoop/Values/` for the value objects and DTOs
