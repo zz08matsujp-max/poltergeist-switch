@@ -70,9 +70,27 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
     private int $nextEpisodeSeq = 1;
 
+    /**
+     * Returns the current Unix timestamp used by the lazy idle-slot release
+     * (isRunning) and by createTurn's stored datetime. Injectable so a test can
+     * advance "now" deterministically and prove that an episode which keeps
+     * recording activity stays running, while an idle one is released. Defaults
+     * to the real clock via time().
+     *
+     * @var callable():int
+     */
+    private $clock;
+
+    /**
+     * @param callable():int|null $clock returns the current Unix timestamp;
+     *                                    defaults to time()
+     */
     public function __construct(
         private readonly Config $config = new Config(),
-    ) {}
+        ?callable $clock = null,
+    ) {
+        $this->clock = $clock ?? static fn (): int => time();
+    }
 
     // --- Episode CRUD and slot queries -----------------------------------
 
@@ -103,7 +121,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
     public function countRunningEpisodes(): int
     {
-        $now = time();
+        $now = ($this->clock)();
         $count = 0;
         foreach ($this->episodes as $episode) {
             if ($this->isRunning($episode, $now)) {
@@ -116,7 +134,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
     public function findRunningEpisodeForDevice(string $deviceId): ?EpisodeRow
     {
-        $now = time();
+        $now = ($this->clock)();
         foreach ($this->episodes as $episode) {
             if ($episode->deviceId === $deviceId && $this->isRunning($episode, $now)) {
                 return $episode;
@@ -154,6 +172,19 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         }
 
         $this->episodes[$id] = $this->withEpisodeChanges($episode, currentExpectedTurn: $turn);
+    }
+
+    public function touchActivity(string $id, string $now): void
+    {
+        $episode = $this->episodes[$id] ?? null;
+        if ($episode === null) {
+            return;
+        }
+
+        // Record activity so an actively-stepping episode keeps its running
+        // slot (Requirement 9.10). The copy helper already supports
+        // lastActivityAt.
+        $this->episodes[$id] = $this->withEpisodeChanges($episode, lastActivityAt: $now);
     }
 
     // --- Turn lifecycle ---------------------------------------------------
@@ -654,7 +685,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
     private function now(): string
     {
-        return date('Y-m-d H:i:s');
+        return date('Y-m-d H:i:s', ($this->clock)());
     }
 
     /**

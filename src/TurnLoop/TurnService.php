@@ -35,6 +35,19 @@ class TurnService
 
     private ParallelHttp $parallel;
 
+    /**
+     * Returns the current wall-clock datetime as a 'Y-m-d H:i:s' string, used
+     * to stamp episode activity (touchActivity). Injectable so a test can
+     * advance "now" deterministically; defaults to the real clock via date().
+     *
+     * @var callable():string
+     */
+    private $clock;
+
+    /**
+     * @param callable():string|null $clock returns 'Y-m-d H:i:s'; defaults to
+     *                                       date('Y-m-d H:i:s')
+     */
     public function __construct(
         private RobotClient $robotA,          // ClaudeClient in production
         private RobotClient $robotB,          // GptClient in production
@@ -43,8 +56,10 @@ class TurnService
         private EpisodeRepository $repo,
         private Config $config,
         ?ParallelHttp $parallel = null,       // fans both robots out through one curl_multi (Req 5.1)
+        ?callable $clock = null,              // injectable clock for deterministic activity stamps
     ) {
         $this->parallel = $parallel ?? new ParallelHttp();
+        $this->clock = $clock ?? static fn (): string => date('Y-m-d H:i:s');
     }
 
     /**
@@ -246,6 +261,12 @@ class TurnService
             throw ApiError::conflict('turn_applied', $episode->currentExpectedTurn, $turn->state->value);
         }
 
+        // The request is accepted (the 404/409 gate above passed), so record
+        // activity to keep this actively-stepping episode's running slot
+        // (Requirement 9.10). A rejected ask never reaches here, so it does not
+        // touch activity.
+        $this->repo->touchActivity($episodeId, $this->now());
+
         // Create the turn row (state `waiting`) before staging. createTurn is
         // idempotent, so a repeated ask never resets the attempt counts.
         if ($turn === null) {
@@ -418,6 +439,6 @@ class TurnService
 
     private function now(): string
     {
-        return date('Y-m-d H:i:s');
+        return ($this->clock)();
     }
 }

@@ -66,6 +66,17 @@ interface EpisodeRepository
      */
     public function setCurrentExpectedTurn(string $id, int $turn): void;
 
+    /**
+     * Set the episode's last_activity_at to $now, so an actively-stepping
+     * episode keeps its running slot (Requirement 9.10). The lazy idle-slot
+     * release frees a running slot only after no ask or apply activity for
+     * idleSlotReleaseSeconds; one earthquake run steps for well over that
+     * window, so every accepted ask and apply records activity here to keep the
+     * slot the episode is actively using. $now is a 'Y-m-d H:i:s' string,
+     * consistent with the rest of the repository.
+     */
+    public function touchActivity(string $id, string $now): void;
+
     // --- Turn lifecycle ---------------------------------------------------
 
     /**

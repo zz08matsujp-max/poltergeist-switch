@@ -169,6 +169,19 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt->execute();
     }
 
+    public function touchActivity(string $id, string $now): void
+    {
+        // Record activity so an actively-stepping episode keeps its running
+        // slot (Requirement 9.10). $now is bound as a parameter, never
+        // interpolated, matching the rest of this file.
+        $stmt = $this->pdo->prepare(
+            'UPDATE episodes SET last_activity_at = :now WHERE id = :id'
+        );
+        $stmt->bindValue(':now', $now);
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+    }
+
     // --- Turn lifecycle ---------------------------------------------------
 
     public function findTurn(string $episodeId, int $turnNumber): ?TurnRow
