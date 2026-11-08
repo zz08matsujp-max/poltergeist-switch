@@ -70,7 +70,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - [x] Parse `ended` and `limit` from the query, call `EpisodeListService`, and write the JSON list; all validation lives in `src/`, matching the existing `episodes_get.php` pattern; wire `GET /api/episodes?ended=1&limit=20` through `router.php`
     - [x] Send `Cache-Control: no-store` on the response (Req 11.9); no rules logic in `api/`; run `php -l` on changed PHP files
     - _Requirements: 11.9, 11.4, 11.5, 11.6_
-  - [~] 4.3 Write the required list property tests in `tests/TurnLoop/Properties/`
+  - [x] 4.3 Write the required list property tests in `tests/TurnLoop/Properties/`
     - **Property 4: List returns only ended episodes, newest first**
     - **Validates: Requirements 11.1, 11.2**
     - **Property 5: Limit bounds the result count**
