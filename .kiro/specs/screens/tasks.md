@@ -165,22 +165,22 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
 - [x] 12. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. Fix hidden elements showing on Replay
+- [x] 13. Fix hidden elements showing on Replay
   - [x] 13.1 Add `[hidden] { display: none !important; }` to `public/css/screens.css`
     - A `display: grid`/`flex` rule currently overrides the `hidden` attribute, so replay.php shows the house, the reply panels and the controls under the episode list before any episode is chosen; the global `[hidden]` rule restores `hidden`'s effect so those regions stay hidden until an episode is loaded
     - _Requirements: 8.2, 8.7_
 
-- [ ] 14. Fix the resident meters never filling
+- [x] 14. Fix the resident meters never filling
   - [x] 14.1 Make `.meter .fill` `display: block` in `public/css/screens.css`
     - The fill is an inline `<span>`, so its width and height were ignored and the bars never filled even though the values were right (fear went 0→9→0 in the live run); `display: block` lets the width/height apply
     - _Requirements: 4.10, 5.10_
 
-- [ ] 15. Fix the Replay episode list being unreadable
+- [x] 15. Fix the Replay episode list being unreadable
   - [x] 15.1 Style the `.episode-list .item` buttons in `public/css/screens.css`
     - The items are `<button>`s that kept the browser's default black text and font on the dark brown panel; set `color: var(--bone); font: inherit; text-align: left; width: 100%; cursor: pointer;` plus a visible focus style so the list is readable and keyboard-focusable
     - _Requirements: 8.2, 8.5, 12.4_
 
-- [ ] 16. Build viewer-facing log and End_Card text
+- [x] 16. Build viewer-facing log and End_Card text
   - [x] 16.1 Describe each robot action in the third person in `public/js/observe.js`
     - Build each "What happened" log action entry and each End_Card per-robot summary from `outcome.seenByOtherText` with its leading "The other robot" replaced by the robot's name (Amber/Jade); fall back to `whatHappenedText` only when `seenByOtherText` is empty; never emit a "You …" sentence
     - _Requirements: 5.10, 6.1, 12.8_
@@ -191,17 +191,17 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Add a small shared helper that cuts an over-long line at the end of a sentence and appends an ellipsis, never mid-word (the End_Card no longer ends with "wardrob")
     - _Requirements: 5.10, 6.1_
 
-- [ ] 17. Collapse the End_Card full replies
+- [x] 17. Collapse the End_Card full replies
   - [x] 17.1 Put each robot's full replies in a collapsed `<details>` in `public/js/observe.js`
     - Keep the full replies (Req 6.1) but render each robot's replies inside a `<details>` collapsed by default, with a summary like "Amber — full replies (N turns)", so the End_Card no longer opens ~9,000 px tall
     - _Requirements: 6.1_
 
-- [ ] 18. Caption strip for narrow screens
+- [x] 18. Caption strip for narrow screens
   - [x] 18.1 Show a caption strip under the canvas below 560 CSS px in `public/js/house-renderer.js`
     - When the canvas is rendered narrower than 560 CSS px, draw no speech bubble over the canvas; instead show the current spoken lines (name + words, spoken lines only, same ≥ 2.0 s minimum) in a caption strip directly under the canvas, so bubbles never cover the house or overlap each other at 320–390 px; wider screens keep the over-canvas bubbles (update `public/css/screens.css` as needed)
     - _Requirements: 1.13, 3.4, 3.5, 3.7, 12.3_
 
-- [ ] 19. Replay usability and the turn count
+- [x] 19. Replay usability and the turn count
   - [x] 19.1 Show "Turn N of M" next to the Replay controls
     - In `public/js/replay.js` (and `public/replay.php`/`public/css/screens.css` as needed), show the current position as "Turn N of M", where M is the turns taken (applied turns excluding turn 0)
     - _Requirements: 9.1, 9.8, 9.9, 9.10, 9.11_
