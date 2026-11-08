@@ -1,0 +1,382 @@
+/*
+ * screens.css — shared look for the Observe and Replay screens (Requirement 12).
+ *
+ * Ported from the approved Halloween look of pilot/look.php. Encodes:
+ *   - DotGothic16 with a sans-serif fallback and text visible during font load
+ *     via font-display: swap (Req 12.1, 12.2).
+ *   - image-rendering: pixelated on the canvas so the 480x236 house scales
+ *     crisply (Req 12.3).
+ *   - mobile-first layout from a 320px viewport with 16px gutters and no
+ *     horizontal scroll (Req 12.3).
+ *   - a visible :focus-visible indicator with >= 3:1 contrast on controls
+ *     (Req 12.4).
+ *   - a prefers-reduced-motion rule that short-circuits CSS motion (Req 12.6).
+ *
+ * The overlay class names (.name.claude / .name.gpt / .name.man, .bubble with
+ * .show / .think, .bubble .who, .tail with .show / .think) match exactly what
+ * public/js/house-renderer.js emits in buildOverlay/placeOverlay, so the
+ * overlay renders without the renderer changing. Structural classes for the
+ * screen layouts (title, tagline, canvas wrap, breaker switches, meters, log,
+ * controls) are included so tasks 9.2/10.1 only add markup.
+ *
+ * The @import pulls DotGothic16 with display=swap; the HTML pages also add the
+ * Google Fonts <link> (tasks 9.2/10.1). font-display: swap keeps fallback text
+ * visible while the webfont loads (Req 12.2).
+ */
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+
+/* ── Halloween palette (ported from pilot/look.php) ───────────────────────── */
+:root {
+  --night: #120e22;
+  --wood: #3a2618;
+  --wood-hi: #5a3d26;
+  --straw: #d9c79a;
+  --lantern: #f0922b;
+  --ember: #ffcf7a;
+  --bone: #efe6cb;
+  --mute: #a99c84;
+  --jade: #47c1a0;
+  --amber: #e7ad45;
+  --alarm: #e5533d;
+  --gutter: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--night);
+  color: var(--bone);
+  /* DotGothic16 with a sans-serif fallback; text stays visible during load
+     (Req 12.1, 12.2 — the @import above sets display=swap). */
+  font-family: 'DotGothic16', sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  /* No horizontal scroll at any width from 320px up (Req 12.3). */
+  overflow-x: hidden;
+}
+
+/* ── mobile-first container: 320px up, 16px gutters, no overflow (Req 12.3) ── */
+.wrap {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: var(--gutter);
+}
+
+/* ── header: title, tagline, model line (Req 4.2) ─────────────────────────── */
+header { padding: 4px 0 12px; }
+
+h1 {
+  font-weight: 400;
+  font-size: clamp(26px, 6vw, 52px);
+  line-height: 1.08;
+  margin: 0;
+  color: var(--lantern);
+  text-shadow: 0 0 14px rgba(240, 146, 43, .45);
+}
+
+.tag {
+  margin: 6px 0 0;
+  color: var(--mute);
+  font-size: 15px;
+  max-width: 62ch;
+  line-height: 1.55;
+}
+
+.models {
+  margin: 6px 0 0;
+  color: var(--bone);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+a { color: var(--ember); }
+a:hover { color: var(--lantern); }
+
+/* ── stage: canvas wrap + overlay (renderer draws here) ───────────────────── */
+.stage {
+  background: #000;
+  border: 3px solid var(--wood);
+  border-radius: 4px;
+  /* Allow the fixed-geometry inner to scroll only if a very narrow viewport
+     forces it, never the page body. */
+  overflow: hidden;
+}
+
+/* The inner holds the canvas and the absolutely-positioned overlay stacked on
+   top. position: relative is required because the renderer sets each overlay
+   element's left/top relative to this box. */
+.inner {
+  position: relative;
+  width: 100%;
+}
+
+/* image-rendering: pixelated so the 480x236 house scales crisply (Req 1.1,
+   12.3). The canvas fills the inner width and keeps its aspect ratio. */
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* The overlay sits over the canvas and never intercepts pointer events, so the
+   switches and controls underneath stay clickable. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── name tags (classes emitted by house-renderer.js buildOverlay) ────────── */
+.name {
+  position: absolute;
+  transform: translate(-50%, 0);
+  font-size: clamp(9px, 2.6vw, 13px);
+  padding: 0 4px;
+  border-radius: 2px;
+  color: #120e22;
+  white-space: nowrap;
+}
+.name.claude { background: var(--amber); } /* Amber (robot_a) */
+.name.gpt { background: var(--jade); }     /* Jade (robot_b) */
+.name.man { background: var(--straw); }
+
+/* ── speech bubbles (SPOKEN lines only; never a thought — Req 1.14, 3.6) ──── */
+.bubble {
+  position: absolute;
+  max-width: min(36ch, 46%);
+  background: var(--bone);
+  color: #1a1420;
+  border: 2px solid #1a1420;
+  padding: 6px 9px 7px;
+  font-size: clamp(11px, 3vw, 15px);
+  line-height: 1.38;
+  border-radius: 3px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .5);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.bubble.show { opacity: 1; }
+/* The think style exists for parity with the ported markup, but the renderer
+   never adds `think` with content — thoughts are never shown (Req 1.14, 3.6). */
+.bubble.think {
+  background: #2a2140;
+  color: var(--bone);
+  border-color: #8f80b8;
+  font-style: italic;
+}
+.bubble .who {
+  display: block;
+  font-size: .78em;
+  color: #6b5a48;
+  font-style: normal;
+}
+.bubble.think .who { color: #b7a9dd; }
+
+.tail {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  border-top-color: #1a1420;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.tail.show { opacity: 1; }
+.tail.think { border-top-color: #8f80b8; }
+
+/* ── panels for the screen layouts (switches, meters, log, replies) ───────── */
+.board {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+/* From 960px up, lay the Observe board out in three columns. Mobile-first: the
+   single-column default already satisfies 320px with no horizontal scroll. */
+@media (min-width: 960px) {
+  .board.observe {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr) minmax(0, 1.25fr);
+  }
+}
+
+.panel {
+  background: linear-gradient(#3b2718, #2c1c11);
+  border: 2px solid #1b110a;
+  border-radius: 4px;
+  padding: 12px 14px 14px;
+  box-shadow: inset 0 0 0 1px var(--wood-hi);
+  min-width: 0; /* let grid cells shrink below content width (no overflow) */
+}
+.panel h2 {
+  font-weight: 400;
+  font-size: 16px;
+  margin: 0 0 10px;
+  color: var(--straw);
+}
+
+/* ── breaker switches (Req 4.3, 4.4) ──────────────────────────────────────── */
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.sw {
+  appearance: none;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 10px 12px 9px;
+  min-width: 96px;
+  background: #1f150d;
+  color: var(--bone);
+  border: 2px solid #120b06;
+  border-radius: 4px;
+}
+/* The lever graphic: up = ON, down = OFF (Req 4.3). */
+.sw .lever {
+  width: 20px;
+  height: 36px;
+  border-radius: 3px;
+  background: linear-gradient(#5a3d26, #3a2618);
+  position: relative;
+}
+.sw .lever::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  height: 14px;
+  bottom: 3px; /* OFF: lever knob down */
+  background: var(--mute);
+  border-radius: 2px;
+  transition: bottom .15s, background .15s;
+}
+.sw.on .lever::after {
+  bottom: 19px; /* ON: lever knob up */
+  background: var(--lantern);
+}
+.sw .mark { font-size: 11px; color: var(--mute); }
+.sw.on .mark { color: var(--lantern); }
+/* Disabled switches ("coming later" — Heavy rain, Heat wave) reject activation
+   (Req 4.4). */
+.sw[disabled],
+.sw.disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.sw .later { font-size: 10px; color: var(--mute); }
+
+/* ── resident meters (Req 4.10) ───────────────────────────────────────────── */
+.meters { display: grid; gap: 8px; }
+.meter { display: grid; grid-template-columns: 7ch 1fr auto; gap: 8px; align-items: center; }
+.meter .label { font-size: 13px; color: var(--mute); }
+.meter .bar {
+  height: 10px;
+  background: #241812;
+  border: 1px solid #120b06;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.meter .fill { height: 100%; width: 0; background: var(--jade); transition: width .25s; }
+.meter.injury .fill, .meter.fear .fill { background: var(--alarm); }
+.meter .val { font-size: 13px; color: var(--bone); min-width: 4ch; text-align: right; }
+
+/* ── "What happened" log (Req 4.10, 12.5) ─────────────────────────────────── */
+.log { display: grid; gap: 10px; max-height: 40vh; overflow-y: auto; }
+.log .turn { border-left: 3px solid var(--wood-hi); padding-left: 10px; }
+.log .turn h3 { margin: 0 0 4px; font-size: 13px; font-weight: 400; color: var(--straw); }
+.log .entry { font-size: 13px; line-height: 1.5; color: var(--bone); }
+.log .entry .who { color: var(--amber); }
+.log .entry .who.jade { color: var(--jade); }
+
+/* ── controls: Start / Pause / Step / Resume / Voices (Req 4.12, 9.1) ─────── */
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.btn {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 9px 14px;
+  background: #1f150d;
+  color: var(--bone);
+  border: 2px solid var(--wood-hi);
+  border-radius: 4px;
+}
+.btn:hover { background: #2a1d12; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn.primary { border-color: var(--lantern); color: var(--ember); }
+
+/* ── Replay: replies beside/below the stage (Req 9.2, 9.3) ────────────────── */
+.replies { display: grid; gap: 12px; margin-top: 12px; }
+/* At >= 768px show the replies beside the renderer (Req 9.2); below 768px they
+   stack under it (Req 9.3 — the single-column default). */
+@media (min-width: 768px) {
+  .replay-main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+  .replies { margin-top: 0; }
+}
+.reply { background: #231712; border: 1px solid #120b06; border-radius: 4px; padding: 10px 12px; }
+.reply h3 { margin: 0 0 6px; font-size: 13px; font-weight: 400; }
+.reply.amber h3 { color: var(--amber); }
+.reply.jade h3 { color: var(--jade); }
+.reply .text { font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+/* Evidence highlights: solid underline for the action quote (Req 9.4), dotted
+   for words passed on (Req 9.5). */
+.reply .evidence-action { text-decoration: underline solid var(--lantern); text-underline-offset: 2px; }
+.reply .evidence-words { text-decoration: underline dotted var(--jade); text-underline-offset: 2px; }
+
+/* ── episode list (Req 8.2, 8.5) ──────────────────────────────────────────── */
+.episode-list { display: grid; gap: 10px; }
+.episode-list .item { background: #231712; border: 1px solid #120b06; border-radius: 4px; padding: 10px 12px; }
+.episode-list .item .when { font-size: 12px; color: var(--mute); }
+.episode-list .item .situation { font-size: 13px; line-height: 1.5; }
+
+/* ── End_Card (Req 6) ─────────────────────────────────────────────────────── */
+.endcard {
+  margin-top: 12px;
+  background: linear-gradient(#2c1c11, #1b110a);
+  border: 2px solid var(--lantern);
+  border-radius: 4px;
+  padding: 14px 16px;
+}
+.endcard h2 { margin: 0 0 10px; color: var(--lantern); font-weight: 400; }
+
+/* ── messages / errors ────────────────────────────────────────────────────── */
+.message { color: var(--mute); font-size: 14px; line-height: 1.5; }
+.message.error { color: var(--alarm); }
+
+/* ── visible focus indicator, >= 3:1 contrast (Req 12.4) ──────────────────── */
+/* The ember outline on the dark panels gives well over 3:1 contrast against
+   the adjacent backgrounds; keyboard focus is clearly visible. */
+:focus-visible {
+  outline: 3px solid var(--ember);
+  outline-offset: 2px;
+}
+/* Browsers without :focus-visible still get a visible outline on :focus. */
+.btn:focus,
+.sw:focus,
+a:focus {
+  outline: 3px solid var(--ember);
+  outline-offset: 2px;
+}
+
+/* ── reduced motion: short-circuit CSS-driven motion (Req 12.6) ───────────── */
+/* The JS (act-out.js) also honours reduced motion for canvas animation; this
+   rule covers CSS transitions/animations so nothing on the page animates. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

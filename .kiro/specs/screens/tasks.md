@@ -124,7 +124,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 3.11, 3.12, 3.13, 3.4, 3.10_
 
 - [ ] 9. Observe screen
-  - [~] 9.1 Implement the relative-URL API client `public/js/api.js` and shared `public/css/screens.css`
+  - [x] 9.1 Implement the relative-URL API client `public/js/api.js` and shared `public/css/screens.css`
     - `api.js` builds every request from a relative base (no leading `/`, no absolute origin) so `api/index.php?route=episodes/{id}` and `api/index.php?route=episodes&ended=1&limit=20` resolve both at the web root and under `/public/` (Req 12.9, 12.10)
     - `screens.css` ports the approved look: DotGothic16 with a sans-serif fallback and text visible during font load, `image-rendering: pixelated`, a mobile-first layout from 320 px with 16 px gutters and no horizontal scroll, a visible focus indicator (≥ 3:1 contrast), and a reduced-motion rule (Req 12.1, 12.2, 12.3, 12.4, 12.6)
     - _Requirements: 12.9, 12.10, 12.1, 12.2, 12.3_
