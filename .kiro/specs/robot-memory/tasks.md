@@ -182,7 +182,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - when a stored episode is loaded, show for each robot how many memories it started the episode with (the length of that robot's stored `Memory_Snapshot`, read from the episode view); the per-turn `Memories_Block` already appears as part of the stored situation text, so no extra work there
     - name the robots only Amber and Jade; the page sends `Cache-Control: no-store`
     - _Requirements: 7.6, 7.7, 7.8_
-  - [-]* 13.2 Write a rendering test asserting the per-robot started-with count equals the stored snapshot length
+  - [x]* 13.2 Write a rendering test asserting the per-robot started-with count equals the stored snapshot length
     - _Requirements: 7.6_
 
 - [ ] 14. Final checkpoint — language level and full suite
