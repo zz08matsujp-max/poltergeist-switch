@@ -32,7 +32,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Generate random valid `WorldModel`s (random robot rooms/spots/held, man room/spot/activity/state, power, shaking, time of day, per-room light, broken/fallen sets, stove), serialise and read back, and assert every Requirement-10.3 field equals the value written with no field added, dropped, or altered; use `Eris\TestTrait` with `->limitTo(100)`, tagged `Feature: screens, Property 1: World_State round-trip`
     - _Requirements: 10.6, 10.3_
 
-- [ ] 3. Store, return, and backfill world_json
+- [x] 3. Store, return, and backfill world_json
   - [x] 3.1 Extend the repository to read and write `world_json`
     - In `PdoEpisodeRepository` (and the in-memory test double) persist `world_json` on the `turns` row when a turn is stored and when turn 0 is created, and read it back per turn when loading an episode view; leave all existing turn-loop behaviour unchanged
     - Run `php -l` on changed PHP files
@@ -58,7 +58,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - `world_json` is written on apply and for turn 0 (Req 10.1, 10.2); `GET /api/episodes/{id}` includes it per turn (Req 10.4); a GET on a missing id returns not-found and changes nothing (Req 10.5)
     - _Requirements: 10.1, 10.2, 10.4, 10.5_
 
-- [ ] 4. Ended-episode list endpoint
+- [x] 4. Ended-episode list endpoint
   - [x] 4.1 Implement `EpisodeListService` in `src/TurnLoop/EpisodeListService.php` (plain PHP)
     - Return only episodes whose `ended` is true, ordered by created date descending then id descending (Req 11.1, 11.2); for each item return `{ id, createdDate, turns, startingSituation }` — id, created date, number of turns as a non-negative integer, and the starting-situation one-liner (Req 11.3)
     - Validate `limit`: an integer 1–100 inclusive caps the count; absent → default 20; not an integer, `< 1`, or `> 100` → reject with an out-of-range error and return no list (Req 11.4, 11.5, 11.6)
@@ -88,7 +88,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
 - [x] 5. Checkpoint - API additions
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Position_Map pure function
+- [x] 6. Position_Map pure function
   - [x] 6.1 Implement `positionMap` in `public/js/position-map.js`
     - Pure function `positionMap(roomKey, spot, manActivity, manPos)` returning `{ ok: true, x, y }` with `0 ≤ x ≤ 479`, `0 ≤ y ≤ 235` or `{ ok: false, reason: 'unrecognised' }` (Req 2.1)
     - Return a position for each of the six Room_Keys (Req 2.2) and each Man_Activity `sitting_at_table`/`asleep_in_futon`/`bathing`/`cooking`/`standing` (Req 2.5); fixed positions for the spots `window` (per the five rooms that have a window fixture), `gas_stove`, `under_table`, `beside_futon`, and the man's start spots `low_table`/`futon`/`bathtub` (Req 2.3); for `near_resident` return a position next to `manPos` (offset by a small fixed dx, clamped into the area), depending on `manPos` not fixed (Req 2.4)
@@ -101,7 +101,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - This lightweight check stands in for a runner (design Testing Strategy) and is verified by the headless browser after deployment
     - _Requirements: 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 1.7_
 
-- [ ] 7. House_Renderer
+- [x] 7. House_Renderer
   - [x] 7.1 Implement `house-renderer.js` ported from `pilot/look.php`
     - Own a `<canvas width="480" height="236">` drawn with `imageSmoothingEnabled = false` and displayed scaled with CSS `image-rendering: pixelated` (Req 1.1); draw the six rooms in the fixed left-to-right bands mapping the engine's room keys onto the ported cross-section, with the ported furniture, decorations, and outdoor scenery (jack-o'-lantern lantern, persimmon tree, bats, pampas grass, will-o'-the-wisp) (Req 1.2); draw a window in the five rooms that have a window fixture and none in the storeroom
     - Draw Amber (amber, round head, antenna), Jade (jade, square head, scanning eye), and the man with a cane (Req 1.5); place each character via the Position_Map for its Room_Key and Spot, falling back to the room's default standing place when the map returns no position (Req 1.6, 1.7); offset two characters horizontally when they resolve to the same position (Req 1.8)
@@ -111,7 +111,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Expose the controller interface: `mount`, `setWorld` (snap every character to its recorded place, consuming the World_State JSON shape), `moveCharacter`, `setPose`, `setHeld`, `setThinking`, `showBubble` (spoken line only), `start`/`stop`; translate `robot_a`/`robot_b` to `amber`/`jade` at the renderer boundary
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 3.6_
 
-- [ ] 8. Act_Out and voices
+- [x] 8. Act_Out and voices
   - [x] 8.1 Implement `act-out.js`
     - Act out one turn from its `RobotFourLayers.reading` and the turn's recorded World_State for both screens using the same House_Renderer (Req 3.1, 9.12): map the single physical `Operation` to an animation — `move` walk to the target, `take` walk and show held, `hand_over` walk toward the other robot and drop, `use` turn the stove off or switch a light on at the target, `support` help the man move, `cover` shield the man or take cover, `wait` idle, `speak` no motion; the animation target comes from the Position_Map, so an unknown spot with a known room animates toward the room default rather than erroring (Req 3.1, 1.7)
     - For an action the rules judged impossible, play a short attempt lasting between 0.5 and 2.0 seconds that stops before completion (Req 3.2); for an `unknown` reading (including a no-reply robot) keep that robot idle (Req 3.3)
@@ -123,7 +123,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - Use the browser's Web Speech API with a distinct voice, pitch, and rate per character (Amber, Jade, the man) (Req 3.11); read each spoken line aloud in the stored order when Voices are on and read nothing while off (Req 3.4, 3.10); for a Japanese line use a Japanese voice when available, else fall back to `lang = 'ja-JP'` (Req 3.12); never speak a thought (Req 3.13); unlock playback on the first user gesture
     - _Requirements: 3.11, 3.12, 3.13, 3.4, 3.10_
 
-- [ ] 9. Observe screen
+- [x] 9. Observe screen
   - [x] 9.1 Implement the relative-URL API client `public/js/api.js` and shared `public/css/screens.css`
     - `api.js` builds every request from a relative base (no leading `/`, no absolute origin) so `api/index.php?route=episodes/{id}` and `api/index.php?route=episodes&ended=1&limit=20` resolve both at the web root and under `/public/` (Req 12.9, 12.10)
     - `screens.css` ports the approved look: DotGothic16 with a sans-serif fallback and text visible during font load, `image-rendering: pixelated`, a mobile-first layout from 320 px with 16 px gutters and no horizontal scroll, a visible focus indicator (≥ 3:1 contrast), and a reduced-motion rule (Req 12.1, 12.2, 12.3, 12.4, 12.6)
@@ -145,7 +145,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - `POST /api/episodes` 409 because 5 episodes run across all devices: show a "lab is busy" message and a control opening the Replay screen (Req 7.4); any turn call 409 carrying the current expected turn number: set the local turn number to that value and continue without discarding recorded turns (Req 7.5)
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 10. Replay screen
+- [x] 10. Replay screen
   - [x] 10.1 Implement `public/replay.php` and the Replay episode list in `public/js/replay.js`
     - `replay.php` is served at `public/replay.php`, sends `Cache-Control: no-store` first, and uses relative URLs (Req 8.1, 12.7, 12.9, 12.10); when loaded without a chosen episode, fetch the list through `GET /api/episodes?ended=1&limit=20` and show at most 20 episodes newest-created first (Req 8.2); a fetch that does not complete within 10 seconds or returns an error shows a "could not load the list" message and makes no AI call (Req 8.3); an empty list shows a "no replayable episodes yet" message (Req 8.4)
     - For each episode show its created date, number of turns, and a single-line starting situation naming the time of day and the starting room of each robot and the man (Req 8.5); make no AI call at any time (Req 8.6); opened with `?episode=<id>` load that episode directly through `GET /api/episodes/{id}` and begin playback (Req 8.7); for an id that does not exist or has not ended, show an error and fall back to the list, making no AI call (Req 8.8); link to the Replay screen from the top page (Req 8.9)
@@ -156,7 +156,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - "What it was told this turn" opens the stored situation text the robot received for that turn (Req 9.7); Step back moves to the previous turn unless on the first turn where it stays; Step forward moves to the next turn unless on the last turn where it stays (Req 9.8, 9.9, 9.10, 9.11)
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 9.10, 9.11, 9.12_
 
-- [ ] 11. Accessibility and caching pass across both pages
+- [x] 11. Accessibility and caching pass across both pages
   - [x] 11.1 Apply the shared look, accessibility, and caching rules to Observe and Replay
     - Present the UI in English with DotGothic16, falling back to a sans-serif font with text visible during load (Req 12.1, 12.2); lay out mobile-first from 320 px with 16 px gutters, no horizontal scroll from 320 px up, and `image-rendering: pixelated` (Req 12.3)
     - Make every button reachable and operable by keyboard alone with a visible focus indicator of ≥ 3:1 contrast (Req 12.4); announce each new "What happened" log entry through an `aria-live="polite"` region (Req 12.5); send `Cache-Control: no-store` on both pages (Req 12.7); name the robots only Amber and Jade with no AI company in the robots' text (Req 12.8)
