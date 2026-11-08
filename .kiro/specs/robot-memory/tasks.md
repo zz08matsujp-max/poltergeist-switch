@@ -166,15 +166,15 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - on load, if this device's last episode has ended but is not yet reflected, call `POST /api/episodes/{id}/reflect` once (safe under idempotency); ignore a `not_reflectable` response
     - name the robots only Amber and Jade, never a company or model; the page sends `Cache-Control: no-store`
     - _Requirements: 7.1, 7.2, 7.7, 7.8, 2.8, 2.9_
-  - [ ]* 11.2 Write a rendering test / assertion for the status-line format and the in-page confirm panel (no browser dialog) in the project's JS/PHP test harness
+  - [x]* 11.2 Write a rendering test / assertion for the status-line format and the in-page confirm panel (no browser dialog) in the project's JS/PHP test harness
     - _Requirements: 7.1, 7.2_
 
-- [ ] 12. End card — reflect and show, empty-vs-failed phrasing
+- [x] 12. End card — reflect and show, empty-vs-failed phrasing
   - [x] 12.1 Extend the Observe End_Card flow in `public/js/observe.js` + `public/js/memory-ui.js`:
     - when `apply` reports the episode ended, call `POST /api/episodes/{id}/reflect` and show `Writing down what to remember…` while awaited
     - when the response returns, for each robot that `answered` show its new memory in full inside a collapsible `<details>` with its new active count; for `answered: false` distinguish `empty_answer` (e.g. "Jade chose not to write anything down.") from `no_reply`/`timeout` (e.g. "Jade's reflection did not come back."), with no provider name in either
     - _Requirements: 7.3, 7.4, 7.5, 7.7, 7.8_
-  - [ ]* 12.2 Write a rendering test for the End_Card: the awaiting text, the collapsible memory with its count, and the two distinct phrasings for empty-answer vs failed-call
+  - [-]* 12.2 Write a rendering test for the End_Card: the awaiting text, the collapsible memory with its count, and the two distinct phrasings for empty-answer vs failed-call
     - _Requirements: 7.4, 7.5_
 
 - [x] 13. Replay screen — started-with counts
