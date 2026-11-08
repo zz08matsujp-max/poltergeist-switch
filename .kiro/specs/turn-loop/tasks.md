@@ -99,7 +99,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - No secret, credential, or provider name anywhere in the file
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 13.3, 2.3_
 
-- [~] 8. EpisodeRepository interface, in-memory fake, and PDO implementation
+- [x] 8. EpisodeRepository interface, in-memory fake, and PDO implementation
   - [x] 8.1 Implement the `EpisodeRepository` interface in `src/TurnLoop/Repository/EpisodeRepository.php`:
     - Episode CRUD/slot queries (`createEpisode`, `findEpisode`, `countRunningEpisodes`, `findRunningEpisodeForDevice`, `setEarthquakeStartTurn`, `markEpisodeEnded`, `setCurrentExpectedTurn`), turn lifecycle (`findTurn`, `createTurn`, `setTurnState`), reply persistence (`savePromptAndReply`, `incrementAttempt`, `markNoReply`), the single-transaction four-layer write `storeAppliedTurn`, and `loadEpisodeView`
     - _Requirements: 8.7, 9.4_
@@ -113,8 +113,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Four-layer write commits only after all records; rollback leaves no partial records; a repeated `storeAppliedTurn` creates no duplicates; device already running → refused; 5 running → refused; an idle episode past the threshold frees its slot
     - _Requirements: 8.8, 8.9, 8.10, 9.7, 9.8, 9.9, 9.10_
 
-- [ ] 9. EngineFactory and ReplayEngineFactory
-  - [ ] 9.1 Implement the `EngineFactory` interface and `ReplayEngineFactory` in `src/TurnLoop/`:
+- [x] 9. EngineFactory and ReplayEngineFactory
+  - [x] 9.1 Implement the `EngineFactory` interface and `ReplayEngineFactory` in `src/TurnLoop/`:
     - Rebuild an episode's `Engine` per request: construct a fresh `Engine`, `reset(Seed::fromInt(storedSeed))`, apply the stored `earthquake_start_turn` when recorded, then replay every applied turn in ascending order by `Engine::applyTurn($turnNumber, $actions)` using the exact actions decoded from each turn's stored `action_json`
     - Implement `ReplayedAction::fromJson(string $actionJson): Action` (and the inverse encode used by `apply`) reconstructing `operation`, `targetId`, `targetSpot`, `words`, `actionQuote`, and `reported`; a missing/malformed field decodes to operation `unknown`
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 11.3_

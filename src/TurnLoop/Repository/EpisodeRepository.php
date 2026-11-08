@@ -119,6 +119,18 @@ interface EpisodeRepository
      */
     public function storeAppliedTurn(AppliedTurnRows $rows): void;
 
+    // --- Replay -----------------------------------------------------------
+
+    /**
+     * Return the EvidenceCheck-verified actions stored for every applied turn,
+     * for deterministic replay (Requirements 13.2, 13.3). The outer array is
+     * ordered by turn number ascending; each entry maps robot id
+     * ('robot_a'/'robot_b') to that robot's stored action_json string.
+     *
+     * @return array<int, array<string, string>> turnNumber => (robotId => action_json)
+     */
+    public function loadAppliedActionsForReplay(string $episodeId): array;
+
     // --- View -------------------------------------------------------------
 
     /**

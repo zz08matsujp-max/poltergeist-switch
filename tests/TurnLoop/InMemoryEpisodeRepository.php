@@ -270,6 +270,28 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         }
     }
 
+    // --- Replay -----------------------------------------------------------
+
+    public function loadAppliedActionsForReplay(string $episodeId): array
+    {
+        $byTurn = [];
+        foreach ($this->appliedTurns as $applied) {
+            if ($applied->episodeId !== $episodeId) {
+                continue;
+            }
+            $perRobot = [];
+            foreach ($applied->robots as $robotId => $robotRow) {
+                $perRobot[(string) $robotId] = $robotRow->actionJson;
+            }
+            $byTurn[$applied->turnNumber] = $perRobot;
+        }
+
+        // Ordered by turn number ascending (Requirement 13.2).
+        ksort($byTurn);
+
+        return $byTurn;
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView

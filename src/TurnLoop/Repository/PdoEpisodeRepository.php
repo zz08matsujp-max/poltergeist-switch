@@ -329,6 +329,42 @@ final class PdoEpisodeRepository implements EpisodeRepository
         }
     }
 
+    // --- Replay -----------------------------------------------------------
+
+    public function loadAppliedActionsForReplay(string $episodeId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT turn_number, robot_id, action_json FROM actions '
+            . 'WHERE episode_id = :episode_id '
+            . 'ORDER BY turn_number ASC, robot_id ASC'
+        );
+        $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->execute();
+
+        $byTurn = [];
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $turnNumber = (int) ($row['turn_number'] ?? 0);
+            $robotId = (string) ($row['robot_id'] ?? '');
+            if ($robotId === '') {
+                continue;
+            }
+            if (!isset($byTurn[$turnNumber])) {
+                $byTurn[$turnNumber] = [];
+            }
+            $byTurn[$turnNumber][$robotId] = (string) ($row['action_json'] ?? '');
+        }
+
+        // The SQL already orders by turn_number ascending; keep the PHP array
+        // keyed by turn number in that order (Requirement 13.2).
+        ksort($byTurn);
+
+        return $byTurn;
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView
