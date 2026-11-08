@@ -97,7 +97,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - bump the situation-text version constant on `SituationTextGenerator` from `situation-text-2026-11-08c` to `situation-text-2026-11-09` (within 32 chars), exposed by `Engine::situationTextVersion()`
     - `ReplayEngineFactory::forEpisode` reads the episode's stored snapshots and calls `Engine::setMemories` before any `situationTextFor`, so a rebuild uses the frozen verbatim bodies and matches the live run byte-for-byte
     - _Requirements: 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8_
-  - [-] 6.2 Write the snapshot/rebuild-equality property test in `tests/Memory/Properties/SnapshotEqualityPropertyTest.php`:
+  - [x] 6.2 Write the snapshot/rebuild-equality property test in `tests/Memory/Properties/SnapshotEqualityPropertyTest.php`:
     - **Property 4: The snapshot is the generation's active memories, and every turn — live and rebuilt — uses the same block** — each robot's stored snapshot equals its current-generation active bodies across all disasters, oldest first, capped at 18; every turn renders the same `Memories_Block`; an `Engine` rebuilt by `ReplayEngineFactory` from the stored snapshot produces turn text byte-identical to the live run for both robots
     - Tagged `Feature: robot-memory, Property 4: …`, `->limitTo(100)` (required, not optional)
     - _Requirements: 9.4, 6.1, 6.2, 6.6_
