@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Tick parent tasks",
+      "description": "After each spec task, tick parent tasks in tasks.md whose sub-tasks are all done.",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "command",
+        "command": "php tools/tick_parent_tasks.php"
+      },
+      "enabled": true
+    }
+  ]
+}
