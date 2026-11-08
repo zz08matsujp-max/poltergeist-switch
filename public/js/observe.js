@@ -384,6 +384,9 @@
     state.expectedTurn = (typeof view.currentExpectedTurn === 'number')
       ? view.currentExpectedTurn : 0;
     state.ended = (view.ended === true);
+    // Remember this as the device's latest episode so a later load can catch up
+    // its reflection if the page closes before the End_Card runs (Req 2.8, 2.9).
+    rememberLastEpisode(state.episodeId);
   }
 
   // Find a turn object by its turn number inside an episode view.
@@ -1100,6 +1103,138 @@
     el.notice.appendChild(row);
   }
 
+  // ── robot memory: status line, All reset, missed-reflection catch-up ────────
+  //
+  // (robot-memory spec, Requirements 7.1, 7.2, 7.7, 7.8, 2.8, 2.9.) On load the
+  // status line is filled from GET /api/memory and the device's last episode is
+  // caught up (reflected once if it ended but was never reflected). The All
+  // reset button reveals an IN-PAGE confirm panel — never a browser alert or
+  // confirm dialog — and Confirm advances the generation and refreshes the line.
+  // The robots are named only Amber and Jade here (Req 7.7); no company/model
+  // name appears. The helpers come from memory-ui.js (shared with the End_Card).
+
+  // localStorage key under which this device's last episode id is remembered,
+  // so the catch-up can reflect an episode whose page was closed before the
+  // End_Card ran. The id is not a secret — it is the same id the Replay URL
+  // carries — and nothing else is stored.
+  var LAST_EPISODE_KEY = 'ps:lastEpisodeId';
+
+  // Remember an episode id as this device's latest, for the catch-up on a later
+  // load. Called whenever the page adopts an episode. Failures (private mode,
+  // disabled storage) are ignored — the catch-up is best-effort.
+  function rememberLastEpisode(episodeId) {
+    if (!episodeId) { return; }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(LAST_EPISODE_KEY, String(episodeId));
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function readLastEpisode() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        var id = window.localStorage.getItem(LAST_EPISODE_KEY);
+        return (typeof id === 'string' && id !== '') ? id : null;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  // Fetch GET /api/memory and render the status line (Req 7.1). Safe when the
+  // memory bar or the api client is absent, and when the request fails (the
+  // line is simply left as it was). Uses the shared memory-ui.js renderer so the
+  // exact "Generation N · Amber remembers k · Jade remembers k" format lives in
+  // one place.
+  function refreshMemoryStatus() {
+    if (!api || !el.memoryStatus || typeof api.memoryStatus !== 'function') { return; }
+    api.memoryStatus().then(function (res) {
+      if (res && res.status === 200 && res.body && window.memoryUi) {
+        window.memoryUi.renderStatusLine(el.memoryStatus, res.body);
+      }
+    }, function () { /* ignore — leave the previous line */ });
+  }
+
+  // Wire the All reset button to reveal the in-page confirm panel (Req 7.2).
+  // The panel is built by memory-ui.js (Confirm / Cancel, no browser dialog) and
+  // mounted into #reset-confirm-host. Confirm calls POST /api/memory/reset and
+  // refreshes the status line with the returned generation; Cancel just closes.
+  function wireResetMemory() {
+    if (!el.btnResetMemory) { return; }
+    el.btnResetMemory.addEventListener('click', function () {
+      showResetConfirm();
+    });
+  }
+
+  function showResetConfirm() {
+    var host = el.resetConfirmHost;
+    if (!host || !window.memoryUi) { return; }
+    // One panel at a time; clear any previous.
+    host.textContent = '';
+    var panel = window.memoryUi.buildConfirmPanel(
+      function () { confirmResetMemory(); },
+      function () { closeResetConfirm(); }
+    );
+    host.appendChild(panel);
+    host.hidden = false;
+    if (el.btnResetMemory) { el.btnResetMemory.setAttribute('aria-expanded', 'true'); }
+  }
+
+  function closeResetConfirm() {
+    var host = el.resetConfirmHost;
+    if (!host) { return; }
+    host.textContent = '';
+    host.hidden = true;
+    if (el.btnResetMemory) { el.btnResetMemory.setAttribute('aria-expanded', 'false'); }
+  }
+
+  function confirmResetMemory() {
+    closeResetConfirm();
+    if (!api || typeof api.resetMemory !== 'function') { return; }
+    api.resetMemory().then(function (res) {
+      if (res && res.status === 200 && res.body && window.memoryUi && el.memoryStatus) {
+        // Refresh the status line from the returned generation. After a reset
+        // both robots start the new generation with zero active memories, so
+        // the line can be rendered directly from the reset payload without a
+        // second round trip (a full refresh also follows for safety).
+        window.memoryUi.renderStatusLine(el.memoryStatus, {
+          generation: res.body.generation,
+          robots: { amber: { activeCount: 0 }, jade: { activeCount: 0 } }
+        });
+      }
+      refreshMemoryStatus();
+    }, function () {
+      // On failure, re-read the current status so the line stays truthful.
+      refreshMemoryStatus();
+    });
+  }
+
+  // Missed-reflection catch-up (Req 2.8, 2.9): on load, if this device's last
+  // episode has ended but was never reflected (for example the viewer closed
+  // the page before the End_Card ran), call POST /api/episodes/{id}/reflect
+  // once. Reflect is idempotent per robot per episode, so this is safe even if
+  // the End_Card also fired. A pre-feature episode returns 409 not_reflectable
+  // and is ignored. The memory status line is refreshed after a successful
+  // reflect so any newly stored memory shows in the counts.
+  function catchUpLastReflection() {
+    if (!api || typeof api.getEpisode !== 'function' || typeof api.reflect !== 'function') {
+      return;
+    }
+    var lastId = readLastEpisode();
+    if (!lastId) { return; }
+    api.getEpisode(lastId).then(function (res) {
+      if (!res || res.status !== 200 || !res.body) { return; }
+      if (res.body.ended !== true) { return; }
+      api.reflect(lastId).then(function (reflectRes) {
+        // Ignore not_reflectable (pre-feature episode) and any other error; on
+        // success refresh the status counts.
+        if (reflectRes && reflectRes.status === 200) {
+          refreshMemoryStatus();
+        }
+      }, function () { /* ignore — best-effort catch-up */ });
+    }, function () { /* ignore — the id may be stale */ });
+  }
+
   // ── UI setup wiring (task 9.2) ──────────────────────────────────────────────
 
   function wireVoicesToggle() {
@@ -1179,6 +1314,10 @@
     el.btnVoices = document.getElementById('btn-voices');
     el.notice = document.getElementById('notice');
     el.endcardHost = document.getElementById('endcard-host');
+    // Memory bar (robot-memory task 11.1).
+    el.memoryStatus = document.getElementById('memory-status');
+    el.btnResetMemory = document.getElementById('btn-reset-memory');
+    el.resetConfirmHost = document.getElementById('reset-confirm-host');
   }
 
   function init() {
@@ -1203,7 +1342,14 @@
     wireVoicesToggle();
     wireSwitches();
     wireControls();
+    wireResetMemory();
     setFirstLoadState();
+
+    // Robot memory (task 11.1): fill the status line from GET /api/memory on
+    // load, then catch up the device's last episode reflection if it ended but
+    // was never reflected (Req 7.1, 2.8, 2.9).
+    refreshMemoryStatus();
+    catchUpLastReflection();
   }
 
   if (typeof document !== 'undefined') {
@@ -1225,6 +1371,11 @@
     pause: pause,
     step: step,
     resume: resume,
+    // Robot memory (task 11.1): the status-line refresh, the in-page All-reset
+    // confirm flow, and the missed-reflection catch-up, exposed so task 12.1
+    // (the End_Card reflect-and-show) and a headless check can drive them.
+    refreshMemoryStatus: refreshMemoryStatus,
+    catchUpLastReflection: catchUpLastReflection,
     // Seams task 9.4 replaces to show the End_Card and the slot/resume/lab-busy
     // UI. They are plain functions here so a 409 or an episode end never crashes
     // the loop; 9.4 reassigns them via these setters.

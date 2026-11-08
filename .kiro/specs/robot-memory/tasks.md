@@ -140,7 +140,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x]* 8.3 Write example tests in `tests/Memory/ReflectServiceTest.php` using fakes: the not-ended / idle-released guard (409 `not_ended`, no `RobotClient` call); the pre-feature `not_reflectable` guard (NULL snapshot, no `RobotClient` call); the retry path after a failed robot asks only that robot again; the stale-claim re-claim path (an `in_progress` older than 120 s is re-claimable, a fresh one skipped); the empty-answer vs failed-call reason paths; the reflect client invoked with one user message, no system prompt, max 4000 tokens under the turn-loop timeout
     - _Requirements: 2.2, 2.4, 2.7, 2.10, 2.11_
 
-- [ ] 9. API entry points and the extended create endpoint
+- [x] 9. API entry points and the extended create endpoint
   - [x] 9.1 Implement the three `api/` entry points, extend create, and add routes:
     - `api/episodes_reflect.php` (`POST /api/episodes/{id}/reflect`) → `ReflectService::reflect`, 200 per-robot result, 404 unknown, 409 `not_ended` / `not_reflectable`, body shape from the design (`amber`/`jade` with answered, memory, activeCount, reason)
     - `api/memory_reset.php` (`POST /api/memory/reset`) → `MemoryService::reset`, 200 `{ "generation": N }`
@@ -156,11 +156,11 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x]* 9.3 Write a smoke/integration test in `tests/Memory/ApiRoutingTest.php` with a fake-backed service: the three routes resolve to their service methods; a reflection prompt/response is stored with `kind = 'reflection'` and turn number `-1` and no existing turn read (`kind = 'turn'`, turn numbers `0 … n`) returns it; a repository scan finds no secret literal in the files this spec changes
     - _Requirements: 2.1, 2.5, 4.1, 5.1, 8.3_
 
-- [~] 10. Checkpoint — PHP side complete
+- [x] 10. Checkpoint — PHP side complete
   - Ensure all tests pass and `php -l` is clean on every changed PHP file; ask the maintainer if questions arise before starting the screens.
 
 - [ ] 11. Observe screen — status line, All reset, missed-reflection catch-up
-  - [~] 11.1 Extend `public/index.php`, `public/js/observe.js`, add `public/js/memory-ui.js`, and `public/css/screens.css`:
+  - [x] 11.1 Extend `public/index.php`, `public/js/observe.js`, add `public/js/memory-ui.js`, and `public/css/screens.css`:
     - on load and after each reset, call `GET /api/memory` and render `Generation N · Amber remembers k · Jade remembers k` via a shared `memory-ui.js` helper
     - an "All reset" button reveals an in-page confirmation panel (Confirm/Cancel, no browser `alert`/`confirm`); on Confirm call `POST /api/memory/reset` and refresh the status line with the returned generation
     - on load, if this device's last episode has ended but is not yet reflected, call `POST /api/episodes/{id}/reflect` once (safe under idempotency); ignore a `not_reflectable` response
@@ -178,7 +178,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 7.4, 7.5_
 
 - [ ] 13. Replay screen — started-with counts
-  - [~] 13.1 Extend `public/replay.php` and `public/js/replay.js`:
+  - [-] 13.1 Extend `public/replay.php` and `public/js/replay.js`:
     - when a stored episode is loaded, show for each robot how many memories it started the episode with (the length of that robot's stored `Memory_Snapshot`, read from the episode view); the per-turn `Memories_Block` already appears as part of the stored situation text, so no extra work there
     - name the robots only Amber and Jade; the page sends `Cache-Control: no-store`
     - _Requirements: 7.6, 7.7, 7.8_

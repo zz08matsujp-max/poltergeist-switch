@@ -382,6 +382,9 @@ details.reply[open] > summary { margin-bottom: 6px; }
 .reply.amber > summary { color: var(--amber); }
 .reply.jade > summary { color: var(--jade); }
 .reply .text { font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+/* Replay started-with memory count (robot-memory Req 7.6): a small muted line
+   under the robot's name showing how many memories it began the episode with. */
+.reply .started-with { margin: 0 0 6px; font-size: 11px; opacity: 0.75; }
 /* Evidence highlights: solid underline for the action quote (Req 9.4), dotted
    for words passed on (Req 9.5). */
 .reply .evidence-action { text-decoration: underline solid var(--lantern); text-underline-offset: 2px; }
@@ -448,4 +451,54 @@ a:focus {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── robot memory bar + All-reset confirm panel (robot-memory Req 7.1, 7.2) ──
+   The memory bar sits under the Observe controls: the status line
+   "Generation N · Amber remembers k · Jade remembers k" (filled by observe.js
+   from GET /api/memory) and the "All reset" button. The confirm panel below it
+   is revealed in-page on "All reset" — no browser dialog (Req 7.2). Colours
+   reuse the Halloween palette; the robot names are coloured with the same
+   amber/jade cues used elsewhere. */
+.memory-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+/* The status line. It takes the remaining width so the button sits at the end
+   on a wide row and wraps under on a narrow one (Req 12.3). aria-live=polite in
+   the markup announces each refresh. */
+.memory-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+/* Empty line takes no extra space before observe.js fills it on load. */
+.memory-status:empty { color: var(--mute); }
+
+/* The in-page confirm panel host. Hidden (via [hidden]) until "All reset" is
+   pressed; the panel itself is built by memory-ui.js. */
+.confirm-host { margin-top: 8px; }
+.confirm-panel {
+  background: linear-gradient(#3b2718, #2c1c11);
+  border: 2px solid var(--lantern);
+  border-radius: 4px;
+  padding: 12px 14px 14px;
+  max-width: 62ch;
+}
+.confirm-panel .confirm-question {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--bone);
+}
+.confirm-panel .confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

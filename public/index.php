@@ -148,8 +148,7 @@ header('Cache-Control: no-store');
 
     <!-- Controls: Pause, Step, Resume, Voices on/off. A Start affordance is
          included (the design shows Start creating the episode; the Earthquake
-         switch doubles as start in the run loop). NO memory / reflection /
-         All reset control (Req 4.11, 4.12). -->
+         switch doubles as start in the run loop). -->
     <div class="controls">
       <button type="button" class="btn primary" id="btn-start">Start</button>
       <button type="button" class="btn" id="btn-pause">Pause</button>
@@ -157,6 +156,21 @@ header('Cache-Control: no-store');
       <button type="button" class="btn" id="btn-resume">Resume</button>
       <button type="button" class="btn" id="btn-voices" aria-pressed="false">Voices: off</button>
     </div>
+
+    <!-- Memory bar (robot-memory spec, Req 7.1, 7.2). observe.js fills the
+         status line from GET /api/memory on load and after each reset, with the
+         exact form "Generation N · Amber remembers k · Jade remembers k". "All
+         reset" reveals the in-page confirm panel below it (no browser dialog);
+         Confirm calls POST /api/memory/reset. The robots are named only Amber
+         and Jade here (Req 7.7). -->
+    <div class="memory-bar" aria-label="Robot memory">
+      <span class="memory-status" id="memory-status" aria-live="polite"></span>
+      <button type="button" class="btn" id="btn-reset-memory">All reset</button>
+    </div>
+    <!-- Mount point for the in-page All-reset confirmation panel (Req 7.2).
+         observe.js builds the Confirm / Cancel panel into here via memory-ui.js
+         and removes it on Confirm or Cancel. Empty and hidden until then. -->
+    <div class="confirm-host" id="reset-confirm-host" hidden></div>
 
     <!-- Slots task 9.4 fills: a message area for 409 / resume / busy, and the
          End_Card container. Left empty and hidden here. -->
@@ -166,12 +180,15 @@ header('Cache-Control: no-store');
 
   <!-- Scripts, in dependency order; observe.js last. All relative (Req 12.9,
        12.10). position-map.js -> house-renderer.js -> act-out.js -> voices.js
-       -> api.js -> observe.js. -->
+       -> api.js -> memory-ui.js -> observe.js. memory-ui.js is the shared
+       status-line / confirm-panel / reflect-phrasing helper (robot-memory Req
+       7); observe.js uses it, so it loads first. -->
   <script src="js/position-map.js"></script>
   <script src="js/house-renderer.js"></script>
   <script src="js/act-out.js"></script>
   <script src="js/voices.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/memory-ui.js"></script>
   <script src="js/observe.js"></script>
 </body>
 </html>

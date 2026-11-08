@@ -17,6 +17,9 @@
  *   POST  episodes/{id}/turns/{n}/apply    — apply the turn  apply(id, turn)
  *   GET   episodes/{id}                    — one episode     getEpisode(id)
  *   GET   episodes&ended=1&limit=N         — the ended list  listEnded(limit)
+ *   POST  episodes/{id}/reflect            — reflect an end  reflect(id)
+ *   GET   memory                           — memory status   memoryStatus()
+ *   POST  memory/reset                     — new generation  resetMemory()
  *
  * Every method returns { status, body } where status is the HTTP status code
  * (the controllers need to see 409/404/400/500) and body is the parsed JSON
@@ -122,6 +125,34 @@
           extra.limit = limit;
         }
         return request('GET', buildUrl('episodes', extra));
+      },
+
+      /**
+       * POST episodes/{id}/reflect — ask both robots once after an ended
+       * episode (robot-memory Requirement 2.1). Idempotent per robot per
+       * episode, so a repeat call (the missed-reflection catch-up and the
+       * End_Card both firing) is safe. Returns { status, body } where a 409
+       * body carries a short code ('not_ended' / 'not_reflectable').
+       */
+      reflect: function (id) {
+        return request('POST', buildUrl('episodes/' + String(id) + '/reflect'));
+      },
+
+      /**
+       * GET memory — the current generation and per-robot active-memory counts
+       * and lengths (robot-memory Requirement 5.1). Body shape:
+       * { generation, robots: { amber: {activeCount, lengths}, jade: {…} } }.
+       */
+      memoryStatus: function () {
+        return request('GET', buildUrl('memory'));
+      },
+
+      /**
+       * POST memory/reset — start a new memory generation, deleting nothing
+       * (robot-memory Requirement 4.5). Body shape: { generation: N }.
+       */
+      resetMemory: function () {
+        return request('POST', buildUrl('memory/reset'));
       },
 
       /** Exposed for tests/controllers that need the raw relative base. */
