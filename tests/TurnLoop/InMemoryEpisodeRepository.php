@@ -274,16 +274,28 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
     public function loadAppliedActionsForReplay(string $episodeId): array
     {
+        // Driven by the turns in the `applied` state, not by the stored action
+        // rows, so the quiet turn 0 that createEpisode applies (Requirement 4.3)
+        // with no robot actions is still replayed, with an empty action map.
         $byTurn = [];
-        foreach ($this->appliedTurns as $applied) {
-            if ($applied->episodeId !== $episodeId) {
+        foreach ($this->turns as $turn) {
+            if ($turn->episodeId !== $episodeId) {
                 continue;
             }
-            $perRobot = [];
-            foreach ($applied->robots as $robotId => $robotRow) {
-                $perRobot[(string) $robotId] = $robotRow->actionJson;
+            if ($turn->state !== TurnStateValue::applied) {
+                continue;
             }
-            $byTurn[$applied->turnNumber] = $perRobot;
+
+            // Every applied turn is a key; a turn with stored actions fills in
+            // its per-robot action_json, a quiet turn stays an empty map.
+            $perRobot = [];
+            $applied = $this->appliedTurns[$this->turnKey($episodeId, $turn->turnNumber)] ?? null;
+            if ($applied !== null) {
+                foreach ($applied->robots as $robotId => $robotRow) {
+                    $perRobot[(string) $robotId] = $robotRow->actionJson;
+                }
+            }
+            $byTurn[$turn->turnNumber] = $perRobot;
         }
 
         // Ordered by turn number ascending (Requirement 13.2).

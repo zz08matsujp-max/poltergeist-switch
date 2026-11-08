@@ -22,19 +22,32 @@ use RuntimeException;
  * stored state (Requirement 13.1), so the orchestration never has to keep a
  * live Engine between the stateless HTTP requests that drive a turn.
  *
+ * Replay walks the SAME path the live turn loop walks (Requirements 13.1,
+ * 13.2, 13.4). For each applied turn n in ascending order it calls
+ * Engine::prepareTurn(n) and then Engine::applyTurn(n, actions), exactly as
+ * TurnService::ask/apply do live: prepareTurn fixes the turn's resident line
+ * and advances the earthquake world once, and applyTurn (being idempotent for
+ * an already-prepared turn) does not advance the earthquake again. Replaying
+ * through prepareTurn is what keeps the rebuilt resident line identical to the
+ * line the robots actually read live; a bare applyTurn replay could diverge.
+ *
  * The rebuild is:
  *   1. read the episode row (seed, earthquake_start_turn) through the repository;
  *   2. construct a fresh WorldModel and reset it with Seed::fromInt(storedSeed),
  *      which reproduces the same initial world deterministically on any PHP 8.2
  *      build (Requirements 4.3, 13.2);
- *   3. apply the stored earthquake_start_turn when one is recorded, before any
- *      turn is replayed, so the engine captures the stove flame on the first
- *      turn it sees it set;
- *   4. replay every applied turn in ascending turn-number order by calling
- *      Engine::applyTurn with the exact EvidenceCheck-verified actions decoded
- *      from each turn's stored action_json (Requirement 13.2).
+ *   3. replay EVERY applied turn recorded for the episode, in ascending
+ *      turn-number order — including the quiet turn 0 that createEpisode
+ *      applies with no robot actions (an empty action list). The applied turns
+ *      come from the turns table, not from the actions table, so a turn with no
+ *      action rows is still replayed;
+ *   4. flip the earthquake on at the live moment: the observer flips the switch
+ *      when the current expected turn is earthquake_start_turn + 1, so
+ *      world->earthquakeStartTurn is set only after turn earthquake_start_turn
+ *      has been replayed, just before replaying turn earthquake_start_turn + 1.
+ *      A late flip never starts the earthquake early in the replay.
  *
- * Because applyTurn is deterministic and idempotent and the seed reproduces the
+ * Because prepareTurn/applyTurn are deterministic and the seed reproduces the
  * same world on any PHP 8.2 build, the rebuilt world equals the world that
  * played those turns live (Requirements 13.1, 13.2, 13.4).
  *
@@ -63,12 +76,6 @@ final class ReplayEngineFactory implements EngineFactory
         $world = new WorldModel($this->config);
         $world->reset(Seed::fromInt($episode->seed));
 
-        // Set the stored earthquake start turn before replaying any turn, so
-        // the engine captures the stove flame on the first turn it sees it set.
-        if ($episode->earthquakeStartTurn !== null) {
-            $world->earthquakeStartTurn = $episode->earthquakeStartTurn;
-        }
-
         $engine = new Engine(
             $world,
             $this->config,
@@ -79,13 +86,37 @@ final class ReplayEngineFactory implements EngineFactory
             new SituationTextGenerator(),
         );
 
-        // Replay every applied turn in ascending turn-number order with the
-        // exact stored actions (Requirement 13.2).
+        // Every applied turn the episode recorded, keyed by turn number and in
+        // ascending order. This is driven by the turns table, so the quiet
+        // turn 0 (createEpisode, Requirement 4.3) is included even though it
+        // has no action rows; its action map is simply empty.
         $appliedActions = $this->repo->loadAppliedActionsForReplay($episodeId);
         ksort($appliedActions);
 
+        $startTurn = $episode->earthquakeStartTurn;
+
         foreach ($appliedActions as $turnNumber => $actionJsonByRobot) {
-            $engine->applyTurn($turnNumber, $this->decodeTurnActions($actionJsonByRobot));
+            // Flip the earthquake on at the live moment: the switch is flipped
+            // when the current expected turn is startTurn + 1, so set the start
+            // turn on the world only once we are about to replay startTurn + 1
+            // (i.e. turn startTurn has already been replayed). For a turn <=
+            // startTurn the world stays quiet, so a late flip cannot start the
+            // earthquake early (Requirement 4.4).
+            if ($startTurn !== null
+                && $world->earthquakeStartTurn === null
+                && $turnNumber >= $startTurn + 1
+            ) {
+                $world->earthquakeStartTurn = $startTurn;
+            }
+
+            $actions = $this->decodeTurnActions($actionJsonByRobot);
+
+            // Walk the same path as the live loop: prepareTurn fixes the
+            // resident line and advances the earthquake world once; applyTurn
+            // then applies the turn without advancing the earthquake again for
+            // the already-prepared turn (Requirements 13.1, 13.2, 13.4).
+            $engine->prepareTurn($turnNumber);
+            $engine->applyTurn($turnNumber, $actions);
         }
 
         return $engine;
@@ -93,9 +124,11 @@ final class ReplayEngineFactory implements EngineFactory
 
     /**
      * Decode one turn's stored action_json strings into engine Actions keyed by
-     * robot id. The map is built deterministically as robot_a then robot_b; a
-     * robot with no stored action for the turn contributes an `unknown` action
-     * defensively (it should not happen for an applied turn).
+     * robot id. The map is built deterministically as robot_a then robot_b when
+     * those robots acted; a turn with no stored actions (the quiet turn 0)
+     * yields an empty map, which applyTurn accepts as a turn where no robot
+     * acted. Any further robot ids that were stored are preserved in a stable
+     * order so nothing is silently dropped.
      *
      * @param array<string, string> $actionJsonByRobot robotId => action_json
      * @return array<string, Action>
@@ -104,12 +137,12 @@ final class ReplayEngineFactory implements EngineFactory
     {
         $actions = [];
         foreach (['robot_a', 'robot_b'] as $robotId) {
-            $json = $actionJsonByRobot[$robotId] ?? '';
-            $actions[$robotId] = ReplayedAction::fromJson($json, $robotId);
+            if (!array_key_exists($robotId, $actionJsonByRobot)) {
+                continue;
+            }
+            $actions[$robotId] = ReplayedAction::fromJson($actionJsonByRobot[$robotId], $robotId);
         }
 
-        // Preserve any further robot ids that may have been stored, in a stable
-        // order, so nothing is silently dropped.
         foreach ($actionJsonByRobot as $robotId => $json) {
             if (!isset($actions[$robotId])) {
                 $actions[$robotId] = ReplayedAction::fromJson($json, $robotId);

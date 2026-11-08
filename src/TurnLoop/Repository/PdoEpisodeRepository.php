@@ -333,12 +333,21 @@ final class PdoEpisodeRepository implements EpisodeRepository
 
     public function loadAppliedActionsForReplay(string $episodeId): array
     {
+        // Driven by the turns table (state = applied), not the actions table,
+        // so a turn that no robot acted in — the quiet turn 0 that
+        // createEpisode applies (Requirement 4.3) — is still replayed, with an
+        // empty action map. A LEFT JOIN brings in each applied turn's action
+        // rows when it has them (Requirement 13.2).
         $stmt = $this->pdo->prepare(
-            'SELECT turn_number, robot_id, action_json FROM actions '
-            . 'WHERE episode_id = :episode_id '
-            . 'ORDER BY turn_number ASC, robot_id ASC'
+            'SELECT t.turn_number, a.robot_id, a.action_json '
+            . 'FROM turns t '
+            . 'LEFT JOIN actions a ON a.episode_id = t.episode_id '
+            . 'AND a.turn_number = t.turn_number '
+            . 'WHERE t.episode_id = :episode_id AND t.state = :applied '
+            . 'ORDER BY t.turn_number ASC, a.robot_id ASC'
         );
         $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->bindValue(':applied', TurnStateValue::applied->value);
         $stmt->execute();
 
         $byTurn = [];
@@ -348,18 +357,19 @@ final class PdoEpisodeRepository implements EpisodeRepository
                 continue;
             }
             $turnNumber = (int) ($row['turn_number'] ?? 0);
-            $robotId = (string) ($row['robot_id'] ?? '');
-            if ($robotId === '') {
-                continue;
-            }
+            // Ensure every applied turn appears as a key, even one with no
+            // action rows (the LEFT JOIN yields a null robot_id for it).
             if (!isset($byTurn[$turnNumber])) {
                 $byTurn[$turnNumber] = [];
+            }
+            $robotId = $row['robot_id'] ?? null;
+            if (!is_string($robotId) || $robotId === '') {
+                continue;
             }
             $byTurn[$turnNumber][$robotId] = (string) ($row['action_json'] ?? '');
         }
 
-        // The SQL already orders by turn_number ascending; keep the PHP array
-        // keyed by turn number in that order (Requirement 13.2).
+        // Keyed by turn number in ascending order (Requirement 13.2).
         ksort($byTurn);
 
         return $byTurn;
