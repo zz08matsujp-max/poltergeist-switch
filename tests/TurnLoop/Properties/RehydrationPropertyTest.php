@@ -218,12 +218,27 @@ final class RehydrationPropertyTest extends TestCase
     }
 
     /**
-     * Deterministic, always-valid actions for a turn, so each case is
-     * reproducible from the seed and the live/replay paths pass the identical
-     * actions. The quiet turn 0 carries no actions (the engine's createEpisode
-     * turn). Later turns alternate between a lone wait and a wait + a spoken
-     * line; both operations are valid for any layout and never block, so the
-     * turn is processed the same way on both the live and replay paths.
+     * Deterministic, HOUSE-CHANGING actions for a turn, so each case is
+     * reproducible from the drawn seed and the live/replay paths pass the
+     * IDENTICAL actions. The quiet turn 0 carries no actions (the engine's
+     * createEpisode turn, mirrored by ReplayEngineFactory).
+     *
+     * Each robot draws an action every applicable turn (turns 1..$playedTurns)
+     * from the menu in {@see actionMenu()}, picking the entry at a per-robot,
+     * per-turn index derived purely from the Eris-drawn $seedValue and $turn.
+     * Deriving the index from the already-drawn values keeps the case
+     * reproducible — Eris shrinks and replays the same ($seedValue, $turn)
+     * tuple and so this method yields the same actions — while exercising the
+     * replay with turns that actually move robots, take and use objects, cover
+     * the resident, and support the resident both with and without a spoken
+     * line. Impossible or odd actions are deliberately in the menu: the replay
+     * must reproduce the live world regardless (that is the property), and the
+     * live engine judges an impossible action without erroring.
+     *
+     * The two robots draw different indices on the same turn (robot_b is offset
+     * in the menu), so a turn generally changes the world for both. Because the
+     * same ($turn, $seedValue) produce the same menu entry on every call, the
+     * live applyTurn and the stored action_json carry the identical Action.
      *
      * @return array<string, Action>
      */
@@ -233,29 +248,148 @@ final class RehydrationPropertyTest extends TestCase
             return [];
         }
 
-        if ((($seedValue + $turn) % 2) === 0) {
-            return [
-                'robot_a' => new Action(
-                    robotId: 'robot_a',
-                    operation: Operation::wait->value,
-                    actionQuote: 'I wait.',
-                ),
-            ];
-        }
+        $menu = $this->actionMenu();
+        $size = count($menu);
+
+        // A non-negative index derived from the drawn values; robot_b is offset
+        // by a fixed stride so the two robots usually draw different actions on
+        // the same turn (both still fully reproducible from the drawn tuple).
+        $base = abs($seedValue % $size);
+        $indexA = ($base + $turn) % $size;
+        $indexB = ($base + $turn + 3) % $size;
 
         return [
-            'robot_a' => new Action(
-                robotId: 'robot_a',
+            'robot_a' => $this->bindAction($menu[$indexA], 'robot_a'),
+            'robot_b' => $this->bindAction($menu[$indexB], 'robot_b'),
+        ];
+    }
+
+    /**
+     * The menu of candidate actions drawn from per turn. Every entry carries an
+     * actionQuote (harmless on the replay path, which skips EvidenceCheck) and
+     * uses targets valid in the world layout: the flashlight and gas_stove live
+     * in the kitchen, moves target rooms adjacent to a plausible robot room or
+     * a spot in the same room, support carries a destination both as a spot
+     * (under_table) and as an adjacent room, and the support with and without a
+     * spoken line covers both the acceptance path and the refusal line carried
+     * to the next turn. Odd/impossible combinations are intentional: the replay
+     * must reproduce the live world regardless.
+     *
+     * Each entry is a template Action keyed to 'robot'; {@see bindAction()}
+     * rebinds it to the concrete robot id before it is used, so the same menu
+     * serves both robots.
+     *
+     * @return list<Action>
+     */
+    private function actionMenu(): array
+    {
+        return [
+            // move to an adjacent room (valid from several start rooms)
+            new Action(
+                robotId: 'robot',
+                operation: Operation::move->value,
+                targetId: 'kitchen',
+                actionQuote: 'I walk to the kitchen.',
+            ),
+            new Action(
+                robotId: 'robot',
+                operation: Operation::move->value,
+                targetId: 'living_room',
+                actionQuote: 'I go to the living room.',
+            ),
+            // move to a spot in the same room
+            new Action(
+                robotId: 'robot',
+                operation: Operation::move->value,
+                targetSpot: 'near_resident',
+                actionQuote: 'I step near the old man.',
+            ),
+            new Action(
+                robotId: 'robot',
+                operation: Operation::move->value,
+                targetSpot: 'window',
+                actionQuote: 'I move to the window.',
+            ),
+            // take the flashlight, then (a later draw) use it
+            new Action(
+                robotId: 'robot',
+                operation: Operation::take->value,
+                targetId: 'flashlight',
+                actionQuote: 'I pick up the flashlight.',
+            ),
+            new Action(
+                robotId: 'robot',
+                operation: Operation::use->value,
+                targetId: 'flashlight',
+                actionQuote: 'I switch on the flashlight.',
+            ),
+            // use the gas stove
+            new Action(
+                robotId: 'robot',
+                operation: Operation::use->value,
+                targetId: 'gas_stove',
+                actionQuote: 'I turn off the gas stove.',
+            ),
+            // cover the resident, and cover self
+            new Action(
+                robotId: 'robot',
+                operation: Operation::cover->value,
+                targetId: 'resident',
+                actionQuote: 'I shield the old man.',
+            ),
+            new Action(
+                robotId: 'robot',
+                operation: Operation::cover->value,
+                actionQuote: 'I crouch and cover myself.',
+            ),
+            // support the resident with a spot destination, WITH a spoken line
+            new Action(
+                robotId: 'robot',
+                operation: Operation::support->value,
+                targetId: 'resident',
+                targetSpot: 'under_table',
+                words: ['Let us get you under the table.'],
+                actionQuote: 'I help the old man under the table and say, "Let us get you under the table."',
+            ),
+            // support the resident toward an adjacent room, WITHOUT a spoken line
+            new Action(
+                robotId: 'robot',
+                operation: Operation::support->value,
+                targetId: 'resident',
+                targetSpot: 'living_room',
+                actionQuote: 'I help the old man toward the living room.',
+            ),
+            // wait and speak
+            new Action(
+                robotId: 'robot',
                 operation: Operation::wait->value,
                 actionQuote: 'I wait.',
             ),
-            'robot_b' => new Action(
-                robotId: 'robot_b',
+            new Action(
+                robotId: 'robot',
                 operation: Operation::speak->value,
-                words: ['Hello.'],
-                actionQuote: 'I say hello.',
+                words: ['Are you all right?'],
+                actionQuote: 'I ask, "Are you all right?"',
             ),
         ];
+    }
+
+    /**
+     * Rebind a template menu Action (keyed to 'robot') to a concrete robot id,
+     * preserving every other field so the live and replay paths see the same
+     * Action.
+     */
+    private function bindAction(Action $template, string $robotId): Action
+    {
+        return new Action(
+            robotId: $robotId,
+            operation: $template->operation,
+            targetId: $template->targetId,
+            targetSpot: $template->targetSpot,
+            words: $template->words,
+            actionQuote: $template->actionQuote,
+            reported: $template->reported,
+        );
     }
 
     /**
