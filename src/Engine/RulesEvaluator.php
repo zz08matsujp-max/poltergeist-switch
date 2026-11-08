@@ -37,6 +37,9 @@ class RulesEvaluator
     /** Target id that names the resident himself (R3, Req 4.11). */
     private const RESIDENT_ID = 'resident';
 
+    /** Spot key that marks the position next to the man (Req 30.4–30.5). */
+    private const SPOT_NEAR_RESIDENT = 'near_resident';
+
     /**
      * The two in-room spot destinations a support action may name (Req 7.13):
      * crouching under the low table, or sitting beside the futon. Any other
@@ -87,15 +90,27 @@ class RulesEvaluator
     }
 
     /**
-     * move: possible only when the target room is adjacent to the robot's
-     * current room (Req 4.2). `targetId` carries the target room key.
+     * move: reachable when the target room is the robot's own current room (a
+     * same-room spot change that leaves the room unchanged, Req 30.1) or
+     * adjacent to it (Req 4.2); any other room is `not_adjacent` (Req 30.6).
+     * `targetId` carries the target room key and `targetSpot` the spot within
+     * it.
      *
-     * Danger checks layer on top of the adjacency verdict and never clear it:
-     *   - R1 (Req 4.8): shaking + window spot → dangerous, code R1. Applies
-     *     even when the move is impossible for another reason, so both the
-     *     `not_adjacent` reason and the R1 danger are reported together.
-     *   - R2a (Req 4.9): shaking + landing on the gas stove spot → always
-     *     records code R2a; the `dangerous` flag follows `$config->r2aIsDangerous`.
+     * Reachability is checked first and its reason takes precedence: an
+     * unreachable room is always `not_adjacent`, never `resident_not_here`.
+     * When the room is reachable and `targetSpot` is `near_resident` (next to
+     * the man, Req 30.4) but the resident is not in that room, the move is
+     * `possible=false, reason="resident_not_here"` (Req 30.5).
+     *
+     * Danger checks layer on top of the possibility verdict and never clear it,
+     * and apply to same-room moves exactly as to moves between rooms
+     * (Req 30.2–30.3): they key only off `targetSpot` + `House_State.shaking`.
+     *   - R1 (Req 4.8, Req 30.2): shaking + window spot → dangerous, code R1.
+     *     Applies even when the move is impossible for another reason, so both
+     *     the reason and the R1 danger are reported together.
+     *   - R2a (Req 4.9, Req 30.3): shaking + landing on the gas stove spot →
+     *     always records code R2a; the `dangerous` flag follows
+     *     `$config->r2aIsDangerous`.
      *   - R3 (Req 4.11): the move targets the resident himself (an attempt to
      *     move the resident) with no concurrent support from a robot in the
      *     resident's room → dangerous, code R3. A robot merely leaving or
@@ -111,8 +126,28 @@ class RulesEvaluator
     ): Judgement {
         $currentRoom = $world->robotStates[$action->robotId]->room;
         $adjacent = $world->getRoom($currentRoom)->adjacentRooms;
-        $possible = in_array($action->targetId, $adjacent, true);
-        $reason = $possible ? null : 'not_adjacent';
+
+        // Reachable = the robot's own room (same-room spot change, Req 30.1) or
+        // an adjacent room (Req 4.2). An unreachable room is `not_adjacent`
+        // (Req 30.6) and that reason wins over any spot-based reason below.
+        $reachable = $action->targetId === $currentRoom
+            || in_array($action->targetId, $adjacent, true);
+
+        if (!$reachable) {
+            $possible = false;
+            $reason = 'not_adjacent';
+        } elseif (
+            $action->targetSpot === self::SPOT_NEAR_RESIDENT
+            && $world->residentState->room !== $action->targetId
+        ) {
+            // `near_resident` requires the man to be in the destination room
+            // (Req 30.5).
+            $possible = false;
+            $reason = 'resident_not_here';
+        } else {
+            $possible = true;
+            $reason = null;
+        }
 
         // Danger checks run regardless of adjacency so an impossible move still
         // carries its danger code (Req 4.8). The first matching code wins; the

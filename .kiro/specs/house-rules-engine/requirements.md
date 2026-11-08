@@ -319,6 +319,23 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
 
 ---
 
+### Requirement 30: Moves inside the robot's own room
+
+**User Story:** As the rules engine, I want a move whose target is the robot's own current room to be possible as a spot change, so that common same-room repositioning (for example stepping next to the man or back to a doorway) is recorded as possible rather than impossible.
+
+(Decided by the maintainer on 2026-11-08.)
+
+#### Acceptance Criteria
+
+1. WHEN a move action targets the robot's own current room and no danger condition applies, THE Engine SHALL return `possible=true`, `dangerous=false`, `danger_code=null`; the move changes only the robot's spot and leaves its room unchanged.
+2. WHILE `House_State.shaking=true`, WHEN a same-room move targets a window spot, THE Engine SHALL return `dangerous=true`, `danger_code=R1`, exactly as for a move between rooms (Requirement 4.8).
+3. WHILE `House_State.shaking=true`, WHEN a same-room move places the robot on the gas stove spot, THE Engine SHALL record `danger_code=R2a` with the `dangerous` flag following `$config->r2aIsDangerous`, exactly as for a move between rooms (Requirement 4.9).
+4. THE set of spot names SHALL include `near_resident`, meaning next to the man.
+5. WHEN a move targets the spot `near_resident` AND the resident is not in that room, THE Engine SHALL return `possible=false`, `reason="resident_not_here"`, `dangerous=false`, `danger_code=null`.
+6. A move targeting a room that is neither adjacent to nor equal to the robot's current room SHALL remain `possible=false`, `reason="not_adjacent"` (Requirement 4.2 is unchanged for genuinely non-adjacent rooms).
+
+---
+
 ## Open Questions
 
 **(a) Speaking as an action** — Decided by the maintainer on 2026-11-01: speaking does not use the robot's one physical action. A robot does at most one physical action per turn, and the words it speaks in the same reply are delivered in parallel (see Requirement 5.12). `EpisodeConfig::speakConsumesAction` stays `false`; the flag is kept only for later comparison.

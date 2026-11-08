@@ -119,6 +119,141 @@ class RulesEvaluatorTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // move inside the robot's own room (task 30, Req 30.1–30.6)
+    // ------------------------------------------------------------------
+
+    public function testSameRoomMoveIsPossibleAsSpotChange(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_a is in the living_room; a move whose target is its own current
+        // room is a spot change and is possible with no danger (Req 30.1).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+            targetSpot: 'doorway',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertNull($judgement->reason);
+        $this->assertFalse($judgement->dangerous);
+        $this->assertNull($judgement->dangerCode);
+    }
+
+    public function testMoveToNearResidentWithResidentPresentIsPossible(): void
+    {
+        $world = $this->makeWorld();
+
+        // The resident sits at the low table in the living_room, where robot_a
+        // also stands. A move to `near_resident` in that room is possible
+        // (Req 30.4).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+            targetSpot: 'near_resident',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertNull($judgement->reason);
+    }
+
+    public function testMoveToNearResidentWithResidentAbsentIsImpossible(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_a in the living_room moves to the adjacent kitchen aiming for
+        // `near_resident`, but the man is in the living_room — impossible with
+        // reason `resident_not_here` (Req 30.5).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'near_resident',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('resident_not_here', $judgement->reason);
+        $this->assertFalse($judgement->dangerous);
+        $this->assertNull($judgement->dangerCode);
+    }
+
+    public function testSameRoomMoveToWindowSpotWhileShakingIsDangerousR1(): void
+    {
+        $world = $this->makeWorld();
+        $world->houseState->shaking = true;
+
+        // A same-room move onto the window spot while shaking is R1 exactly as
+        // a move between rooms would be (Req 30.2).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+            targetSpot: 'window',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertTrue($judgement->possible);
+        $this->assertTrue($judgement->dangerous);
+        $this->assertSame('R1', $judgement->dangerCode);
+    }
+
+    public function testSameRoomMoveToGasStoveSpotWhileShakingRecordsR2a(): void
+    {
+        $world = $this->makeWorld();
+        $world->houseState->shaking = true;
+
+        // robot_b is in the kitchen; a same-room move onto the gas stove spot
+        // while shaking records R2a exactly as a move between rooms (Req 30.3).
+        $action = new Action(
+            robotId: 'robot_b',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'gas_stove',
+        );
+
+        // Default config: r2aIsDangerous=false → code recorded, not dangerous.
+        $notDangerous = $this->evaluateWith($world, $action, [$action], new EpisodeConfig(r2aIsDangerous: false));
+        $this->assertTrue($notDangerous->possible);
+        $this->assertSame('R2a', $notDangerous->dangerCode);
+        $this->assertFalse($notDangerous->dangerous);
+
+        // Override config: r2aIsDangerous=true → dangerous mirrors the flag.
+        $dangerous = $this->evaluateWith($world, $action, [$action], new EpisodeConfig(r2aIsDangerous: true));
+        $this->assertSame('R2a', $dangerous->dangerCode);
+        $this->assertTrue($dangerous->dangerous);
+    }
+
+    public function testNonAdjacentRoomStillImpossibleNotAdjacent(): void
+    {
+        $world = $this->makeWorld();
+
+        // bathroom is neither adjacent to nor equal to living_room → the
+        // genuinely non-adjacent case is unchanged (Req 30.6).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'bathroom',
+            targetSpot: 'doorway',
+        );
+
+        $judgement = $this->evaluate($world, $action);
+
+        $this->assertFalse($judgement->possible);
+        $this->assertSame('not_adjacent', $judgement->reason);
+        $this->assertFalse($judgement->dangerous);
+        $this->assertNull($judgement->dangerCode);
+    }
+
+    // ------------------------------------------------------------------
     // take
     // ------------------------------------------------------------------
 

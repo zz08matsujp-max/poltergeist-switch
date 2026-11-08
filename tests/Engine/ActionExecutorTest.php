@@ -80,6 +80,26 @@ class ActionExecutorTest extends TestCase
         $this->assertSame('living_room', $world->robotStates['robot_a']->room);
     }
 
+    public function testSameRoomMoveChangesOnlySpotLeavingRoomUnchanged(): void
+    {
+        $world = $this->makeWorld();
+
+        // robot_a is in the kitchen; a move whose target is its own current
+        // room updates only the spot and leaves the room unchanged (Req 30.1).
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'near_resident',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('kitchen', $world->robotStates['robot_a']->room);
+        $this->assertSame('near_resident', $world->robotStates['robot_a']->spot);
+    }
+
     // ------------------------------------------------------------------
     // take (Req 5.1, design §f)
     // ------------------------------------------------------------------

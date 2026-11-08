@@ -112,6 +112,11 @@ class ActionExecutor
      * move: the robot walks to the target room (Req 5.2). `targetId` carries
      * the destination room key; `targetSpot` carries the spot within it. The
      * room lookup throws on an unknown key, triggering rollback.
+     *
+     * A same-room move (destination === origin) leaves the room unchanged and
+     * updates only the spot (Req 30.1); `targetSpot` may be `near_resident`,
+     * which is stored verbatim since the evaluator already blocked the
+     * impossible case (Req 30.5).
      */
     private function executeMove(Action $action, WorldModel $world): array
     {
@@ -128,10 +133,14 @@ class ActionExecutor
 
         // A lit light source held by the robot travels with it: the room left
         // behind may go dark and the room entered may become lit, so both are
-        // recomputed through the shared light rule (design §f/§g, Req 2.5).
+        // recomputed through the shared light rule (design §f/§g, Req 2.5). A
+        // same-room move leaves the robot in one room, so a single recompute
+        // suffices (Req 30.1).
         if ($this->holdsLitLightSource($robot, $world)) {
-            EarthquakePhase::recomputeRoomLightLevel($world, $origin);
             EarthquakePhase::recomputeRoomLightLevel($world, $destination);
+            if ($origin !== $destination) {
+                EarthquakePhase::recomputeRoomLightLevel($world, $origin);
+            }
         }
 
         return [

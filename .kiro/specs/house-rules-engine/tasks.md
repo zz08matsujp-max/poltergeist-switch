@@ -494,6 +494,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - A documented check/reminder that the version must be bumped when the fixed text or generator output format changes (e.g. the S0 golden test and the version constant are noted as coupled)
     - _Requirements: Req 14.1–14.3_
 
+- [x] 30. Moves inside the robot's own room (added 2026-11-08)
+  - [x] 30.1 `RulesEvaluator::evaluateMove`: a move whose `targetId` equals the robot's current room is `possible=true` (a spot change, room unchanged); a genuinely non-adjacent room stays `possible=false, reason="not_adjacent"`. Add the spot name `near_resident`; a move to `near_resident` when the resident is not in the destination room is `possible=false, reason="resident_not_here"`. R1 (window spot while shaking) and R2a (gas_stove spot while shaking) apply to same-room moves exactly as to between-room moves.
+  - [x] 30.2 `ActionExecutor::executeMove`: a same-room move updates only the robot's spot (room unchanged); a carried lit light source stays in the same room. `near_resident` is stored on the robot's spot.
+  - [x]* 30.3 Tests in `tests/Engine/RulesEvaluatorTest.php` and `tests/Engine/ActionExecutorTest.php`: a same-room move is possible and changes only the spot; `near_resident` with the man present is possible; `near_resident` with the man absent is `possible=false, reason="resident_not_here"`; a same-room move to a window spot while shaking is `dangerous=true, danger_code=R1`; a same-room move onto the gas_stove spot while shaking records `danger_code=R2a`; a genuinely non-adjacent room stays `not_adjacent`. All existing tests still pass.
+  - _Requirements: Req 30.1–30.6, Req 4.2, Req 4.8, Req 4.9_
+
 ---
 
 ## Notes
@@ -540,7 +546,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 20, "tasks": ["21.1", "21.2"] },
     { "id": 21, "tasks": ["27.1", "27.2", "27.3"] },
     { "id": 22, "tasks": ["28.1", "28.2", "29.1"] },
-    { "id": 23, "tasks": ["28.3", "29.2"] }
+    { "id": 23, "tasks": ["28.3", "29.2"] },
+    { "id": 24, "tasks": ["30.1", "30.2", "30.3"] }
   ]
 }
 ```
