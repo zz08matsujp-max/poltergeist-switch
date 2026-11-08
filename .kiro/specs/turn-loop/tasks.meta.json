@@ -12,6 +12,13 @@
         "chatSessionId": "sess_c6c1b2a2-6dc1-4ea3-b9f7-55cfaeb1b0b0",
         "timestamp": 1794098270954
       }
+    ],
+    "3. Config and SecretLoader": [
+      {
+        "executionId": "08a84c26-2544-4e4b-bb55-28bd5e55cb9c",
+        "chatSessionId": "sess_67d4dec4-79b5-4507-b29e-9cafbbe18cc3",
+        "timestamp": 1794098472450
+      }
     ]
   }
 }

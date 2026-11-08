@@ -36,17 +36,17 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Round-trip construction preserves all fields; unanswered `ReplyRecord` has zero tokens and zero cost; `TurnStateValue` only advances forward
     - _Requirements: 1.4, 1.8, 7.2, 8.4_
 
-- [ ] 3. Config and SecretLoader
-  - [ ] 3.1 Implement `Config` in `src/TurnLoop/Config.php`:
+- [x] 3. Config and SecretLoader
+  - [x] 3.1 Implement `Config` in `src/TurnLoop/Config.php`:
     - Draft `perCallTimeoutSeconds = 75` and `perRequestBudgetSeconds = 85`, with the per-call timeout kept strictly below the per-request budget
     - `inputCostPerToken` / `outputCostPerToken` draft rates from brief §14 (not literals in the clients), `maxRunningEpisodes = 5`, `idleSlotReleaseSeconds = 300`
     - _Requirements: 1.11, 1.12, 9.9, 9.10_
-  - [ ] 3.2 Implement `SecretLoader` in `src/TurnLoop/SecretLoader.php`:
+  - [x] 3.2 Implement `SecretLoader` in `src/TurnLoop/SecretLoader.php`:
     - Read the secrets directory path from an uncommitted local `Config_File` that lives outside the repository tree; read each named key from a file in that directory outside the web root; trim and reject empty
     - A missing/unreadable config returns an error and attempts no provider call; a missing/unreadable/empty key file returns an error for that client and attempts no provider call for it
     - Never return a key, credential, or the secrets path in any output
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 1.10_
-  - [ ] 3.3 Write unit tests in `tests/TurnLoop/ConfigSecretLoaderTest.php` using a temporary fake secrets dir (never a real key):
+  - [x] 3.3 Write unit tests in `tests/TurnLoop/ConfigSecretLoaderTest.php` using a temporary fake secrets dir (never a real key):
     - Reads a key from a fake file; missing config → error with no provider call; missing/empty key file → error for that client; per-call timeout strictly below per-request budget; no secret value appears in any returned string
     - Required, not optional (decided by the maintainer on 2026-11-08): these tests guard the API keys
     - _Requirements: 2.4, 2.5, 2.6, 1.12_
