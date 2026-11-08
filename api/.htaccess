@@ -1,0 +1,24 @@
+# Route every /api/... request through the single front controller index.php.
+# The same routes are also accepted via ?route=... (index.php?route=episodes/...)
+# so the API still works when mod_rewrite is unavailable; this rewrite is a
+# best-effort convenience for clean paths.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Base is this directory (…/api/). Adjust automatically from the request.
+    RewriteBase /api/
+
+    # Leave real files and directories alone.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Map /api/<route> to index.php?route=<route>, preserving any query string.
+    RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
+</IfModule>
+
+# Every API response must be uncacheable (the nginx cache sits in front of PHP).
+<IfModule mod_headers.c>
+    Header always set Cache-Control "no-store"
+</IfModule>

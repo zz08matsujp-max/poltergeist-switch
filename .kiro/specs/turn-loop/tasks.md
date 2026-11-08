@@ -166,12 +166,12 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - A turn state never returns to an earlier state; a mismatched turn number → 409 with current state and no stored change; a call on an ended episode → 409; `getEpisode` returns stored turn records
     - _Requirements: 7.2, 7.3, 7.6, 9.4_
 
-- [ ] 14. API entry points and bootstrap
-  - [ ] 14.1 Implement the five `api/` entry points plus `api/bootstrap.php`:
+- [x] 14. API entry points and bootstrap
+  - [x] 14.1 Implement the five `api/` entry points plus `api/bootstrap.php`:
     - `episodes_create.php` (`POST /api/episodes`), `episodes_disaster.php`, `episodes_ask.php`, `episodes_apply.php`, `episodes_get.php`; `bootstrap.php` loads config, builds `TurnService`, and sends `Cache-Control: no-store`
     - Each entry point parses the request only (ids, turn number, device cookie), calls one `TurnService` method, and writes the JSON body; 404 on an unknown episode id; set a random device cookie when absent; no rules logic in `api/`; no secret or provider name in any body
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.11, 2.6_
-  - [ ]* 14.2 Write integration tests in `tests/TurnLoop/ApiTest.php` driving the entry points with a fake-backed `TurnService`:
+  - [x] 14.2 Write integration tests in `tests/TurnLoop/ApiTest.php` driving the entry points with a fake-backed `TurnService`:
     - Every response parses as JSON and carries `Cache-Control: no-store`; an unknown id → 404; a new request without a cookie sets a device cookie; no response body contains a key, credential, path, or provider name
     - _Requirements: 9.2, 9.3, 9.5, 9.6, 2.6_
 
