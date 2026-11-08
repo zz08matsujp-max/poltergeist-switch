@@ -296,6 +296,44 @@
   }
 
   /**
+   * updateTurnIndicator() — refresh the "Turn N of M" counter next to the
+   * controls (Req 9.1, 9.8-9.11).
+   *
+   * M = the number of turns TAKEN = the applied turns EXCLUDING turn 0 (the
+   * calm setup frame). The loaded view's `turns` include turn 0, so M counts
+   * only sortedTurns whose turnNumber > 0 — matching the End_Card's "turns
+   * taken" and the list count.
+   *
+   * N = the current turn's position among those counted turns. When the current
+   * turn is a robot turn (turnNumber > 0) N is that turnNumber, so it reads
+   * "Turn 3 of 13". When the current turn is turn 0 (the opening calm frame)
+   * there is no turn taken yet, so the counter reads "Setup \u00b7 M turns" to
+   * make the still opening frame read sensibly.
+   */
+  function updateTurnIndicator() {
+    if (!el.turnIndicator) { return; }
+
+    // M: applied turns excluding turn 0.
+    var total = 0;
+    for (var i = 0; i < sortedTurns.length; i++) {
+      var t = sortedTurns[i];
+      if (t && Number(t.turnNumber) > 0) { total += 1; }
+    }
+
+    var current = turnAt(currentTurnIndex);
+    var currentNumber = current ? Number(current.turnNumber) : 0;
+    if (!isFinite(currentNumber) || currentNumber < 0) { currentNumber = 0; }
+
+    var turnsLabel = total + (total === 1 ? ' turn' : ' turns');
+    if (currentNumber > 0) {
+      el.turnIndicator.textContent = 'Turn ' + currentNumber + ' of ' + total;
+    } else {
+      // Turn 0: the calm opening frame, before any turn is taken.
+      el.turnIndicator.textContent = 'Setup \u00b7 ' + turnsLabel;
+    }
+  }
+
+  /**
    * renderTurn(index, actOutTurn) — show the turn at `index`.
    *
    * Always: snap the house to that turn's recorded `world` (so characters sit
@@ -310,6 +348,9 @@
   function renderTurn(index, actOutTurn) {
     var turn = turnAt(index);
     if (!turn) { return Promise.resolve(); }
+
+    // Update the "Turn N of M" counter whenever the current turn changes.
+    updateTurnIndicator();
 
     // Fill the reply panels with the highlighted replies for this turn.
     renderReplies(turn);
@@ -589,6 +630,32 @@
     el.toldHost.appendChild(body);
   }
 
+  /**
+   * chooseAnother() — leave playback and return to the Episode_List (Req 8.2).
+   *
+   * Stops any auto-play, hides the playback region and its controls, and
+   * re-fetches/shows the list via showList() (which only calls the read-only
+   * GET /api/episodes?ended=1&limit=20 — NO AI call, Req 8.6). The direct-load
+   * path uses ?episode=<id> in the URL, so we also clear that query via
+   * history.replaceState (when available) so a refresh shows the list rather
+   * than reloading the episode. Falling back to showList() alone is enough when
+   * history is unavailable.
+   */
+  function chooseAnother() {
+    playing = false;
+    // Drop the ?episode=<id> query so a refresh shows the list (optional, Req
+    // 8.2). Guarded: when history is unavailable we still return to the list.
+    try {
+      if (typeof window !== 'undefined' && window.history &&
+          typeof window.history.replaceState === 'function' && window.location) {
+        var base = (window.location.pathname || 'replay.php');
+        window.history.replaceState(null, '', base);
+      }
+    } catch (e) { /* ignore — showList() below still returns to the list */ }
+    clearNotice();
+    showList();
+  }
+
   // ── region + message helpers ────────────────────────────────────────────────
 
   // Show the LIST region and hide the playback region and its controls.
@@ -634,6 +701,7 @@
     if (el.btnStepBack) { el.btnStepBack.addEventListener('click', stepBack); }
     if (el.btnStepForward) { el.btnStepForward.addEventListener('click', stepForward); }
     if (el.btnTold) { el.btnTold.addEventListener('click', showWhatTold); }
+    if (el.btnChoose) { el.btnChoose.addEventListener('click', chooseAnother); }
   }
 
   function lookupDom() {
@@ -652,6 +720,9 @@
     el.btnStepBack = document.getElementById('btn-stepback');
     el.btnStepForward = document.getElementById('btn-stepforward');
     el.btnTold = document.getElementById('btn-told');
+    el.btnChoose = document.getElementById('btn-choose');
+    el.turnIndicator = document.getElementById('turn-indicator');
+    el.stageCol = document.getElementById('stage-col');
     el.toldHost = document.getElementById('told-host');
   }
 
@@ -706,6 +777,7 @@
     stepBack: stepBack,
     stepForward: stepForward,
     showWhatTold: showWhatTold,
+    chooseAnother: chooseAnother,
     // Let 10.2 swap in the real playback implementation.
     _setStartPlayback: function (fn) { if (typeof fn === 'function') { startPlayback = fn; } },
     _modules: function () { return { api: api, house: house, voices: voices, actOut: actOut }; },

@@ -88,8 +88,9 @@ class EpisodeListServiceTest extends TestCase
     public function testItemShapeAndOneLinerWording(): void
     {
         // Requirements 11.3, 8.5: four fields per item, turns as a non-negative
-        // integer, and the one-liner naming Amber/Jade and the man with room
-        // display names.
+        // integer counting only the robot turns taken (applied turns AFTER turn
+        // 0, excluding the quiet turn-0 setup, matching the End_Card), and the
+        // one-liner naming Amber/Jade and the man with room display names.
         $repo = new InMemoryEpisodeRepository();
         $this->seedEpisode(
             $repo,
@@ -97,7 +98,7 @@ class EpisodeListServiceTest extends TestCase
             '2026-11-01 10:00:00',
             ended: true,
             worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'),
-            extraTurns: 2, // turn 0 + two more = 3 stored turns
+            extraTurns: 2, // turn 0 + turns 1 and 2 → two robot turns taken
         );
 
         $list = $this->service($repo)->list();
@@ -107,11 +108,52 @@ class EpisodeListServiceTest extends TestCase
         $this->assertSame(['id', 'createdDate', 'turns', 'startingSituation'], array_keys($item));
         $this->assertSame('a', $item['id']);
         $this->assertSame('2026-11-01 10:00:00', $item['createdDate']);
-        $this->assertSame(3, $item['turns']);
+        // turn 0 + turns 1 and 2 are stored, so the robot turns taken (after
+        // turn 0) is 2 — NOT 3 (the old count that wrongly included turn 0).
+        $this->assertSame(2, $item['turns']);
         $this->assertSame(
             'Night — Amber in the kitchen, Jade in the bedroom, the man in the living room.',
             $item['startingSituation'],
         );
+    }
+
+    public function testTurnsExcludeTurnZeroMatchingTheEndCard(): void
+    {
+        // Requirement 11.3: the list's turns field counts only applied turns
+        // AFTER turn 0 (the robot turns taken), matching the End_Card's "turns
+        // taken". An episode with turn 0 plus N robot turns (turns 1..N) must
+        // report N, never N + 1 — so the quiet turn-0 setup is excluded. This
+        // directly exercises the ±1 that the old count($worldsByTurn) got wrong.
+        $repo = new InMemoryEpisodeRepository();
+        $w = $this->worldJson('morning', 'kitchen', 'bedroom', 'living_room');
+
+        // Thirteen robot turns taken (turns 1..13) on top of turn 0: the
+        // End_Card calls this "13 turns taken", so the list must say 13, not 14.
+        $this->seedEpisode($repo, 'a', '2026-11-01 10:00:00', ended: true, worldJson: $w, extraTurns: 13);
+
+        $list = $this->service($repo)->list();
+
+        $this->assertCount(1, $list);
+        $this->assertSame(13, $list[0]['turns']);
+    }
+
+    public function testTurnsIsZeroWhenOnlyTurnZeroIsStored(): void
+    {
+        // Requirement 11.3, 7.2: an episode that only ever stored turn 0 (no
+        // robot turns taken) reports 0 — the turn-0 setup never counts.
+        $repo = new InMemoryEpisodeRepository();
+        $this->seedEpisode(
+            $repo,
+            'a',
+            '2026-11-01 10:00:00',
+            ended: true,
+            worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'),
+        );
+
+        $list = $this->service($repo)->list();
+
+        $this->assertCount(1, $list);
+        $this->assertSame(0, $list[0]['turns']);
     }
 
     public function testReturnsOnlyEndedNewestFirst(): void

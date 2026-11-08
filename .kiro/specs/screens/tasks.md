@@ -202,16 +202,16 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 1.13, 3.4, 3.5, 3.7, 12.3_
 
 - [ ] 19. Replay usability and the turn count
-  - [ ] 19.1 Show "Turn N of M" next to the Replay controls
+  - [x] 19.1 Show "Turn N of M" next to the Replay controls
     - In `public/js/replay.js` (and `public/replay.php`/`public/css/screens.css` as needed), show the current position as "Turn N of M", where M is the turns taken (applied turns excluding turn 0)
     - _Requirements: 9.1, 9.8, 9.9, 9.10, 9.11_
-  - [ ] 19.2 Move the Replay control row directly under the canvas
+  - [x] 19.2 Move the Replay control row directly under the canvas
     - Place the Play/Pause/Step controls under the canvas rather than after the long reply column, in `public/replay.php` (and CSS as needed)
     - _Requirements: 9.1, 12.3_
-  - [ ] 19.3 Add a "Choose another episode" button that returns to the list
+  - [x] 19.3 Add a "Choose another episode" button that returns to the list
     - Add the control on the Replay screen so the viewer can leave playback and return to the Episode_List
     - _Requirements: 8.2_
-  - [ ] 19.4 Count only turns after turn 0 in `EpisodeListService`
+  - [x] 19.4 Count only turns after turn 0 in `EpisodeListService`
     - The list said "14 turns" for an episode the End_Card calls "13 turns taken" because `EpisodeListService` counts turn 0; count only applied turns after turn 0 (robot turns taken) for the `turns` field, matching the End_Card, and update the list property test accordingly
     - _Requirements: 11.3_
 

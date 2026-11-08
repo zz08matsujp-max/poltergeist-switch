@@ -334,6 +334,34 @@
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794134082004
       }
+    ],
+    "19.1 Show \"Turn N of M\" next to the Replay controls": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794134369224
+      }
+    ],
+    "19.2 Move the Replay control row directly under the canvas": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794134370477
+      }
+    ],
+    "19.3 Add a \"Choose another episode\" button that returns to the list": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794134371498
+      }
+    ],
+    "19.4 Count only turns after turn 0 in `EpisodeListService`": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794134372426
+      }
     ]
   }
 }

@@ -15,7 +15,9 @@ use PoltergeistSwitch\TurnLoop\Repository\EpisodeRepository;
  * replay the world backfill performs. It returns only episodes whose `ended`
  * is true, newest-created first (Requirements 11.1, 11.2); each item carries
  * just four fields — id, created date, the number of turns as a non-negative
- * integer, and the starting-situation one-liner (Requirement 11.3) — so no
+ * integer counting only applied turns after turn 0 (the robot turns taken,
+ * excluding the turn-0 setup, matching the End_Card's "turns taken"), and the
+ * starting-situation one-liner (Requirement 11.3) — so no
  * device id, API key, database credential, or AI provider name can leak
  * (Requirement 11.7).
  *
@@ -98,13 +100,35 @@ final class EpisodeListService
                 'id'                => $episode->id,
                 'createdDate'       => $episode->createdAt,
                 // The number of turns as a non-negative integer: the count of
-                // stored turns for the episode (Requirement 11.3).
-                'turns'             => count($worldsByTurn),
+                // applied turns AFTER turn 0 (the robot turns taken, excluding
+                // the quiet turn-0 setup), so it matches the End_Card's "turns
+                // taken" (Requirement 11.3).
+                'turns'             => $this->turnsTaken($worldsByTurn),
                 'startingSituation' => $this->startingSituation($worldsByTurn),
             ];
         }
 
         return $items;
+    }
+
+    /**
+     * The number of robot turns taken: the count of stored turns whose turn
+     * number is greater than 0, excluding the quiet turn-0 setup. This matches
+     * the End_Card's "turns taken" (Requirement 11.3). $worldsByTurn is keyed
+     * by turn number; a key may be an int already, so it is cast defensively.
+     *
+     * @param array<int, string|null> $worldsByTurn turnNumber => world_json or null
+     */
+    private function turnsTaken(array $worldsByTurn): int
+    {
+        $count = 0;
+        foreach (array_keys($worldsByTurn) as $turnNumber) {
+            if ((int) $turnNumber > 0) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**

@@ -78,21 +78,49 @@ header('Cache-Control: no-store');
          navigating to replay.php?episode=<id>. Hidden in direct-load mode. -->
     <div class="episode-list" id="episode-list" hidden></div>
 
-    <!-- PLAYBACK region (task 10.2 drives this). Present now so 10.2 only adds
-         behaviour. The .stage > .inner holds the House_Renderer canvas and its
-         overlay; the .replies region (beside the stage at >= 768px, below it
-         under 768px per the CSS) holds the two robots' replies. Hidden until a
-         view is loaded in direct-load mode. -->
+    <!-- PLAYBACK region. The .replay-main is a two-column grid at >= 768px:
+         the LEFT (stage) column holds the House_Renderer canvas, the playback
+         controls, the "Turn N of M" counter and the "What it was told" panel,
+         so the controls sit DIRECTLY UNDER the canvas rather than below the
+         long reply column (Req 9.1, 12.3); the RIGHT column holds the replies
+         (beside the stage at >= 768px, below it under 768px per the CSS). Under
+         768px everything is a single column, so the controls still sit directly
+         under the canvas. Hidden until a view is loaded in direct-load mode. -->
     <div class="replay-main" id="replay-main" hidden>
-      <section class="stage" aria-label="The house">
-        <div class="inner" id="stage-inner">
-          <canvas id="house" width="480" height="236"
-                  role="img" aria-label="Cross-section of the house with Amber, Jade and the man"></canvas>
-          <div class="overlay" id="overlay" aria-hidden="true"></div>
-        </div>
-      </section>
+      <!-- LEFT column: the stage and everything that belongs under the canvas. -->
+      <div class="stage-col" id="stage-col">
+        <section class="stage" aria-label="The house">
+          <div class="inner" id="stage-inner">
+            <canvas id="house" width="480" height="236"
+                    role="img" aria-label="Cross-section of the house with Amber, Jade and the man"></canvas>
+            <div class="overlay" id="overlay" aria-hidden="true"></div>
+          </div>
+        </section>
 
-      <!-- The two robots' replies (task 10.2 fills in and highlights). -->
+        <!-- Playback controls (wired in replay.js). Play, Pause, Step back,
+             Step forward, "What it was told this turn" (Req 9.1, 9.7), the live
+             "Turn N of M" counter (Req 9.1, 9.8-9.11) and a "Choose another
+             episode" button that returns to the Episode_List (Req 8.2). Hidden
+             until playback; sits directly under the canvas (task 19). -->
+        <div class="controls" id="controls" hidden>
+          <button type="button" class="btn primary" id="btn-play">Play</button>
+          <button type="button" class="btn" id="btn-pause">Pause</button>
+          <button type="button" class="btn" id="btn-stepback">Step back</button>
+          <button type="button" class="btn" id="btn-stepforward">Step forward</button>
+          <button type="button" class="btn" id="btn-told">What it was told this turn</button>
+          <button type="button" class="btn" id="btn-choose">Choose another episode</button>
+          <!-- Live "Turn N of M" position counter (Req 9.1). replay.js updates
+               its text in renderTurn; M excludes turn 0 (the calm setup). -->
+          <span class="turn-indicator" id="turn-indicator" aria-live="polite"></span>
+        </div>
+
+        <!-- "What it was told this turn" panel (Req 9.7). Sits under the
+             controls in the stage column. -->
+        <div class="message" id="told-host" hidden></div>
+      </div>
+
+      <!-- RIGHT column: the two robots' replies (filled and highlighted in
+           replay.js). -->
       <div class="replies" id="replies">
         <div class="reply amber" id="reply-amber">
           <h3>Amber</h3>
@@ -104,21 +132,6 @@ header('Cache-Control: no-store');
         </div>
       </div>
     </div>
-
-    <!-- Playback controls (wired in task 10.2; present in markup now). Play,
-         Pause, Step back, Step forward (Req 9.1). Hidden until playback. The
-         "What it was told this turn" affordance (Req 9.7) is a placeholder for
-         10.2. -->
-    <div class="controls" id="controls" hidden>
-      <button type="button" class="btn primary" id="btn-play">Play</button>
-      <button type="button" class="btn" id="btn-pause">Pause</button>
-      <button type="button" class="btn" id="btn-stepback">Step back</button>
-      <button type="button" class="btn" id="btn-stepforward">Step forward</button>
-      <button type="button" class="btn" id="btn-told">What it was told this turn</button>
-    </div>
-
-    <!-- "What it was told this turn" panel (task 10.2 fills in — Req 9.7). -->
-    <div class="message" id="told-host" hidden></div>
   </div>
 
   <!-- Scripts, in dependency order; replay.js last. All relative (Req 12.9,

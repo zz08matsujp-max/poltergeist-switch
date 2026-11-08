@@ -336,7 +336,10 @@ canvas {
 .log .entry .who.jade { color: var(--jade); }
 
 /* ── controls: Start / Pause / Step / Resume / Voices (Req 4.12, 9.1) ─────── */
-.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+/* "Turn N of M" position counter sitting in the Replay controls row (Req 9.1,
+   9.8-9.11). Plain live-updating text; empty until playback renders a turn. */
+.turn-indicator { font-size: 13px; color: var(--mute); margin-left: 4px; }
 .btn {
   appearance: none;
   font: inherit;
@@ -356,9 +359,18 @@ canvas {
 /* At >= 768px show the replies beside the renderer (Req 9.2); below 768px they
    stack under it (Req 9.3 — the single-column default). */
 @media (min-width: 768px) {
+  /* Two columns: the stage column (canvas + controls + Turn N of M + the
+     "told" panel) on the left, the replies on the right. The controls now sit
+     DIRECTLY UNDER the canvas inside the left column, not below the whole grid
+     (task 19.2, Req 9.1, 12.3). align-items: start keeps both columns top-
+     aligned so the stage column is not stretched to the reply column's height. */
   .replay-main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; align-items: start; }
   .replies { margin-top: 0; }
 }
+/* The stage column stacks the canvas, controls and panel vertically. Under
+   768px the .replay-main is a single column, so the stage column (and its
+   controls) already sits directly under the canvas (Req 12.3). */
+.stage-col { display: flex; flex-direction: column; }
 .reply { background: #231712; border: 1px solid #120b06; border-radius: 4px; padding: 10px 12px; }
 .reply h3 { margin: 0 0 6px; font-size: 13px; font-weight: 400; }
 .reply.amber h3 { color: var(--amber); }
