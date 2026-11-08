@@ -341,7 +341,21 @@ canvas {
 
 /* ── episode list (Req 8.2, 8.5) ──────────────────────────────────────────── */
 .episode-list { display: grid; gap: 10px; }
-.episode-list .item { background: #231712; border: 1px solid #120b06; border-radius: 4px; padding: 10px 12px; }
+/* The items are <button>s, so they need the page's font/colour forced on and a
+   full-width left-aligned block so the dark-panel text is readable (Req 8.2, 8.5)
+   and keyboard-focusable (Req 12.4). */
+.episode-list .item {
+  background: #231712;
+  border: 1px solid #120b06;
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: var(--bone);
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+.episode-list .item:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
 .episode-list .item .when { font-size: 12px; color: var(--mute); }
 .episode-list .item .situation { font-size: 13px; line-height: 1.5; }
 

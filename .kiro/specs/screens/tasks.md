@@ -176,7 +176,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 4.10, 5.10_
 
 - [ ] 15. Fix the Replay episode list being unreadable
-  - [ ] 15.1 Style the `.episode-list .item` buttons in `public/css/screens.css`
+  - [x] 15.1 Style the `.episode-list .item` buttons in `public/css/screens.css`
     - The items are `<button>`s that kept the browser's default black text and font on the dark brown panel; set `color: var(--bone); font: inherit; text-align: left; width: 100%; cursor: pointer;` plus a visible focus style so the list is readable and keyboard-focusable
     - _Requirements: 8.2, 8.5, 12.4_
 
