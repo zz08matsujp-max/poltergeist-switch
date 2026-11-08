@@ -30,6 +30,15 @@ class ActionExecutor
     /** Object id of the gas stove; `use` on it turns the flame off (Req 5.3). */
     private const GAS_STOVE_ID = 'gas_stove';
 
+    /** Spot next to the resident; `move` text adds ", next to the man". */
+    private const SPOT_NEAR_RESIDENT = 'near_resident';
+
+    /** Window spot; a same-room `move` there reads "moved to the window". */
+    private const SPOT_WINDOW = 'window';
+
+    /** Gas-stove spot; a same-room `move` there reads "moved to the gas stove". */
+    private const SPOT_GAS_STOVE = 'gas_stove';
+
     /**
      * Pseudo-target for the gas main shut-off valve. The valve is not a
      * registered object; `use` on it closes the house gas main (Req 5.4).
@@ -117,6 +126,18 @@ class ActionExecutor
      * updates only the spot (Req 30.1); `targetSpot` may be `near_resident`,
      * which is stored verbatim since the evaluator already blocked the
      * impossible case (Req 30.5).
+     *
+     * The outcome text is chosen per spot and whether the room actually
+     * changed, so a same-room move never falsely claims the robot left:
+     *   - near_resident (checked first, room-change or not): adds ", next to
+     *     the man", and on a same-room move drops the room entirely ("moved
+     *     next to the man");
+     *   - same-room window / gas stove: "moved to the window" / "…gas stove";
+     *   - any other same-room move (null or other spot): "moved within the
+     *     {room}";
+     *   - a genuine between-room move: "moved to the {room}" (unchanged).
+     * window/gas_stove on a between-room move fall through to the plain
+     * between-room text, since the special wording only applies in-room.
      */
     private function executeMove(Action $action, WorldModel $world): array
     {
@@ -143,9 +164,51 @@ class ActionExecutor
             }
         }
 
+        $sameRoom = ($origin === $destination);
+        $spot = $action->targetSpot;
+        $roomName = $room->displayName;
+
+        // near_resident applies whether or not the room changed (Req 30.5).
+        if ($spot === self::SPOT_NEAR_RESIDENT) {
+            if (!$sameRoom) {
+                return [
+                    "You moved to the {$roomName}, next to the man.",
+                    "The other robot moved to the {$roomName}, next to the man.",
+                ];
+            }
+
+            return [
+                'You moved next to the man.',
+                'The other robot moved next to the man.',
+            ];
+        }
+
+        if ($sameRoom && $spot === self::SPOT_WINDOW) {
+            return [
+                'You moved to the window.',
+                'The other robot moved to the window.',
+            ];
+        }
+
+        if ($sameRoom && $spot === self::SPOT_GAS_STOVE) {
+            return [
+                'You moved to the gas stove.',
+                'The other robot moved to the gas stove.',
+            ];
+        }
+
+        if ($sameRoom) {
+            return [
+                "You moved within the {$roomName}.",
+                "The other robot moved within the {$roomName}.",
+            ];
+        }
+
+        // A genuine between-room move keeps the original wording so existing
+        // between-room tests and the golden fixtures remain unaffected.
         return [
-            "You moved to the {$room->displayName}.",
-            "The other robot moved to the {$room->displayName}.",
+            "You moved to the {$roomName}.",
+            "The other robot moved to the {$roomName}.",
         ];
     }
 

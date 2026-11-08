@@ -101,6 +101,134 @@ class ActionExecutorTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // move outcome text (same-room vs between-room, per spot)
+    // ------------------------------------------------------------------
+
+    public function testSameRoomMoveNearResidentReadsNextToTheMan(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a and the cooking resident are both in the kitchen.
+        $this->assertSame('kitchen', $world->residentState->room);
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'near_resident',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('You moved next to the man.', $outcome->whatHappenedText);
+        $this->assertSame('The other robot moved next to the man.', $outcome->seenByOtherText);
+    }
+
+    public function testBetweenRoomMoveNearResidentNamesRoomAndTheMan(): void
+    {
+        $world = $this->makeWorld();
+        // robot_a starts in the kitchen; place the resident in the living room
+        // so the destination holds the man.
+        $world->residentState->room = 'living_room';
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+            targetSpot: 'near_resident',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        // living_room's display name is "living room".
+        $this->assertSame('You moved to the living room, next to the man.', $outcome->whatHappenedText);
+        $this->assertSame('The other robot moved to the living room, next to the man.', $outcome->seenByOtherText);
+    }
+
+    public function testSameRoomMoveToWindowReadsMovedToTheWindow(): void
+    {
+        $world = $this->makeWorld();
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'window',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('You moved to the window.', $outcome->whatHappenedText);
+        $this->assertSame('The other robot moved to the window.', $outcome->seenByOtherText);
+    }
+
+    public function testSameRoomMoveToGasStoveReadsMovedToTheGasStove(): void
+    {
+        $world = $this->makeWorld();
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: 'gas_stove',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('You moved to the gas stove.', $outcome->whatHappenedText);
+        $this->assertSame('The other robot moved to the gas stove.', $outcome->seenByOtherText);
+    }
+
+    public function testSameRoomMoveWithNullSpotReadsMovedWithinTheRoom(): void
+    {
+        $world = $this->makeWorld();
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'kitchen',
+            targetSpot: null,
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('You moved within the kitchen.', $outcome->whatHappenedText);
+        $this->assertSame('The other robot moved within the kitchen.', $outcome->seenByOtherText);
+    }
+
+    public function testBetweenRoomMoveWithNullSpotReadsMovedToTheRoom(): void
+    {
+        $world = $this->makeWorld();
+
+        // kitchen → living_room (adjacent), no spot: the plain between-room
+        // wording is preserved as a regression guard.
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::move->value,
+            targetId: 'living_room',
+            targetSpot: null,
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        $this->assertTrue($outcome->success);
+        $this->assertSame('You moved to the living room.', $outcome->whatHappenedText);
+        $this->assertSame('The other robot moved to the living room.', $outcome->seenByOtherText);
+    }
+
+    public function testSituationTextVersionIsBumped(): void
+    {
+        $this->assertSame(
+            'situation-text-2026-11-08b',
+            \PoltergeistSwitch\Engine\SituationTextGenerator::VERSION,
+        );
+    }
+
+    // ------------------------------------------------------------------
     // take (Req 5.1, design §f)
     // ------------------------------------------------------------------
 

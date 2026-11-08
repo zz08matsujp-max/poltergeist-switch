@@ -38,7 +38,7 @@ final class SituationTextGenerator
      * at most 32 characters to fit the turn-loop prompts.situation_text_version
      * column.
      */
-    public const VERSION = 'situation-text-2026-11-08';
+    public const VERSION = 'situation-text-2026-11-08b';
 
     /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.
