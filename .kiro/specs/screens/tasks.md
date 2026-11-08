@@ -146,7 +146,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4, 7.5_
 
 - [ ] 10. Replay screen
-  - [~] 10.1 Implement `public/replay.php` and the Replay episode list in `public/js/replay.js`
+  - [x] 10.1 Implement `public/replay.php` and the Replay episode list in `public/js/replay.js`
     - `replay.php` is served at `public/replay.php`, sends `Cache-Control: no-store` first, and uses relative URLs (Req 8.1, 12.7, 12.9, 12.10); when loaded without a chosen episode, fetch the list through `GET /api/episodes?ended=1&limit=20` and show at most 20 episodes newest-created first (Req 8.2); a fetch that does not complete within 10 seconds or returns an error shows a "could not load the list" message and makes no AI call (Req 8.3); an empty list shows a "no replayable episodes yet" message (Req 8.4)
     - For each episode show its created date, number of turns, and a single-line starting situation naming the time of day and the starting room of each robot and the man (Req 8.5); make no AI call at any time (Req 8.6); opened with `?episode=<id>` load that episode directly through `GET /api/episodes/{id}` and begin playback (Req 8.7); for an id that does not exist or has not ended, show an error and fall back to the list, making no AI call (Req 8.8); link to the Replay screen from the top page (Req 8.9)
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 12.7, 12.9, 12.10_
