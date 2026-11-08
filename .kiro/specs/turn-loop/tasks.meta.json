@@ -80,6 +80,13 @@
         "chatSessionId": "sess_df102d74-397a-4943-914b-6ecd7a7c1560",
         "timestamp": 1794104786683
       }
+    ],
+    "10. TurnService — createEpisode and flipEarthquake": [
+      {
+        "executionId": "16505755-c94e-463c-b471-3a0c21f9ed23",
+        "chatSessionId": "sess_00cd7e8b-4729-4348-952e-62694d31dc7e",
+        "timestamp": 1794107378693
+      }
     ]
   }
 }

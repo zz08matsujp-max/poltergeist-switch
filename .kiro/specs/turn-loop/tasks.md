@@ -124,13 +124,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Replaying a stored sequence reproduces the same world snapshot as a directly played sequence; a malformed `action_json` decodes to operation `unknown`
     - _Requirements: 13.2, 13.4, 11.3_
 
-- [ ] 10. TurnService — createEpisode and flipEarthquake
-  - [ ] 10.1 Implement `TurnService::createEpisode` and `TurnService::flipEarthquake` in `src/TurnLoop/TurnService.php`:
+- [x] 10. TurnService — createEpisode and flipEarthquake
+  - [x] 10.1 Implement `TurnService::createEpisode` and `TurnService::flipEarthquake` in `src/TurnLoop/TurnService.php`:
     - `createEpisode`: enforce the Device_Episode_Slot rules first (reject with 409 if this device already has a running episode or if 5 episodes run across all devices); otherwise draw a seed, build an `Engine` whose `reset(seed)` yields the initial situation, record the episode with disaster = earthquake, the seed, the initial situation, and current expected turn = 0; return the new episode id; assign a device id when the cookie is absent
     - `flipEarthquake`: if no earthquake start turn is recorded and the episode has not ended, set `earthquakeStartTurn = T` so the next turn played is offset 1, the first shaking turn whose shaking paragraph opens with "Suddenly the floor begins to shake hard."; if one is already recorded, leave it unchanged and return current state (idempotent); if the episode has ended, reject with 409 and change nothing
     - Switch mapping with no negative start turn (house-rules-engine Req 13.6; clarified by the maintainer on 2026-11-08): the engine's offset is `turn − earthquakeStartTurn`, so the next turn played (the current expected turn E) is offset 1 only when `earthquakeStartTurn = E − 1`. Therefore `createEpisode` applies a quiet turn 0 through the engine (no robot calls, no actions, as the engine tests do), leaving the current expected turn at 1, and `flipEarthquake` sets `earthquakeStartTurn = E − 1`, which is always ≥ 0. Test: after create and flip, the first `ask` builds texts whose shaking paragraph opens with "Suddenly the floor begins to shake hard."
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 9.6, 9.7, 9.8, 9.9_
-  - [ ]* 10.2 Write unit tests in `tests/TurnLoop/TurnServiceCreateTest.php`:
+  - [x]* 10.2 Write unit tests in `tests/TurnLoop/TurnServiceCreateTest.php`:
     - Two episodes with the same seed produce identical initial situations; second episode for the same device → 409; sixth running episode → 409; repeated flip leaves the start turn unchanged; flip on an ended episode → 409
     - _Requirements: 4.3, 4.5, 4.6, 9.8, 9.9_
 
