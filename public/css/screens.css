@@ -420,6 +420,24 @@ details.reply[open] > summary { margin-bottom: 6px; }
 }
 .endcard h2 { margin: 0 0 10px; color: var(--lantern); font-weight: 400; }
 
+/* End_Card reflect-and-show (robot-memory Req 7.3, 7.4, 7.5): the awaiting
+   line, a small heading, then one block per robot — a collapsible <details>
+   holding the new memory in full for a robot that answered, or a plain line
+   stating the empty-vs-failed outcome for one that did not. The robot colours
+   reuse the amber/jade cues used elsewhere. */
+.endcard-reflection { margin-top: 12px; }
+.endcard-reflection-title { margin: 0 0 8px; font-size: 13px; font-weight: 400; color: var(--lantern); }
+.reflection-waiting { margin: 10px 0 0; font-size: 13px; color: var(--mute); }
+details.reflection { background: #231712; border: 1px solid #120b06; border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; }
+details.reflection > summary { margin: 0; font-size: 13px; font-weight: 400; cursor: pointer; }
+details.reflection[open] > summary { margin-bottom: 6px; }
+details.reflection.amber > summary { color: var(--amber); }
+details.reflection.jade > summary { color: var(--jade); }
+.reflection .text { font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+p.reflection.failed { margin: 0 0 8px; font-size: 13px; color: var(--mute); }
+p.reflection.failed.amber { color: var(--amber); }
+p.reflection.failed.jade { color: var(--jade); }
+
 /* ── messages / errors ────────────────────────────────────────────────────── */
 .message { color: var(--mute); font-size: 14px; line-height: 1.5; }
 .message.error { color: var(--alarm); }

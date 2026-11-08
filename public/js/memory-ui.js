@@ -128,6 +128,48 @@
     };
   }
 
+  // Build the End_Card block for one robot's reflect result (Requirement 7.4,
+  // 7.5). `name` is 'Amber' or 'Jade'; `robot` is one of the per-robot objects
+  // in the reflect body ({ answered, memory, activeCount, reason }). Returns a
+  // DOM element the End_Card mounts:
+  //   - answered: a collapsible <details> whose summary names the robot and its
+  //     new active count, and whose body holds the new memory in full
+  //     (Requirement 7.4);
+  //   - not answered: a plain line with the distinct empty-vs-failed phrasing
+  //     from describeReflection (Requirement 7.5).
+  // `cls` ('amber' | 'jade') colours the element with the same cues used for
+  // the End_Card replies. No provider or model name ever appears (Req 7.7).
+  function buildReflectionBlock(name, robot, cls) {
+    var d = describeReflection(name, robot);
+    var klass = (cls === 'jade') ? 'jade' : 'amber';
+
+    if (d.answered) {
+      var details = document.createElement('details');
+      details.className = 'reflection ' + klass;
+      var summary = document.createElement('summary');
+      // The summary names the robot and its NEW active-memory count after this
+      // reflection (Requirement 7.4). Singular/plural kept natural.
+      summary.textContent = d.name + ' \u2014 new memory (remembers ' +
+        String(d.activeCount) +
+        (d.activeCount === 1 ? ' thing)' : ' things)');
+      details.appendChild(summary);
+      var body = document.createElement('div');
+      body.className = 'text';
+      // The memory in FULL, verbatim; textContent keeps it literal and safe.
+      body.textContent = d.memory;
+      details.appendChild(body);
+      return details;
+    }
+
+    // Not answered: a plain, non-collapsible line stating the outcome. The
+    // message already distinguishes empty_answer from no_reply/timeout and
+    // names only the robot (Requirement 7.5, 7.7).
+    var p = document.createElement('p');
+    p.className = 'reflection ' + klass + ' failed';
+    p.textContent = d.message;
+    return p;
+  }
+
   function numOr(v, fallback) {
     return (typeof v === 'number' && isFinite(v)) ? v : fallback;
   }
@@ -136,7 +178,8 @@
     statusLineText: statusLineText,
     renderStatusLine: renderStatusLine,
     buildConfirmPanel: buildConfirmPanel,
-    describeReflection: describeReflection
+    describeReflection: describeReflection,
+    buildReflectionBlock: buildReflectionBlock
   };
 
   if (typeof window !== 'undefined') {

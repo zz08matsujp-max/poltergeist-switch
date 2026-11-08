@@ -694,6 +694,11 @@
   function onEpisodeEnded(view) {
     state.ended = true;
     renderEndCard(view);
+    // Robot memory (task 12.1): now that the episode has ended, ask both robots
+    // what they want to remember and show the result in the End_Card (Req 7.3,
+    // 7.4, 7.5). This is idempotent per robot per episode, so it is safe even
+    // when the missed-reflection catch-up also fired on a later load.
+    runEndCardReflection();
   }
 
   // Count the robot turns actually taken: every applied turn with a positive
@@ -851,6 +856,15 @@
       card.appendChild(replyBlock('Jade', 'jade', fullReplyFor(turns, 'robot_b'), count));
     }
 
+    // Robot-memory reflect-and-show host (task 12.1, Req 7.3–7.5). The reflect
+    // call runs after the card is drawn (runEndCardReflection) and fills this
+    // region with the awaiting text, then the per-robot memory / failure lines.
+    var reflectHost = document.createElement('div');
+    reflectHost.className = 'endcard-reflection';
+    reflectHost.setAttribute('aria-live', 'polite');
+    card.appendChild(reflectHost);
+    el.reflectHost = reflectHost;
+
     // Error line (used only when "Watch again" fails — Req 6.7).
     var err = document.createElement('div');
     err.className = 'message error';
@@ -922,6 +936,9 @@
   // Dismiss the End_Card (Req 6.4).
   function dismissEndCard() {
     if (el.endcardHost) { el.endcardHost.textContent = ''; }
+    // Drop the reflect-and-show host reference so a late reflect response from
+    // a dismissed card renders nothing (task 12.1).
+    el.reflectHost = null;
   }
 
   // Open the Replay screen for an episode id via a RELATIVE URL (no leading
@@ -1233,6 +1250,71 @@
         }
       }, function () { /* ignore — best-effort catch-up */ });
     }, function () { /* ignore — the id may be stale */ });
+  }
+
+  // End_Card reflect-and-show (task 12.1, Req 7.3, 7.4, 7.5). Called once by
+  // onEpisodeEnded after the card is drawn: show "Writing down what to
+  // remember…" while the Reflect_Endpoint is awaited, then render each robot's
+  // result into the card. A robot that answered shows its new memory in full
+  // inside a collapsible with its new active count; a robot that did not
+  // answer shows the distinct empty-vs-failed line (no provider name in
+  // either). The per-robot rendering lives in memory-ui.js (buildReflection
+  // Block), shared so the phrasing and the collapsible are written once. The
+  // status line is refreshed afterwards so the counts reflect any new memory.
+  function runEndCardReflection() {
+    var host = el.reflectHost;
+    if (!host) { return; }
+    if (!api || typeof api.reflect !== 'function' || !state.episodeId) {
+      host.textContent = '';
+      return;
+    }
+
+    // Awaiting state (Req 7.3): the exact wording while the reflection runs.
+    host.textContent = '';
+    var waiting = document.createElement('p');
+    waiting.className = 'reflection-waiting';
+    waiting.textContent = 'Writing down what to remember\u2026';
+    host.appendChild(waiting);
+
+    var episodeId = state.episodeId;
+    api.reflect(episodeId).then(function (res) {
+      // Only render if the card is still showing this episode's reflect host
+      // (the viewer may have closed the card or started another episode).
+      if (el.reflectHost !== host) { return; }
+      if (!res || res.status !== 200 || !res.body || !res.body.robots) {
+        // A non-200 (e.g. 409 not_reflectable for a pre-feature episode) or a
+        // malformed body: leave no awaiting text, add nothing. The End_Card is
+        // otherwise complete.
+        host.textContent = '';
+        return;
+      }
+      renderReflectionResult(host, res.body.robots);
+      // Refresh the Observe status line so the new counts show (Req 7.1).
+      refreshMemoryStatus();
+    }, function () {
+      if (el.reflectHost !== host) { return; }
+      // The reflect call could not be reached: clear the awaiting text so the
+      // card is not left mid-sentence. No memory is shown.
+      host.textContent = '';
+    });
+  }
+
+  // Render the reflect result for both robots into the End_Card host (Req 7.4,
+  // 7.5). `robots` is the reflect body's { amber, jade } object. Each robot's
+  // block is built by the shared memory-ui.js helper (collapsible memory with
+  // its new count when answered; the distinct empty-vs-failed line otherwise),
+  // named only Amber and Jade (Req 7.7).
+  function renderReflectionResult(host, robots) {
+    host.textContent = '';
+    if (!window.memoryUi || typeof window.memoryUi.buildReflectionBlock !== 'function') {
+      return;
+    }
+    var heading = document.createElement('h3');
+    heading.className = 'endcard-reflection-title';
+    heading.textContent = 'What they wrote down';
+    host.appendChild(heading);
+    host.appendChild(window.memoryUi.buildReflectionBlock('Amber', robots.amber, 'amber'));
+    host.appendChild(window.memoryUi.buildReflectionBlock('Jade', robots.jade, 'jade'));
   }
 
   // ── UI setup wiring (task 9.2) ──────────────────────────────────────────────

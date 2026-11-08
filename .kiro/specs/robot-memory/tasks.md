@@ -159,7 +159,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
 - [x] 10. Checkpoint — PHP side complete
   - Ensure all tests pass and `php -l` is clean on every changed PHP file; ask the maintainer if questions arise before starting the screens.
 
-- [ ] 11. Observe screen — status line, All reset, missed-reflection catch-up
+- [x] 11. Observe screen — status line, All reset, missed-reflection catch-up
   - [x] 11.1 Extend `public/index.php`, `public/js/observe.js`, add `public/js/memory-ui.js`, and `public/css/screens.css`:
     - on load and after each reset, call `GET /api/memory` and render `Generation N · Amber remembers k · Jade remembers k` via a shared `memory-ui.js` helper
     - an "All reset" button reveals an in-page confirmation panel (Confirm/Cancel, no browser `alert`/`confirm`); on Confirm call `POST /api/memory/reset` and refresh the status line with the returned generation
@@ -170,19 +170,19 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 7.1, 7.2_
 
 - [ ] 12. End card — reflect and show, empty-vs-failed phrasing
-  - [~] 12.1 Extend the Observe End_Card flow in `public/js/observe.js` + `public/js/memory-ui.js`:
+  - [x] 12.1 Extend the Observe End_Card flow in `public/js/observe.js` + `public/js/memory-ui.js`:
     - when `apply` reports the episode ended, call `POST /api/episodes/{id}/reflect` and show `Writing down what to remember…` while awaited
     - when the response returns, for each robot that `answered` show its new memory in full inside a collapsible `<details>` with its new active count; for `answered: false` distinguish `empty_answer` (e.g. "Jade chose not to write anything down.") from `no_reply`/`timeout` (e.g. "Jade's reflection did not come back."), with no provider name in either
     - _Requirements: 7.3, 7.4, 7.5, 7.7, 7.8_
   - [ ]* 12.2 Write a rendering test for the End_Card: the awaiting text, the collapsible memory with its count, and the two distinct phrasings for empty-answer vs failed-call
     - _Requirements: 7.4, 7.5_
 
-- [ ] 13. Replay screen — started-with counts
+- [x] 13. Replay screen — started-with counts
   - [x] 13.1 Extend `public/replay.php` and `public/js/replay.js`:
     - when a stored episode is loaded, show for each robot how many memories it started the episode with (the length of that robot's stored `Memory_Snapshot`, read from the episode view); the per-turn `Memories_Block` already appears as part of the stored situation text, so no extra work there
     - name the robots only Amber and Jade; the page sends `Cache-Control: no-store`
     - _Requirements: 7.6, 7.7, 7.8_
-  - [ ]* 13.2 Write a rendering test asserting the per-robot started-with count equals the stored snapshot length
+  - [-]* 13.2 Write a rendering test asserting the per-robot started-with count equals the stored snapshot length
     - _Requirements: 7.6_
 
 - [ ] 14. Final checkpoint — language level and full suite
