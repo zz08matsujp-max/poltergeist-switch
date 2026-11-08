@@ -175,8 +175,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Every response parses as JSON and carries `Cache-Control: no-store`; an unknown id → 404; a new request without a cookie sets a device cookie; no response body contains a key, credential, path, or provider name
     - _Requirements: 9.2, 9.3, 9.5, 9.6, 2.6_
 
-- [ ] 15. Debug page
-  - [ ] 15.1 Implement `public/debug.php`:
+- [x] 15. Debug page
+  - [x] 15.1 Implement `public/debug.php`:
     - A single plain-HTML page with small JS that creates an episode, flips the earthquake, and advances one turn per action (calling `ask` then `apply`, re-calling `ask` when a robot is still missing) until the API reports the episode ended
     - For each `applied` turn show, for Amber (`robot_a`) and Jade (`robot_b`), the Four_Layers with the EvidenceCheck-backed evidence quotes highlighted; a no-reply robot shows its reply absent and action `unknown` while still showing the other three layers; stop offering to advance once ended
     - Send `Cache-Control: no-store` for the page; show no robot thought or plan beyond the reading and outcome; never name or identify either AI provider
