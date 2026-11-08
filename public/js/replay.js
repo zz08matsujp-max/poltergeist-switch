@@ -241,73 +241,353 @@
   // ── PLAYBACK seam for task 10.2 ─────────────────────────────────────────────
 
   /**
-   * startPlayback(view) — STUB for task 10.2.
+   * startPlayback(view) — begin turn-by-turn playback of a loaded, ended view
+   * (Req 9.1, 9.12).
    *
-   * 10.2 implements turn-by-turn playback here: act out each turn with the same
-   * House_Renderer and Act_Out as Observe (Req 9.1, 9.12), show each robot's
-   * reply beside/below the stage with the evidence-quote highlighting (Req
-   * 9.2–9.6), wire "What it was told this turn" (Req 9.7) and the Step
-   * back/forward bounds (Req 9.8–9.11). It drives `house`, `actOut` and
-   * `voices`, all already constructed on init() below, and reads `view.turns`
-   * (each turn carries its recorded `world`, the four layers per robot, and the
-   * per-turn `situationText`).
+   * Sorts the view's turns by turnNumber ascending and keeps them in
+   * `sortedTurns`; `currentTurnIndex` walks that array. Playback starts on the
+   * first turn (turn 0, the calm setup frame): the house is snapped to that
+   * turn's recorded world and both reply panels are filled, so the loaded
+   * episode shows its opening frame before Play or a Step is pressed. From
+   * there Play advances automatically through the later turns, and Step back /
+   * Step forward move one turn at a time within the bounds (Req 9.8–9.11).
    *
-   * In 10.1 this only reveals the playback controls and snaps the house to the
-   * first turn's recorded world so the loaded episode is visibly ready; it
-   * plays no turns. 10.2 replaces the body below.
+   * It drives the same House_Renderer and Act_Out as Observe (Req 9.12) and
+   * makes NO AI call: it only reads the already-loaded `view`.
    */
   function startPlayback(view) {
-    // Keep the loaded view for 10.2 to drive.
     currentView = view;
+
+    // Sort the turns ascending by turnNumber; this is the playback order and
+    // the array the Step controls index into (Req 9.1).
+    sortedTurns = (view && Array.isArray(view.turns)) ? view.turns.slice() : [];
+    sortedTurns.sort(function (a, b) {
+      return ((a && a.turnNumber) || 0) - ((b && b.turnNumber) || 0);
+    });
+
+    // Start on the first turn (turn 0, the calm frame). Not playing yet.
     currentTurnIndex = 0;
+    playing = false;
 
-    // Reveal the controls the playback task wires up (Req 9.1).
+    // Reveal the controls (Req 9.1) and hide any stale "told" panel.
     if (el.controls) { el.controls.hidden = false; }
+    if (el.toldHost) { el.toldHost.hidden = true; }
 
-    // Snap the house to the first recorded turn's world so the loaded episode
-    // shows its opening frame. 10.2 takes over from here to act out the turns.
-    var first = firstTurnWorld(view);
-    if (house && first) {
-      try { house.setWorld(first); } catch (e) { /* ignore */ }
-    }
+    // Render the opening frame: snap the house to turn 0's world and fill the
+    // reply panels with the highlighted replies for that turn. No acting-out
+    // yet — the first beat is a still frame until Play or Step is pressed.
+    renderTurn(currentTurnIndex, false);
   }
 
-  // The loaded episode view and the current turn index — owned here so 10.2 can
-  // drive the Step back/forward controls without re-reading the query.
+  // The loaded episode view, the turns sorted ascending, the current index, and
+  // the playing guard. Owned here so the controls can drive playback without
+  // re-reading the query.
   var currentView = null;
+  var sortedTurns = [];
   var currentTurnIndex = 0;
+  var playing = false; // true while Play is auto-advancing; guards double-runs.
 
-  // The recorded world of the lowest-numbered turn in a view (turn 0 when
-  // present), used to show the opening frame.
-  function firstTurnWorld(view) {
-    if (!view || !view.turns || !view.turns.length) { return null; }
-    var turns = view.turns.slice();
-    turns.sort(function (a, b) { return (a.turnNumber || 0) - (b.turnNumber || 0); });
-    for (var i = 0; i < turns.length; i++) {
-      if (turns[i] && turns[i].world) { return turns[i].world; }
-    }
-    return null;
+  // ── rendering one turn ──────────────────────────────────────────────────────
+
+  // The turn at a given index, or null when out of range.
+  function turnAt(index) {
+    if (index < 0 || index >= sortedTurns.length) { return null; }
+    return sortedTurns[index] || null;
   }
 
-  // ── playback control STUBS (task 10.2 replaces these) ───────────────────────
+  /**
+   * renderTurn(index, actOutTurn) — show the turn at `index`.
+   *
+   * Always: snap the house to that turn's recorded `world` (so characters sit
+   * where the record puts them) and fill both reply panels with the
+   * evidence-highlighted reply (or "(no reply)"). When `actOutTurn` is true it
+   * also acts the turn out once with the shared Act_Out (Req 9.12) and returns
+   * the playTurn promise so the Play loop can chain on it; Act_Out itself ends
+   * every turn in the same recorded world, so the still snap and the acted-out
+   * end agree. When `actOutTurn` is false it only paints the still frame and
+   * returns a resolved promise.
+   */
+  function renderTurn(index, actOutTurn) {
+    var turn = turnAt(index);
+    if (!turn) { return Promise.resolve(); }
 
-  // Play — begin/resume acting out from the current turn (10.2).
-  function play() { /* stub: task 10.2 implements playback (Req 9.1). */ }
+    // Fill the reply panels with the highlighted replies for this turn.
+    renderReplies(turn);
 
-  // Pause — stop advancing after the current turn's acting-out (10.2).
-  function pausePlayback() { /* stub: task 10.2 (Req 9.1). */ }
+    // Opening/step still frame: snap the house to the recorded world directly.
+    if (!actOutTurn || !actOut) {
+      if (house && turn.world) {
+        try { house.setWorld(turn.world); } catch (e) { /* ignore */ }
+      }
+      return Promise.resolve();
+    }
 
-  // Step back — move to the previous turn unless on the first (10.2; Req 9.8,
-  // 9.9).
-  function stepBack() { /* stub: task 10.2 (Req 9.8, 9.9). */ }
+    // Acted-out frame: the shared Act_Out animates the turn and ends it in the
+    // same recorded world (Req 9.12). It resolves when the acting-out finishes.
+    try {
+      return actOut.playTurn(turn, turn.world) || Promise.resolve();
+    } catch (e) {
+      // If acting-out throws, fall back to the still snap so the turn still
+      // shows and the loop can continue.
+      if (house && turn.world) {
+        try { house.setWorld(turn.world); } catch (e2) { /* ignore */ }
+      }
+      return Promise.resolve();
+    }
+  }
 
-  // Step forward — move to the next turn unless on the last (10.2; Req 9.10,
-  // 9.11).
-  function stepForward() { /* stub: task 10.2 (Req 9.10, 9.11). */ }
+  // ── reply panels + evidence highlighting (Req 9.2–9.6) ──────────────────────
 
-  // "What it was told this turn" — open the stored situation text (10.2; Req
-  // 9.7).
-  function showWhatTold() { /* stub: task 10.2 (Req 9.7). */ }
+  // Fill both reply panels for a turn. The CSS media query places the panels
+  // beside the stage at >= 768px and below it under 768px (Req 9.2, 9.3); this
+  // only fills the text and its evidence highlights.
+  function renderReplies(turn) {
+    var robots = (turn && turn.robots) || {};
+    fillReply(el.replyAmberText, robots.robot_a);
+    fillReply(el.replyJadeText, robots.robot_b);
+  }
+
+  // Fill one reply panel from a robot's layers. A no-reply robot (or a layer
+  // with no reply text) shows "(no reply)"; otherwise the reply is rendered as
+  // safe text nodes with the Evidence_Quotes wrapped in highlight spans.
+  function fillReply(host, layers) {
+    if (!host) { return; }
+    host.textContent = '';
+    if (!layers || layers.noReply || !layers.reply) {
+      host.appendChild(document.createTextNode('(no reply)'));
+      return;
+    }
+    var frag = buildHighlightedReply(String(layers.reply), layers.reading || {});
+    host.appendChild(frag);
+  }
+
+  /**
+   * buildHighlightedReply(reply, reading) — return a DocumentFragment of the
+   * reply text with the Evidence_Quotes wrapped in highlight spans (Req
+   * 9.4–9.6).
+   *
+   * - The ACTION's quote (`reading.actionQuote`) is wrapped in a span with
+   *   class `evidence-action` (solid underline, Req 9.4).
+   * - Each word PASSED ON with a quote (`reading.reported[].quote`) is wrapped
+   *   in a span with class `evidence-words` (dotted underline, Req 9.5).
+   * - With no quote (action quote null/empty and no reported quotes) the reply
+   *   is rendered as plain text, no span (Req 9.6).
+   *
+   * XSS: the reply is untrusted model text, so it is never put through
+   * innerHTML. The non-highlighted stretches are emitted as text nodes and the
+   * highlighted stretches as spans whose textContent is the exact substring —
+   * all content goes in as text, never as markup.
+   *
+   * Not-found / overlap handling: each quote is located as an EXACT substring
+   * of the reply (first occurrence). A quote that is not found is skipped (no
+   * corruption). Overlapping quotes are resolved by sorting the found ranges by
+   * start, and, where two ranges overlap, the earlier range wins and the later
+   * overlapping one is dropped; the action quote is seeded first so it wins
+   * ties against a words quote starting at the same offset.
+   */
+  function buildHighlightedReply(reply, reading) {
+    var frag = document.createDocumentFragment();
+
+    // Collect the candidate quotes. The action quote is added FIRST so, on an
+    // exact tie of start offset, it is preferred over a words quote (Req 9.4
+    // over 9.5).
+    var ranges = [];
+    var actionQuote = reading && reading.actionQuote;
+    if (actionQuote) {
+      addRange(ranges, reply, String(actionQuote), 'evidence-action');
+    }
+    var reported = (reading && reading.reported) || [];
+    if (Array.isArray(reported)) {
+      for (var i = 0; i < reported.length; i++) {
+        var q = reported[i] && reported[i].quote;
+        if (q) { addRange(ranges, reply, String(q), 'evidence-words'); }
+      }
+    }
+
+    // No Evidence_Quote found: render the plain reply as a single text node
+    // (Req 9.6).
+    if (ranges.length === 0) {
+      frag.appendChild(document.createTextNode(reply));
+      return frag;
+    }
+
+    // Order the ranges, dropping any that overlap one already kept (the earlier
+    // start wins; the action quote, seeded first, wins an exact-start tie).
+    ranges.sort(function (a, b) {
+      if (a.start !== b.start) { return a.start - b.start; }
+      return a.order - b.order;
+    });
+    var kept = [];
+    var lastEnd = 0;
+    for (var j = 0; j < ranges.length; j++) {
+      if (ranges[j].start >= lastEnd) {
+        kept.push(ranges[j]);
+        lastEnd = ranges[j].end;
+      }
+      // else: overlaps a kept range → skip it.
+    }
+
+    // Walk the reply, emitting plain text between kept ranges and a highlight
+    // span for each kept range. All text goes in via text nodes / textContent,
+    // never innerHTML, so the model text cannot inject markup.
+    var cursor = 0;
+    for (var k = 0; k < kept.length; k++) {
+      var r = kept[k];
+      if (r.start > cursor) {
+        frag.appendChild(document.createTextNode(reply.slice(cursor, r.start)));
+      }
+      var span = document.createElement('span');
+      span.className = r.className;
+      span.textContent = reply.slice(r.start, r.end);
+      frag.appendChild(span);
+      cursor = r.end;
+    }
+    if (cursor < reply.length) {
+      frag.appendChild(document.createTextNode(reply.slice(cursor)));
+    }
+    return frag;
+  }
+
+  // Record the first exact-substring occurrence of `quote` within `reply` as a
+  // range { start, end, className, order }. A quote not found as an exact
+  // substring is skipped (so a mismatch never corrupts the text). `order`
+  // preserves insertion order so the action quote (added first) wins ties.
+  function addRange(ranges, reply, quote, className) {
+    if (!quote) { return; }
+    var start = reply.indexOf(quote);
+    if (start < 0) { return; }
+    ranges.push({
+      start: start,
+      end: start + quote.length,
+      className: className,
+      order: ranges.length
+    });
+  }
+
+  // ── playback controls (Req 9.1, 9.8–9.11) ───────────────────────────────────
+
+  /**
+   * play() — begin/resume acting out from the current turn and advance
+   * automatically through the later turns, stopping at the last turn (Req 9.1).
+   *
+   * Guarded by `playing` so a second Play press while already playing does not
+   * start a second loop. Each turn is acted out via renderTurn(..., true); when
+   * its playTurn promise resolves, the loop advances to the next turn unless
+   * Pause cleared `playing` or the last turn has been reached.
+   */
+  function play() {
+    if (playing) { return; }
+    if (!sortedTurns.length) { return; }
+    playing = true;
+    if (el.toldHost) { el.toldHost.hidden = true; }
+
+    function step() {
+      if (!playing) { return; }                   // paused between turns.
+      renderTurn(currentTurnIndex, true).then(function () {
+        if (!playing) { return; }                 // paused during this turn.
+        if (currentTurnIndex >= sortedTurns.length - 1) {
+          // Last turn finished acting out — stop advancing (Req 9.11 bound).
+          playing = false;
+          return;
+        }
+        currentTurnIndex += 1;
+        step();
+      });
+    }
+    step();
+  }
+
+  /**
+   * pausePlayback() — stop advancing after the current turn's acting-out
+   * finishes (Req 9.1). Clearing `playing` makes the Play loop's `.then`
+   * not advance; the in-flight turn is allowed to finish acting out and end in
+   * its recorded world, mirroring Observe's loop discipline (no mid-turn cut).
+   */
+  function pausePlayback() {
+    playing = false;
+  }
+
+  /**
+   * stepBack() — move to the previous turn unless on the first turn, where it
+   * stays (Req 9.8, 9.9). A step pauses any auto-play, then renders and acts
+   * out exactly that one turn.
+   */
+  function stepBack() {
+    playing = false;
+    if (el.toldHost) { el.toldHost.hidden = true; }
+    if (currentTurnIndex > 0) {
+      currentTurnIndex -= 1;             // Req 9.8: move to the previous turn.
+    }
+    // Req 9.9: on the first turn, stay put (index unchanged).
+    renderTurn(currentTurnIndex, true);
+  }
+
+  /**
+   * stepForward() — move to the next turn unless on the last turn, where it
+   * stays (Req 9.10, 9.11). A step pauses any auto-play, then renders and acts
+   * out exactly that one turn.
+   */
+  function stepForward() {
+    playing = false;
+    if (el.toldHost) { el.toldHost.hidden = true; }
+    if (currentTurnIndex < sortedTurns.length - 1) {
+      currentTurnIndex += 1;             // Req 9.10: move to the next turn.
+    }
+    // Req 9.11: on the last turn, stay put (index unchanged).
+    renderTurn(currentTurnIndex, true);
+  }
+
+  /**
+   * showWhatTold() — open the stored situation text each robot received for the
+   * current turn (Req 9.7, reading `RobotFourLayers.situationText`).
+   *
+   * The design asks for "the text that robot received for that turn"; with two
+   * reply panels and no per-robot selector in the markup, this shows BOTH
+   * robots' situation texts for the current turn, each labelled Amber / Jade.
+   * It is rendered as plain text (textContent) — the situation text is stored
+   * model-facing prompt text, so it is never put through innerHTML. Toggles the
+   * panel closed if it is already open for this turn.
+   */
+  function showWhatTold() {
+    if (!el.toldHost) { return; }
+
+    // Toggle: a second press closes the panel.
+    if (!el.toldHost.hidden) {
+      el.toldHost.hidden = true;
+      return;
+    }
+
+    var turn = turnAt(currentTurnIndex);
+    var robots = (turn && turn.robots) || {};
+    el.toldHost.textContent = '';
+    el.toldHost.className = 'message';
+
+    appendToldBlock('Amber', robots.robot_a);
+    appendToldBlock('Jade', robots.robot_b);
+
+    if (!el.toldHost.childNodes.length) {
+      el.toldHost.appendChild(
+        document.createTextNode('No stored situation text for this turn.'));
+    }
+    el.toldHost.hidden = false;
+  }
+
+  // Append one labelled "what it was told" block for a robot's layers. The
+  // label names only Amber / Jade (Req 12.8); the situation text is added as a
+  // text node (no innerHTML, Req 9.7).
+  function appendToldBlock(label, layers) {
+    if (!el.toldHost) { return; }
+    var situation = layers && layers.situationText;
+    if (!situation) { return; }
+    var heading = document.createElement('div');
+    heading.textContent = label;
+    el.toldHost.appendChild(heading);
+    var body = document.createElement('div');
+    body.style.whiteSpace = 'pre-wrap';
+    body.style.marginBottom = '10px';
+    body.textContent = String(situation);
+    el.toldHost.appendChild(body);
+  }
 
   // ── region + message helpers ────────────────────────────────────────────────
 
