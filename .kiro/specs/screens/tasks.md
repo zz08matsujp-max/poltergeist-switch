@@ -112,7 +112,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 3.6_
 
 - [ ] 8. Act_Out and voices
-  - [~] 8.1 Implement `act-out.js`
+  - [x] 8.1 Implement `act-out.js`
     - Act out one turn from its `RobotFourLayers.reading` and the turn's recorded World_State for both screens using the same House_Renderer (Req 3.1, 9.12): map the single physical `Operation` to an animation — `move` walk to the target, `take` walk and show held, `hand_over` walk toward the other robot and drop, `use` turn the stove off or switch a light on at the target, `support` help the man move, `cover` shield the man or take cover, `wait` idle, `speak` no motion; the animation target comes from the Position_Map, so an unknown spot with a known room animates toward the room default rather than erroring (Req 3.1, 1.7)
     - For an action the rules judged impossible, play a short attempt lasting between 0.5 and 2.0 seconds that stops before completion (Req 3.2); for an `unknown` reading (including a no-reply robot) keep that robot idle (Req 3.3)
     - Show each spoken line in that character's bubble in the stored order (the man's line in the man's bubble) and keep a bubble visible for at least 2.0 seconds or until the acting-out ends, whichever is longer; never show a thought in a bubble (Req 3.4, 3.5, 3.7, 3.6)
