@@ -567,6 +567,22 @@ class TurnService
     }
 
     /**
+     * Return an episode's current state and its stored turn records as an
+     * EpisodeView (Requirement 9.4; design "TurnService — the ask/apply
+     * orchestration", GET /api/episodes/{id}).
+     *
+     * This is a pure read: it delegates straight to
+     * EpisodeRepository::loadEpisodeView and never advances the state machine
+     * or touches activity. An unknown episode id yields a 404 (Requirement
+     * 9.5), raised by the shared view() helper when loadEpisodeView returns
+     * null — the same path createEpisode/ask/apply use to return their views.
+     */
+    public function getEpisode(string $episodeId): EpisodeView
+    {
+        return $this->view($episodeId);
+    }
+
+    /**
      * The stored situation text sent to one robot this turn, taken from the
      * robot's stored prompt when ask persisted one. A no-reply robot that was
      * never prompted (no stored reply) falls back to the empty string; the

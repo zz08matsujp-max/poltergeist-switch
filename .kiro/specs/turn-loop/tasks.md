@@ -157,8 +157,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - `apply` on `waiting` → 409 with no engine call; a single `apply` advances once and lands `applied`; a second `apply` returns stored state without re-advancing; a no-reply robot still gets all four layers with action `unknown`; an injected mid-write failure rolls back and leaves the turn `replies_complete`
     - _Requirements: 6.1, 6.6, 6.7, 6.8_
 
-- [ ] 13. Turn state machine, turn-number checks, and getEpisode
-  - [ ] 13.1 Implement the turn state machine and `TurnService::getEpisode` in `src/TurnLoop/TurnService.php`:
+- [x] 13. Turn state machine, turn-number checks, and getEpisode
+  - [x] 13.1 Implement the turn state machine and `TurnService::getEpisode` in `src/TurnLoop/TurnService.php`:
     - Track each turn's state as one of `waiting`/`replies_complete`/`applied`, advancing only forward; reject a turn-number mismatch, an ended episode, or a wrong-state call (`apply` on `waiting`, `ask` on `applied`) with HTTP 409 and a body indicating the current expected turn and that turn's state; engine turn numbers are zero-based with current expected turn starting at 0
     - `getEpisode` returns the episode state and its stored turn records as an `EpisodeView`
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 9.4, 12.3_
