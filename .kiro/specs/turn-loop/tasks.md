@@ -196,8 +196,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Property 16 uses `->limitTo(100)`; both are tagged `Feature: turn-loop, Property N: …`
     - _Requirements: 14.9, 14.10, 12.1, 12.2, 12.4, 13.1, 13.2, 13.4_
 
-- [ ] 17. End-to-end earthquake run and language-level check
-  - [~] 17.1 Write the end-to-end test in `tests/TurnLoop/EndToEndEarthquakeTest.php` (**requires engine tasks 28/29**):
+- [x] 17. End-to-end earthquake run and language-level check
+  - [x] 17.1 Write the end-to-end test in `tests/TurnLoop/EndToEndEarthquakeTest.php` (**requires engine tasks 28/29**):
     - Drive a full earthquake episode with `FakeRobotClient`s and a `FakeRecorderClient` through repeated `ask` and `apply` calls (as the browser would), using the real `ReplayEngineFactory` for rehydration between simulated requests, until `Engine::applyTurn` reports the episode ended
     - Assert the episode is marked ended and that every turn taken is in state `applied`; bound the loop at 100 applied turns and fail if the episode has not ended by then
     - Run `php -l` with no error on every PHP file changed by this spec; use only PHP 8.2 language features (no typed class constants, `json_validate()`, `#[\Override]`, property hooks, asymmetric visibility, or the pipe operator)
