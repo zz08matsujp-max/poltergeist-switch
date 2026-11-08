@@ -16,7 +16,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
 
 ## Tasks
 
-- [ ] 1. Composer/autoload and test scaffold for the Memory namespace
+- [x] 1. Composer/autoload and test scaffold for the Memory namespace
   - Extend the existing `composer.json` autoload with PSR-4 `"PoltergeistSwitch\\Memory\\" => "src/Memory/"` (the `PoltergeistSwitch\Engine` and `PoltergeistSwitch\TurnLoop` namespaces are already built and consumed unchanged)
   - Add `'PoltergeistSwitch\\Memory\\' => __DIR__ . '/../src/Memory/'` to the prefix list of the hand-written PSR-4 autoloader in `api/bootstrap.php` (the list that currently maps `PoltergeistSwitch\Engine` and `PoltergeistSwitch\TurnLoop` only), so the memory endpoints resolve on the server where there is no Composer autoloader and do not return HTTP 500
   - Confirm `autoload-dev` PSR-4 covers `tests/Memory/` and `tests/Engine/` (via the existing `"PoltergeistSwitch\\Tests\\" => "tests/"` mapping)
@@ -28,7 +28,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: none (infrastructure only)_
 
 - [ ] 2. SQL migration FILE for memory, generations, reflection slots, snapshot columns, and prompt/response kind
-  - [~] 2.1 Write `sql/2026-11-09_add_memory.sql` (file only — never run against a database; the maintainer applies it on the server):
+  - [x] 2.1 Write `sql/2026-11-09_add_memory.sql` (file only — never run against a database; the maintainer applies it on the server):
     - `memories` table (id BIGINT auto-increment doubling as finish-order seq, robot_id, generation, disaster, source_episode_id, body MEDIUMTEXT, status active|retired, created_at, retired_at; `idx_active_pick (robot_id, disaster, generation, status, id)`, `idx_snapshot (robot_id, generation, status, id)`, `UNIQUE KEY uq_source (source_episode_id, robot_id)`)
     - `memory_generation` single-row table (id TINYINT, generation default 1, updated_at) seeded with generation 1
     - `reflections` table (episode_id, robot_id, status in_progress|answered|failed, answered_memory_id, reason, claimed_at; PK `(episode_id, robot_id)`)
@@ -36,11 +36,11 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - `ALTER TABLE prompts` and `ALTER TABLE responses` add `kind` VARCHAR(12) NOT NULL DEFAULT 'turn'
     - InnoDB, `utf8mb4`/`utf8mb4_unicode_ci` throughout; no `CHECK` reliance; no secret, credential, or provider name anywhere in the file
     - _Requirements: 3.1, 3.7, 4.6, 6.1, 8.2, 8.3, 2.5_
-  - [~] 2.2 Write a static-check test in `tests/Memory/MigrationFileTest.php` asserting the file exists, declares `utf8mb4`, and contains the `memories`, `memory_generation`, and `reflections` tables, the three `episodes` columns, and the `kind` column on `prompts` and `responses`; no SQL is executed
+  - [x] 2.2 Write a static-check test in `tests/Memory/MigrationFileTest.php` asserting the file exists, declares `utf8mb4`, and contains the `memories`, `memory_generation`, and `reflections` tables, the three `episodes` columns, and the `kind` column on `prompts` and `responses`; no SQL is executed
     - _Requirements: 3.1, 8.2, 2.5_
 
 - [ ] 3. Memory value objects and row DTOs
-  - [~] 3.1 Implement the value objects in `src/Memory/Values/`:
+  - [-] 3.1 Implement the value objects in `src/Memory/Values/`:
     - `MemoryRow` (readonly: robotId, generation, disaster, sourceEpisodeId, body, status, createdAt, nullable seq, nullable retiredAt)
     - `MemorySnapshot` (readonly: `bodies` string[] oldest first; `isEmpty()`)
     - `ReflectionResult` (readonly: `robots` keyed `robot_a`/`robot_b`) and `RobotReflection` (readonly: answered, nullable memory, activeCount, nullable reason)
