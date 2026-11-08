@@ -14,8 +14,8 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
 
 ## Tasks
 
-- [ ] 1. SQL migration adding the per-turn stored world
-  - [ ] 1.1 Create the dated migration `sql/2026-11-08_add_world_json.sql`
+- [x] 1. SQL migration adding the per-turn stored world
+  - [x] 1.1 Create the dated migration `sql/2026-11-08_add_world_json.sql`
     - `ALTER TABLE turns ADD COLUMN world_json MEDIUMTEXT NULL AFTER resident_line;` (utf8mb4; nullable so existing rows are backfilled once on read), with a comment noting the screens spec adds a per-turn recorded World_State
     - No secret, credential, or provider name anywhere in the file
     - _Requirements: 10.9_
