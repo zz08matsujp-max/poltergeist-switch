@@ -103,7 +103,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
   - [x] 8.1 Implement the `EpisodeRepository` interface in `src/TurnLoop/Repository/EpisodeRepository.php`:
     - Episode CRUD/slot queries (`createEpisode`, `findEpisode`, `countRunningEpisodes`, `findRunningEpisodeForDevice`, `setEarthquakeStartTurn`, `markEpisodeEnded`, `setCurrentExpectedTurn`), turn lifecycle (`findTurn`, `createTurn`, `setTurnState`), reply persistence (`savePromptAndReply`, `incrementAttempt`, `markNoReply`), the single-transaction four-layer write `storeAppliedTurn`, and `loadEpisodeView`
     - _Requirements: 8.7, 9.4_
-  - [ ] 8.2 Implement `InMemoryEpisodeRepository` in `tests/TurnLoop/` (or a shared test double) for driving `TurnService` without a database:
+  - [x] 8.2 Implement `InMemoryEpisodeRepository` in `tests/TurnLoop/` (or a shared test double) for driving `TurnService` without a database:
     - Lazy idle-slot release: an episode counts as running only when `ended = 0` AND `last_activity_at` is within `idleSlotReleaseSeconds`; `storeAppliedTurn` is idempotent (a repeat creates no duplicates)
     - _Requirements: 8.7, 8.8, 8.10, 9.7, 9.8, 9.9, 9.10_
   - [ ] 8.3 Implement `PdoEpisodeRepository` in `src/TurnLoop/Repository/PdoEpisodeRepository.php`:

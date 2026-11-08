@@ -45,6 +45,27 @@
         "chatSessionId": "sess_f1a354ca-6c0d-48ad-bc91-d96c053c818d",
         "timestamp": 1794101213267
       }
+    ],
+    "7.1 Create `sql/turn_loop.sql` with utf8mb4 tables and keys as in the design:": [
+      {
+        "executionId": "3bed1317-816f-4654-a304-0af937ceabeb",
+        "chatSessionId": "sess_c04a2354-2dea-46a6-b6b1-73695443662f",
+        "timestamp": 1794103413550
+      }
+    ],
+    "8.1 Implement the `EpisodeRepository` interface in `src/TurnLoop/Repository/EpisodeRepository.php`:": [
+      {
+        "executionId": "5a260fee-1454-4886-8eac-06bf0a4bbe6c",
+        "chatSessionId": "sess_b98c87d1-1c46-43c4-9183-a0226ea2b983",
+        "timestamp": 1794103844348
+      }
+    ],
+    "8.2 Implement `InMemoryEpisodeRepository` in `tests/TurnLoop/` (or a shared test double) for driving `TurnService` without a database:": [
+      {
+        "executionId": "5a260fee-1454-4886-8eac-06bf0a4bbe6c",
+        "chatSessionId": "sess_b98c87d1-1c46-43c4-9183-a0226ea2b983",
+        "timestamp": 1794103980969
+      }
     ]
   }
 }
