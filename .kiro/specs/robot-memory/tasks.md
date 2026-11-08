@@ -18,10 +18,14 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
 
 - [ ] 1. Composer/autoload and test scaffold for the Memory namespace
   - Extend the existing `composer.json` autoload with PSR-4 `"PoltergeistSwitch\\Memory\\" => "src/Memory/"` (the `PoltergeistSwitch\Engine` and `PoltergeistSwitch\TurnLoop` namespaces are already built and consumed unchanged)
+  - Add `'PoltergeistSwitch\\Memory\\' => __DIR__ . '/../src/Memory/'` to the prefix list of the hand-written PSR-4 autoloader in `api/bootstrap.php` (the list that currently maps `PoltergeistSwitch\Engine` and `PoltergeistSwitch\TurnLoop` only), so the memory endpoints resolve on the server where there is no Composer autoloader and do not return HTTP 500
   - Confirm `autoload-dev` PSR-4 covers `tests/Memory/` and `tests/Engine/` (via the existing `"PoltergeistSwitch\\Tests\\" => "tests/"` mapping)
   - Create the directory skeleton: `src/Memory/`, `src/Memory/Values/`, `tests/Memory/`, `tests/Memory/Properties/`, `tests/Engine/Properties/`
   - Run `composer dump-autoload` and confirm a green (zero new tests) PHPUnit run; `php -l` clean on any touched PHP
   - _Requirements: none (infrastructure only)_
+
+  - [ ] 1.1 Write a guard test in `tests/Memory/BootstrapAutoloaderTest.php` asserting that every top-level namespace directory under `src/` is registered in the hand-written autoloader prefix list in `api/bootstrap.php`: for each directory `<Dir>` under `src/`, the prefix `PoltergeistSwitch\<Dir>\` maps to that directory in `api/bootstrap.php`, so a new namespace (such as Memory) can never ship without its server-side mapping and the memory endpoints never 500 on the server; no SQL and no network is involved
+    - _Requirements: none (infrastructure only)_
 
 - [ ] 2. SQL migration FILE for memory, generations, reflection slots, snapshot columns, and prompt/response kind
   - [ ] 2.1 Write `sql/2026-11-09_add_memory.sql` (file only — never run against a database; the maintainer applies it on the server):
