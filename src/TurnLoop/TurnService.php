@@ -4,14 +4,22 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\TurnLoop;
 
+use PoltergeistSwitch\Engine\Enums\Operation;
+use PoltergeistSwitch\Engine\Values\Action;
+use PoltergeistSwitch\Engine\Values\Judgement;
+use PoltergeistSwitch\Engine\Values\Outcome;
 use PoltergeistSwitch\TurnLoop\Clients\RecorderClient;
+use PoltergeistSwitch\TurnLoop\Clients\RecorderInput;
 use PoltergeistSwitch\TurnLoop\Clients\RobotClient;
+use PoltergeistSwitch\TurnLoop\Clients\VerifiedReading;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\Repository\EpisodeRepository;
+use PoltergeistSwitch\TurnLoop\Values\AppliedRobotRow;
 use PoltergeistSwitch\TurnLoop\Values\AppliedTurnRows;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
 use PoltergeistSwitch\TurnLoop\Values\PromptReplyRow;
+use PoltergeistSwitch\TurnLoop\Values\Reading;
 use PoltergeistSwitch\TurnLoop\Values\TurnRow;
 use PoltergeistSwitch\TurnLoop\Values\TurnStateValue;
 
@@ -358,6 +366,290 @@ class TurnService
         }
 
         return $this->view($episodeId);
+    }
+
+    /**
+     * Read both robots' replies, judge the turn once, and store the Four_Layers
+     * for a turn whose Turn_State is `replies_complete` (Requirement 6).
+     *
+     * The request is rejected with HTTP 409 when the turn is in neither
+     * `replies_complete` nor `applied` — e.g. still `waiting` — reading no
+     * reply and not calling applyTurn (Requirements 6.1, 7.7); an ended episode
+     * or a turn-number mismatch is rejected the same way ask gates them
+     * (Requirement 7); an unknown episode id is a 404 (Requirement 9.5). For an
+     * already-`applied` turn the current stored state is returned without
+     * reading replies or calling applyTurn again (Requirement 6.6), which keeps
+     * apply idempotent.
+     *
+     * On an accepted apply, activity is recorded so an actively-stepping
+     * episode keeps its running slot (Requirement 9.10).
+     *
+     * For `replies_complete`: both stored replies are read with the recorder in
+     * parallel under the per-call timeout with no retry (Requirement 6.2);
+     * EvidenceCheck::verify runs on each reading so an action whose actionQuote
+     * is missing or not an exact substring of the reply becomes `unknown`
+     * (Requirement 6.3); a robot with no stored successful reply (marked no
+     * reply) contributes an `unknown` action (Requirement 6.8). The rehydrated
+     * engine is prepared with Engine::prepareTurn before Engine::applyTurn — it
+     * is idempotent, so this is safe whether or not ask already prepared the
+     * turn — so the stored resident line matches the one the robots read
+     * (Requirement 6.3); applyTurn is then called EXACTLY ONCE with the actions
+     * keyed by 'robot_a'/'robot_b'.
+     *
+     * The Four_Layers for each robot — situation text, reading, judgement,
+     * outcome — plus the EvidenceCheck-verified action_json are stored within
+     * one transaction via storeAppliedTurn (Requirements 6.4, 8.8, 13.3). On
+     * success the turn's state is set to `applied` (Requirement 6.5). On a
+     * mid-write failure storeAppliedTurn rolls back; the turn is left
+     * `replies_complete` and the repository failure is propagated as the apply
+     * failure (Requirement 6.7). When applyTurn reports the episode ended the
+     * episode is marked ended; otherwise the current expected turn is advanced
+     * to turnNumber + 1 (Requirements 7.4, 7.5).
+     */
+    public function apply(string $episodeId, int $turnNumber): EpisodeView
+    {
+        $episode = $this->repo->findEpisode($episodeId);
+        if ($episode === null) {
+            throw ApiError::notFound();
+        }
+
+        $turn = $this->repo->findTurn($episodeId, $turnNumber);
+
+        // Already applied: return the current stored state without reading
+        // replies or calling applyTurn again (Requirement 6.6). This is checked
+        // BEFORE the ended/turn-mismatch gate so a repeated apply of a turn the
+        // episode has already moved past (current expected turn advanced, or
+        // the episode ended on this very turn) still returns its stored state
+        // idempotently rather than being rejected.
+        if ($turn !== null && $turn->state === TurnStateValue::applied) {
+            return $this->view($episodeId);
+        }
+
+        // Ended / turn-number gate, consistent with ask (Requirement 7).
+        if ($episode->ended) {
+            throw ApiError::conflict(
+                'episode_ended',
+                $episode->currentExpectedTurn,
+                $this->currentTurnState($episodeId, $episode->currentExpectedTurn),
+            );
+        }
+        if ($turnNumber !== $episode->currentExpectedTurn) {
+            throw ApiError::conflict(
+                'turn_mismatch',
+                $episode->currentExpectedTurn,
+                $this->currentTurnState($episodeId, $episode->currentExpectedTurn),
+            );
+        }
+
+        // The turn must be `replies_complete` to apply; anything else (a
+        // missing turn or a `waiting` one) is a wrong-state call rejected with
+        // 409, reading no reply and not calling applyTurn (Requirements 6.1,
+        // 7.7).
+        if ($turn === null || $turn->state !== TurnStateValue::replies_complete) {
+            $state = $turn !== null ? $turn->state->value : TurnStateValue::waiting->value;
+
+            throw ApiError::conflict('turn_not_ready', $episode->currentExpectedTurn, $state);
+        }
+
+        // Accepted: record activity to keep this actively-stepping episode's
+        // running slot (Requirement 9.10). A rejected apply never reaches here.
+        $this->repo->touchActivity($episodeId, $this->now());
+
+        // Build each robot's recorder input from the world at the start of this
+        // turn (Requirement 3.4), and read the stored replies.
+        $world = $this->engineFactory->worldForEpisode($episodeId);
+
+        /** @var array<string,Action> $actions keyed by robot id for applyTurn */
+        $actions = [];
+        /** @var array<string,Reading> $readings keyed by robot id for storage */
+        $readings = [];
+        /** @var array<string,string> $replyTexts keyed by robot id */
+        $replyTexts = [];
+
+        // Stage recorder reads for the robots that produced a reply; a robot
+        // with no stored successful reply contributes an `unknown` action and
+        // is not read (Requirement 6.8).
+        /** @var array<string,\CurlHandle> $handles */
+        $handles = [];
+        /** @var array<string,RecorderInput> $inputs */
+        $inputs = [];
+        foreach ([self::ROBOT_A, self::ROBOT_B] as $robotId) {
+            $reply = $this->repo->findSuccessfulReply($episodeId, $turnNumber, $robotId);
+            if ($reply === null) {
+                // No reply: an `unknown` reading/action (Requirement 6.8).
+                $readings[$robotId] = $this->unknownReading($robotId);
+                $actions[$robotId] = $readings[$robotId]->action;
+                $replyTexts[$robotId] = '';
+
+                continue;
+            }
+
+            $replyTexts[$robotId] = $reply->reply;
+            $inputs[$robotId] = RecorderInput::forRobot($world, $robotId);
+            $handles[$robotId] = $this->recorder->prepare($inputs[$robotId], $reply->reply);
+        }
+
+        // Read both staged replies in parallel through one curl_multi handle,
+        // under the per-call timeout, no retry (Requirement 6.2).
+        $results = $this->parallel->run($handles);
+
+        foreach ($handles as $robotId => $handle) {
+            $result = $results[$robotId] ?? ['status' => 0, 'body' => null, 'seconds' => 0.0, 'error' => 'no_result'];
+            $reading = $this->recorder->finish($inputs[$robotId], $replyTexts[$robotId], $result);
+
+            // EvidenceCheck: an action not backed by an exact quote of the
+            // reply becomes `unknown` (Requirement 6.3, 3.8). The reading's
+            // action is rebound to this robot's id before judgement.
+            $verified = VerifiedReading::verify($replyTexts[$robotId], $reading);
+            $readings[$robotId] = $verified;
+            $actions[$robotId] = $this->actionForRobot($robotId, $verified->action);
+
+            unset($handle);
+        }
+
+        // Rehydrate the engine, prepare the turn (idempotent) so the resident
+        // line matches the one the robots read, then apply the turn EXACTLY
+        // ONCE (Requirement 6.3).
+        $engine = $this->engineFactory->forEpisode($episodeId);
+        $engine->prepareTurn($turnNumber);
+        $result = $engine->applyTurn($turnNumber, $actions);
+
+        // Build the per-robot Four_Layers and store them in one transaction
+        // (Requirements 6.4, 8.8, 13.3). On a mid-write failure storeAppliedTurn
+        // rolls back and throws; the turn is left `replies_complete` and the
+        // failure is propagated (Requirement 6.7).
+        $version = $engine->situationTextVersion();
+        $robots = [];
+        foreach ([self::ROBOT_A, self::ROBOT_B] as $robotId) {
+            $reading = $readings[$robotId];
+            $action = $actions[$robotId];
+            $judgement = $result->judgements[$robotId] ?? new Judgement($robotId, false);
+            $outcome = $result->outcomes[$robotId] ?? Outcome::failure($robotId, 'no_outcome');
+
+            $robots[$robotId] = new AppliedRobotRow(
+                robotId: $robotId,
+                situationText: $this->situationTextFor($episodeId, $turnNumber, $robotId),
+                situationTextVersion: $version,
+                recorderJson: $reading->rawJson,
+                recorderUnknown: $reading->unknown,
+                recorderPromptVersion: $reading->promptVersion !== ''
+                    ? $reading->promptVersion
+                    : $this->recorder->promptVersion(),
+                judgementJson: $this->encodeJudgement($judgement),
+                outcomeJson: $this->encodeOutcome($outcome),
+                actionJson: ReplayedAction::toJson($action),
+            );
+        }
+
+        // storeAppliedTurn is single-transaction and idempotent; it throws on a
+        // mid-write failure after rolling back, leaving the turn
+        // `replies_complete` (Requirement 6.7).
+        $this->repo->storeAppliedTurn(new AppliedTurnRows(
+            episodeId: $episodeId,
+            turnNumber: $turnNumber,
+            robots: $robots,
+            residentLine: $result->residentLine,
+        ));
+
+        // The write committed: advance the turn to `applied` (Requirement 6.5).
+        $this->repo->setTurnState($episodeId, $turnNumber, TurnStateValue::applied->value);
+
+        // Advance the episode: end it when applyTurn reports the end, otherwise
+        // set the current expected turn to turnNumber + 1 (Requirements 7.4,
+        // 7.5).
+        if ($result->episodeEnded) {
+            $this->repo->markEpisodeEnded($episodeId);
+        } else {
+            $this->repo->setCurrentExpectedTurn($episodeId, $turnNumber + 1);
+        }
+
+        return $this->view($episodeId);
+    }
+
+    /**
+     * The stored situation text sent to one robot this turn, taken from the
+     * robot's stored prompt when ask persisted one. A no-reply robot that was
+     * never prompted (no stored reply) falls back to the empty string; the
+     * other three layers are still stored (Requirement 6.8).
+     */
+    private function situationTextFor(string $episodeId, int $turnNumber, string $robotId): string
+    {
+        $reply = $this->repo->findSuccessfulReply($episodeId, $turnNumber, $robotId);
+
+        return $reply !== null ? $reply->prompt : '';
+    }
+
+    /**
+     * An `unknown` Reading for a robot that produced no reply (Requirement 6.8).
+     * It carries the recorder prompt version so the stored recording layer
+     * still records which recorder produced the (empty) reading.
+     */
+    private function unknownReading(string $robotId): Reading
+    {
+        return new Reading(
+            action: new Action($robotId, Operation::unknown->value),
+            unknown: true,
+            rawJson: '',
+            promptVersion: $this->recorder->promptVersion(),
+        );
+    }
+
+    /**
+     * Rebind a verified action to a specific robot id. The recorder returns an
+     * action keyed with a generic placeholder (RecorderInput is ids-only and
+     * carries no robot id), so apply rebinds it to 'robot_a'/'robot_b' before
+     * keying it for applyTurn.
+     */
+    private function actionForRobot(string $robotId, Action $action): Action
+    {
+        if ($action->robotId === $robotId) {
+            return $action;
+        }
+
+        return new Action(
+            robotId: $robotId,
+            operation: $action->operation,
+            targetId: $action->targetId,
+            targetSpot: $action->targetSpot,
+            words: $action->words,
+            actionQuote: $action->actionQuote,
+            reported: $action->reported,
+        );
+    }
+
+    /**
+     * Encode a Judgement to the actions.judgement_json shape the repositories
+     * decode (fields: possible, reason, dangerous, dangerCode, duration).
+     */
+    private function encodeJudgement(Judgement $judgement): string
+    {
+        $encoded = json_encode([
+            'possible' => $judgement->possible,
+            'reason' => $judgement->reason,
+            'dangerous' => $judgement->dangerous,
+            'dangerCode' => $judgement->dangerCode,
+            'duration' => $judgement->duration,
+        ]);
+
+        return $encoded === false ? '{}' : $encoded;
+    }
+
+    /**
+     * Encode an Outcome to the actions.outcome_json shape the repositories
+     * decode (fields: success, whatHappenedText, seenByOtherText, errorMessage,
+     * worldChanges).
+     */
+    private function encodeOutcome(Outcome $outcome): string
+    {
+        $encoded = json_encode([
+            'success' => $outcome->success,
+            'whatHappenedText' => $outcome->whatHappenedText,
+            'seenByOtherText' => $outcome->seenByOtherText,
+            'errorMessage' => $outcome->errorMessage,
+            'worldChanges' => $outcome->worldChanges,
+        ]);
+
+        return $encoded === false ? '{}' : $encoded;
     }
 
     /**

@@ -146,14 +146,14 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - A single `ask` calls both fakes once; a second `ask` with both successes calls neither; a robot with one stored success is reused and only the missing robot is called; a robot that fails twice is marked no reply with action `unknown`; the stored prompt carries the situation-text version
     - _Requirements: 5.2, 5.3, 5.6, 5.7, 8.3_
 
-- [ ] 12. TurnService — apply
-  - [ ] 12.1 Implement `TurnService::apply` in `src/TurnLoop/TurnService.php` (**requires engine tasks 28/29**):
+- [x] 12. TurnService — apply
+  - [x] 12.1 Implement `TurnService::apply` in `src/TurnLoop/TurnService.php` (**requires engine tasks 28/29**):
     - Reject with 409 if the turn is in neither `replies_complete` nor `applied`, reading no reply and not calling `applyTurn`
     - For `replies_complete`: read both stored replies with the recorder in parallel under the per-call timeout with no retry; run `EvidenceCheck::verify` on each reading; call `Engine::prepareTurn($turnNumber)` on the rehydrated engine **before** `Engine::applyTurn` (it is idempotent, so this is safe whether or not `ask` already prepared the turn in a prior request) so the stored resident line matches the one the robots read, then call `Engine::applyTurn($turnNumber, $actions)` exactly once with the resulting actions keyed by `robot_a`/`robot_b` (a no-reply robot contributes an `unknown` action)
     - Store the Four_Layers for each robot — situation text, reading, judgement, outcome — plus `action_json` within one transaction; on success set the state to `applied`; on failure before all four layers are written, roll back, leave the turn `replies_complete`, and return a failure indication
     - For an already-`applied` turn, return current stored state without reading replies or calling `applyTurn` again; when `applyTurn` reports the episode ended, mark it ended, otherwise set current expected turn to applied turn + 1
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 7.4, 7.5, 13.3_
-  - [ ]* 12.2 Write unit tests in `tests/TurnLoop/TurnServiceApplyTest.php` using fakes:
+  - [x]* 12.2 Write unit tests in `tests/TurnLoop/TurnServiceApplyTest.php` using fakes:
     - `apply` on `waiting` → 409 with no engine call; a single `apply` advances once and lands `applied`; a second `apply` returns stored state without re-advancing; a no-reply robot still gets all four layers with action `unknown`; an injected mid-write failure rolls back and leaves the turn `replies_complete`
     - _Requirements: 6.1, 6.6, 6.7, 6.8_
 

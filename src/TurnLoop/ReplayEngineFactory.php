@@ -65,6 +65,29 @@ final class ReplayEngineFactory implements EngineFactory
 
     public function forEpisode(string $episodeId): Engine
     {
+        return $this->build($episodeId)['engine'];
+    }
+
+    public function worldForEpisode(string $episodeId): WorldModel
+    {
+        // The same replay forEpisode walks; the world returned is the engine's
+        // own world, replayed to the start of the current turn. Room membership
+        // and held objects (what RecorderInput needs — Requirement 3.4) are set
+        // by the replayed actions, so this world carries the correct start-of-
+        // turn positions for building each robot's recorder input.
+        return $this->build($episodeId)['world'];
+    }
+
+    /**
+     * Rebuild the episode's Engine and its WorldModel by replaying it from
+     * stored state. The returned world is the engine's own world (the same
+     * object), so a caller that advances the engine with prepareTurn/applyTurn
+     * mutates the returned world too.
+     *
+     * @return array{engine: Engine, world: WorldModel}
+     */
+    private function build(string $episodeId): array
+    {
         $episode = $this->repo->findEpisode($episodeId);
         if ($episode === null) {
             // The API layer answers 404 for an unknown id before reaching the
@@ -133,7 +156,7 @@ final class ReplayEngineFactory implements EngineFactory
             $world->earthquakeStartTurn = $startTurn;
         }
 
-        return $engine;
+        return ['engine' => $engine, 'world' => $world];
     }
 
     /**

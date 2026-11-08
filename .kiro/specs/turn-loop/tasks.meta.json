@@ -94,6 +94,13 @@
         "chatSessionId": "sess_b4647f93-b95d-4d47-bb01-d9e04695e694",
         "timestamp": 1794107770438
       }
+    ],
+    "12. TurnService — apply": [
+      {
+        "executionId": "272fc3e0-fcae-4e5e-a581-8de5a2c0b6f3",
+        "chatSessionId": "sess_b4647f93-b95d-4d47-bb01-d9e04695e694",
+        "timestamp": 1794108461482
+      }
     ]
   }
 }
