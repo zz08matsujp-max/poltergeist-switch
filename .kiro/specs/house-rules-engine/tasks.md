@@ -462,24 +462,25 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - _Requirements: Req 2.4–2.5, Req 4.6, Req 11.6_
 
 - [ ] 28. Engine::prepareTurn — same-world turn preparation (added 2026-11-08)
-  - [ ] 28.1 Implement `prepareTurn(int $turnNumber): void` on `Engine` (Req 13):
+  - [x] 28.1 Implement `prepareTurn(int $turnNumber): void` on `Engine` (Req 13):
     - Advance the earthquake world to the turn about to be played WITHOUT judging: capture the stove-was-on flag on the earthquake-start transition (call `EarthquakePhase::captureStoveWasOn()` when `earthquakeStartTurn` is set), advance the earthquake phase by that turn's offset via the same `EarthquakePhase::advanceTurn($world, $seed, $offset)` call `applyTurn` uses, select falling objects on a shaking turn, and set the four SituationView flags (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`) and the resident line
     - Idempotent per turn: record the prepared turn in a `$preparedTurn` int marker; a second call for the same turn number does nothing
     - Never evaluate or execute actions, never advance the turn clock
     - Choose a clean earthquake-switch mapping with NO negative start turn, so the first robot prompt after the switch is offset 1 opening "Suddenly the floor begins to shake hard."
     - Resident line (Req 13.8, added 2026-11-08): one line per turn, fixed in `prepareTurn`; a refusal produced while applying turn n is carried into turn n+1's text and takes priority there; `applyTurn` must not emit a second line that no robot reads
     - _Requirements: Req 13.1–13.8_
-  - [ ] 28.2 Guard `applyTurn` step 2 on the `$preparedTurn` marker (Req 13):
+  - [x] 28.2 Guard `applyTurn` step 2 on the `$preparedTurn` marker (Req 13):
     - If the turn was already prepared, skip the earthquake advance (it already happened in `prepareTurn`) and proceed to evaluation; otherwise advance the earthquake here as before, so `applyTurn` stays correct whether or not `prepareTurn` was called (backward compatible)
     - A `prepareTurn($n)` followed by `applyTurn($n, …)` must advance the earthquake exactly once
     - _Requirements: Req 13.4, Req 13.5_
-  - [ ] 28.3 Tests in `tests/Engine/EngineIntegrationTest.php` and the property suite:
+  - [-] 28.3 Tests in `tests/Engine/EngineIntegrationTest.php` and the property suite:
     - After `prepareTurn($n)`, `situationTextFor()` for both robots renders turn $n's world (e.g. the first shaking turn after the switch opens "Suddenly the floor begins to shake hard."; an offset-5 turn shows "The shaking has stopped." consistently with the judgement)
     - `prepareTurn($n)` is idempotent: calling it twice then `applyTurn($n, …)` gives the same TurnResult and snapshot as calling it once
     - A turn played WITHOUT `prepareTurn` yields the identical TurnResult as before this task (backward compatibility)
-    - Property (Eris `limitTo(100)`): for any earthquake episode, `prepareTurn($n)` then `applyTurn($n, …)` equals `applyTurn($n, …)` alone in world snapshot and TurnResult (earthquake advanced exactly once)
+    - Property (Eris `limitTo(100)`): for any earthquake episode, `prepareTurn($n)` then `applyTurn($n, …)` vs `applyTurn($n, …)` alone — assert the earthquake advanced EXACTLY ONCE and the world SNAPSHOTS are EQUAL. Do NOT assert full TurnResult equality (narrowed by the maintainer 2026-11-08), because the `residentLine` legitimately DIFFERS between the two paths: per Req 13.8 the prepared path attributes a scripted line to the turn in which the robots READ it. A line triggered by turn n's resident update is fixed by `prepareTurn(n+1)` and appears in turn n+1's TurnResult and text; on the old (unprepared) path the same line was recorded on turn n's TurnResult yet was also only first read in turn n+1's text, so prepareTurn shifts the recorded turn one later to match the read turn. This one-turn residentLine shift is INTENDED, so the property compares only the earthquake-advance count (via equal snapshots) and not the TurnResult
     - The earthquake-switch mapping never produces a negative start turn
     - The resident line: the earthquake shout appears in the first shaking turn's text; a refusal from turn n appears in turn n+1's text; no turn's line is lost or emitted twice (Req 13.8)
+    - Line-not-lost (maintainer request 2026-11-08): on the prepared path the seed-0 fear line "I'm scared..." shifts from turn 7's TurnResult (plain path) to turn 8's TurnResult (prepared path) — the NEXT turn, the turn in which the robots read it; and for EVERY turn, the line shown in that turn's text equals that turn's TurnResult line (the current turn's line is read, never a stale one, never twice). The line surfaces in the text only inside the shaking paragraph, so the check asserts the direction that matters: whenever the text shows a line it equals the current turn's TurnResult line
     - Run every existing engine test; update any test that assumed the old "applyTurn advances the earthquake before judging" ordering, and state in the task which tests changed
     - _Requirements: Req 13.1–13.8, Req 11.4_
 

@@ -913,4 +913,688 @@ class EngineIntegrationTest extends TestCase
         $this->assertNull($world->residentState->spot);
         $this->assertSame('standing', $world->residentState->activity);
     }
+
+    // ==================================================================
+    // Engine::prepareTurn — same-world turn preparation (task 28.3,
+    // Req 13.1–13.8, Req 11.4)
+    // ==================================================================
+
+    /**
+     * Build an Engine over a world reset with the given SituationSpec, handing
+     * back both the Engine and the live WorldModel so a prepareTurn test can
+     * set earthquakeStartTurn (standing in for the observer layer) before
+     * driving turns. No earthquake is started until the test asks for it.
+     *
+     * @return array{Engine,WorldModel}
+     */
+    private function makeEngineAndWorld(SituationSpec $spec): array
+    {
+        $world = new WorldModel($this->config);
+        $world->reset(Seed::fromInt(1), $spec);
+
+        $engine = new Engine(
+            $world,
+            $this->config,
+            new RulesEvaluator(),
+            new ActionExecutor(),
+            new EarthquakePhase(),
+            new ResidentController(),
+            new SituationTextGenerator(),
+        );
+
+        return [$engine, $world];
+    }
+
+    /**
+     * A night-time layout: robot_a in the kitchen, robot_b in the bedroom, the
+     * resident sitting at the low table in the living room. Night so the
+     * offset-2 power outage darkens rooms (the light rule leaves afternoon
+     * lit), and both robots start in different rooms.
+     */
+    private function prepareSpec(): SituationSpec
+    {
+        return new SituationSpec(
+            time: 'night',
+            robotARoom: 'kitchen',
+            robotBRoom: 'bedroom',
+            manActivity: 'sitting_at_table',
+            potBoiling: false,
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // prepareTurn renders the turn's world in the situation text (Req 13.1,
+    // Req 13.2).
+    // ------------------------------------------------------------------
+
+    /**
+     * After prepareTurn opens the first turn of the earthquake (offset 1), the
+     * situation text for BOTH robots renders that turn's shaking world: the
+     * shaking paragraph opens with "Suddenly the floor begins to shake hard."
+     * The text is built straight after prepareTurn, before any applyTurn for
+     * that turn, so it is prepareTurn alone that advanced the world.
+     */
+    public function testPrepareTurnRendersFirstShakingTurnForBothRobots(): void
+    {
+        [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+        // The earthquake begins on turn 0, so turn 0 is offset 0 (quiet). Play
+        // the quiet turn, then prepare turn 1 — offset 1, the first shaking
+        // turn — and read the text before applying it.
+        $world->earthquakeStartTurn = 0;
+        $engine->applyTurn(0, []);
+        $engine->prepareTurn(1);
+
+        $textA = $engine->situationTextFor('robot_a');
+        $textB = $engine->situationTextFor('robot_b');
+
+        $this->assertStringContainsString('Suddenly the floor begins to shake hard.', $textA);
+        $this->assertStringContainsString('Suddenly the floor begins to shake hard.', $textB);
+    }
+
+    /**
+     * An offset-5 turn is the first still turn after the shaking (offsets 1–4).
+     * After prepareTurn(5), the text for both robots reads "The shaking has
+     * stopped.", consistent with the earthquake world the following applyTurn
+     * then judges in.
+     */
+    public function testPrepareTurnRendersShakingStoppedAtOffsetFive(): void
+    {
+        [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+        $world->earthquakeStartTurn = 0;
+
+        // Drive turns 0–4 so the world reaches offset 4 (still shaking), then
+        // prepare turn 5 (offset 5) and read it before applying.
+        for ($turn = 0; $turn <= 4; $turn++) {
+            $engine->applyTurn($turn, []);
+        }
+        $engine->prepareTurn(5);
+
+        $textA = $engine->situationTextFor('robot_a');
+        $textB = $engine->situationTextFor('robot_b');
+
+        $this->assertStringContainsString('The shaking has stopped.', $textA);
+        $this->assertStringContainsString('The shaking has stopped.', $textB);
+    }
+
+    /**
+     * prepareTurn sets the earthquake flags so the lights-go-out cue shows on
+     * the offset-2 turn before it is applied — the world the robots read is the
+     * world their action will be judged in (Req 13.2, Req 9.14).
+     */
+    public function testPrepareTurnShowsLightsGoOutAtOffsetTwoBeforeApply(): void
+    {
+        [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+        $world->earthquakeStartTurn = 0;
+
+        for ($turn = 0; $turn <= 1; $turn++) {
+            $engine->applyTurn($turn, []);
+        }
+        $engine->prepareTurn(2);
+
+        $textA = $engine->situationTextFor('robot_a');
+        $textB = $engine->situationTextFor('robot_b');
+
+        $this->assertStringContainsString('The lights go out.', $textA);
+        $this->assertStringContainsString('The lights go out.', $textB);
+    }
+
+    // ------------------------------------------------------------------
+    // prepareTurn idempotency and single earthquake advance (Req 13.3,
+    // Req 13.4).
+    // ------------------------------------------------------------------
+
+    /**
+     * Calling prepareTurn twice for the same turn, then applyTurn once, yields
+     * exactly the same TurnResult and world snapshot as a single prepareTurn
+     * followed by applyTurn. prepareTurn is idempotent per turn: the second
+     * call advances nothing, so the earthquake is advanced exactly once across
+     * both the prepare and the apply (Req 13.3, Req 13.4).
+     */
+    public function testPrepareTurnTwiceThenApplyEqualsPrepareOnceThenApply(): void
+    {
+        // Run A: prepare the turn once, then apply.
+        [$engineOnce, $worldOnce] = $this->makeEngineAndWorld($this->prepareSpec());
+        $worldOnce->earthquakeStartTurn = 0;
+        $engineOnce->applyTurn(0, []);
+        $engineOnce->prepareTurn(1);
+        $resultOnce = $engineOnce->applyTurn(1, []);
+
+        // Run B: prepare the SAME turn twice, then apply.
+        [$engineTwice, $worldTwice] = $this->makeEngineAndWorld($this->prepareSpec());
+        $worldTwice->earthquakeStartTurn = 0;
+        $engineTwice->applyTurn(0, []);
+        $engineTwice->prepareTurn(1);
+        $engineTwice->prepareTurn(1);
+        $resultTwice = $engineTwice->applyTurn(1, []);
+
+        // The two results must be equal by value, and so must the snapshots:
+        // the duplicate prepareTurn advanced nothing.
+        $this->assertEquals(
+            $this->describeResult($resultOnce),
+            $this->describeResult($resultTwice),
+            'A duplicate prepareTurn for the same turn must not change the TurnResult.',
+        );
+        $this->assertEquals(
+            $this->describeSnapshot($resultOnce->worldSnapshot),
+            $this->describeSnapshot($resultTwice->worldSnapshot),
+            'A duplicate prepareTurn for the same turn must not change the world snapshot.',
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Backward compatibility and the single-advance equivalence (Req 13.5,
+    // Req 13.7, Req 11.4).
+    // ------------------------------------------------------------------
+
+    /**
+     * A turn played with prepareTurn first yields the identical TurnResult and
+     * world snapshot as the same turn played without prepareTurn. The
+     * earthquake is advanced exactly once either way: prepareTurn + applyTurn
+     * equals applyTurn alone (Req 13.4, Req 13.5, Req 13.7, Req 11.4).
+     */
+    public function testPrepareThenApplyEqualsApplyAloneAcrossAnEarthquake(): void
+    {
+        // Run each turn of a short earthquake two ways and compare turn by turn.
+        for ($turn = 0; $turn <= 6; $turn++) {
+            // Without prepareTurn.
+            [$plain, $plainWorld] = $this->makeEngineAndWorld($this->prepareSpec());
+            $plainWorld->earthquakeStartTurn = 0;
+            $plainResult = $this->driveToTurn($plain, $turn, false);
+
+            // With prepareTurn before each turn.
+            [$prepared, $preparedWorld] = $this->makeEngineAndWorld($this->prepareSpec());
+            $preparedWorld->earthquakeStartTurn = 0;
+            $preparedResult = $this->driveToTurn($prepared, $turn, true);
+
+            $this->assertEquals(
+                $this->describeResult($plainResult),
+                $this->describeResult($preparedResult),
+                "prepareTurn+applyTurn must equal applyTurn alone for turn {$turn}.",
+            );
+            $this->assertEquals(
+                $this->describeSnapshot($plainResult->worldSnapshot),
+                $this->describeSnapshot($preparedResult->worldSnapshot),
+                "World snapshot must match with and without prepareTurn for turn {$turn}.",
+            );
+        }
+    }
+
+    /**
+     * Drive an engine (whose world already has earthquakeStartTurn set by the
+     * caller) through turns 0..$upTo. When $withPrepare is true, prepareTurn is
+     * called for each turn before applyTurn; otherwise applyTurn is called
+     * alone. Returns the TurnResult of the last turn.
+     */
+    private function driveToTurn(Engine $engine, int $upTo, bool $withPrepare): TurnResult
+    {
+        $result = null;
+        for ($turn = 0; $turn <= $upTo; $turn++) {
+            if ($withPrepare) {
+                $engine->prepareTurn($turn);
+            }
+            $result = $engine->applyTurn($turn, []);
+        }
+
+        return $result;
+    }
+
+    // ------------------------------------------------------------------
+    // Earthquake-switch mapping never produces a negative start turn
+    // (Req 13.6).
+    // ------------------------------------------------------------------
+
+    /**
+     * The earthquake-switch mapping used by prepareTurn never yields a negative
+     * start turn: the start turn is the engine's current turn at the moment the
+     * switch is flipped (always ≥ 0), and the first turn played after it is
+     * offset 1, the first shaking turn. Flipping the switch on several current
+     * turns keeps the start turn non-negative and makes the next prepared
+     * turn's text open the shaking paragraph (Req 13.6).
+     */
+    public function testEarthquakeSwitchMappingNeverNegativeStartTurn(): void
+    {
+        foreach ([0, 1, 3, 7] as $switchTurn) {
+            [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+            // Play quiet turns up to the switch turn with no earthquake.
+            for ($turn = 0; $turn < $switchTurn; $turn++) {
+                $engine->applyTurn($turn, []);
+            }
+
+            // Flip the switch at the current turn: earthquakeStartTurn is the
+            // current turn (offset 0), always ≥ 0, never negative. The next
+            // turn played ($switchTurn + 1) is offset 1, the first shaking turn
+            // opening "Suddenly the floor begins to shake hard." (Req 13.6).
+            $startTurn = $switchTurn;
+            $this->assertGreaterThanOrEqual(
+                0,
+                $startTurn,
+                "Earthquake start turn must never be negative (switch at turn {$switchTurn}).",
+            );
+            $world->earthquakeStartTurn = $startTurn;
+
+            // Play the offset-0 start turn, then prepare the first shaking turn.
+            $engine->applyTurn($switchTurn, []);
+            $firstShakingTurn = $switchTurn + 1;
+
+            $engine->prepareTurn($firstShakingTurn);
+            $text = $engine->situationTextFor('robot_a');
+            $this->assertStringContainsString(
+                'Suddenly the floor begins to shake hard.',
+                $text,
+                "The first shaking turn after the switch (turn {$firstShakingTurn}) must open the quake.",
+            );
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Resident line: earthquake shout on the first shaking turn, a refusal
+    // carried into the next turn, no line lost or emitted twice (Req 13.8).
+    // ------------------------------------------------------------------
+
+    /**
+     * The earthquake start shout "What's happening?!" is the resident line the
+     * engine fixes for the earthquake-start turn (offset 0). prepareTurn fixes
+     * it once; applyTurn records exactly that line (Req 7.1, Req 13.8). The
+     * line fires on `turnNumber == earthquakeStartTurn`, so it belongs to the
+     * offset-0 turn the switch opens — the turn immediately before the first
+     * shaking turn (offset 1). This test pins that shout to the start turn so a
+     * regression that silently drops or relocates it is caught.
+     */
+    public function testEarthquakeShoutIsTheStartTurnResidentLine(): void
+    {
+        [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+        // Start the earthquake on turn 1 (offset 0 = turn 1). The earthquake
+        // line fires on earthquakeStartTurn.
+        $engine->applyTurn(0, []);
+        $world->earthquakeStartTurn = 1;
+
+        $engine->prepareTurn(1);
+        $result = $engine->applyTurn(1, []);
+        $this->assertSame("What's happening?!", $result->residentLine);
+    }
+
+    /**
+     * The first shaking turn (offset 1) opens its shaking paragraph with
+     * "Suddenly the floor begins to shake hard." for both robots, so the robot
+     * prompt that follows the switch unmistakably marks the quake's onset
+     * (Req 13.6). This complements the shout test: the shout is the start turn's
+     * line, the "Suddenly…" opener is the very next (first shaking) turn.
+     */
+    public function testFirstShakingTurnOpensWithSuddenlyForBothRobots(): void
+    {
+        [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+        // Earthquake starts on turn 0 (offset 0). Turn 1 is offset 1.
+        $world->earthquakeStartTurn = 0;
+        $engine->applyTurn(0, []);
+
+        $engine->prepareTurn(1);
+        $this->assertStringContainsString(
+            'Suddenly the floor begins to shake hard.',
+            $engine->situationTextFor('robot_a'),
+        );
+        $this->assertStringContainsString(
+            'Suddenly the floor begins to shake hard.',
+            $engine->situationTextFor('robot_b'),
+        );
+    }
+
+    /**
+     * A refusal produced while applying turn n is carried into turn n+1's text
+     * and takes priority there; it is not lost and not emitted twice. A support
+     * with no destination word is refused as turn n's own resident line (no
+     * robot reads it that turn), then prepareTurn(n+1) carries it into the
+     * following turn's text (Req 13.8, Req 7.15).
+     */
+    public function testRefusalFromTurnNAppearsInTurnNPlusOneText(): void
+    {
+        // The earthquake runs so the shaking paragraph is present on the turns
+        // in play — that paragraph is where a resident line surfaces in the
+        // text. robot_a shares the resident's room (living room) so a support
+        // is possible; the quake starts on turn 0.
+        $spec = new SituationSpec(
+            time: 'afternoon',
+            robotARoom: 'living_room',
+            robotBRoom: 'kitchen',
+            manActivity: 'sitting_at_table',
+            potBoiling: false,
+        );
+        [$engine, $world] = $this->makeEngineAndWorld($spec);
+        $world->earthquakeStartTurn = 0;
+
+        $refusal = "I don't want to move from here.";
+
+        // Turn 0 (offset 0): quiet start turn, prepared and applied.
+        $engine->prepareTurn(0);
+        $engine->applyTurn(0, []);
+
+        // Turn 1 (offset 1, shaking): a support with a destination spot but no
+        // spoken line naming it is refused. Because turn 1 was prepared, the
+        // refusal is produced while applying the turn and is NOT turn 1's own
+        // resident line — it is carried into turn 2's text (Req 13.8).
+        $support = new Action(
+            robotId: 'robot_a',
+            operation: Operation::support->value,
+            targetId: 'resident',
+            targetSpot: 'under_table',
+        );
+        $engine->prepareTurn(1);
+        $engine->applyTurn(1, ['robot_a' => $support]);
+
+        // prepareTurn(2) carries the refusal into turn 2's text (offset 2 still
+        // shakes, so the shaking paragraph renders the resident line).
+        $engine->prepareTurn(2);
+        $text2 = $engine->situationTextFor('robot_a');
+        $this->assertStringContainsString(
+            $refusal,
+            $text2,
+            'The refusal produced on turn 1 must appear in turn 2 text.',
+        );
+
+        // The refusal became turn 2's single resident line — emitted once, read
+        // by the robots on turn 2.
+        $result2 = $engine->applyTurn(2, ['robot_a' => $this->wait('robot_a')]);
+        $this->assertSame($refusal, $result2->residentLine);
+
+        // And it is consumed: it is not carried a second time, so turn 3's text
+        // no longer contains it.
+        $engine->prepareTurn(3);
+        $text3 = $engine->situationTextFor('robot_a');
+        $this->assertStringNotContainsString(
+            $refusal,
+            $text3,
+            'The refusal must not be emitted twice: it is gone from turn 3 text.',
+        );
+    }
+
+    /**
+     * No turn's resident line is emitted twice: when a turn is prepared, the
+     * line fixed in prepareTurn is the same line applyTurn records, not a
+     * second line from a repeated emitDialogueLine call. Preparing and then
+     * applying the earthquake-start turn yields the shout exactly as the
+     * turn's single resident line (Req 13.8).
+     */
+    public function testPreparedTurnEmitsExactlyOneResidentLine(): void
+    {
+        [$engine, $world] = $this->makeEngineAndWorld($this->prepareSpec());
+
+        // Earthquake starts on turn 0; the earthquake shout is turn 0's line.
+        $world->earthquakeStartTurn = 0;
+
+        $engine->prepareTurn(0);
+        $result = $engine->applyTurn(0, []);
+
+        // The line applyTurn recorded is exactly the prepared earthquake shout.
+        $this->assertSame("What's happening?!", $result->residentLine);
+    }
+
+    // ------------------------------------------------------------------
+    // Line-not-lost: the seed-0 fixture (fear line turn 7 → turn 8) and the
+    // per-turn text/TurnResult agreement (Req 13.8, maintainer request
+    // 2026-11-08).
+    // ------------------------------------------------------------------
+
+    /**
+     * The seed-0 fear-line shift (Req 13.8). This is the exact case that the
+     * narrowed prepare-vs-plain property (EnginePropertyTest) first exposed at
+     * seed 0, turn 7: the scripted fear line "I'm scared..." lands on a
+     * DIFFERENT turn's TurnResult on the two paths.
+     *
+     * On the OLD/unprepared path the fear line is fixed on turn 7's TurnResult
+     * — but it was also only ever first READ in the text built for turn 8, i.e.
+     * stored a turn before it was read. On the PREPARED path prepareTurn fixes
+     * the line one turn later, so it is recorded on turn 8's TurnResult — the
+     * NEXT turn, the turn in which the robots read it. The line is not lost and
+     * not duplicated; it is simply attributed to the turn it belongs to.
+     *
+     * This test pins both halves of that shift at seed 0 so a regression that
+     * reverts the attribution (or drops the line) is caught: the plain path has
+     * the fear line on turn 7 and null on turn 8; the prepared path has null on
+     * turn 7 and the fear line on turn 8. (earthquakeStartTurn = 0, no robot
+     * actions, default seed-0 layout — the same fixture the property uses.)
+     */
+    public function testSeed0FearLineShiftsToNextTurnOnPreparedPath(): void
+    {
+        $fearLine = "I'm scared...";
+
+        // Plain path: applyTurn alone, earthquake from turn 0. The fear line is
+        // recorded on turn 7's TurnResult (a turn before it is read).
+        [$plain, $plainWorld] = $this->makeSeededEngineAndWorld(0);
+        $plainWorld->earthquakeStartTurn = 0;
+        $plainLines = [];
+        for ($turn = 0; $turn <= 8; $turn++) {
+            $plainLines[$turn] = $plain->applyTurn($turn, [])->residentLine;
+        }
+        $this->assertSame(
+            $fearLine,
+            $plainLines[7],
+            'On the unprepared path the fear line is recorded on turn 7.',
+        );
+        $this->assertNotSame(
+            $fearLine,
+            $plainLines[8],
+            'On the unprepared path the fear line is not on turn 8.',
+        );
+
+        // Prepared path: prepareTurn before each applyTurn, same seed and start.
+        // The fear line shifts one turn later, to turn 8's TurnResult — the turn
+        // in which the robots read it (Req 13.8).
+        [$prepared, $preparedWorld] = $this->makeSeededEngineAndWorld(0);
+        $preparedWorld->earthquakeStartTurn = 0;
+        $preparedLines = [];
+        for ($turn = 0; $turn <= 8; $turn++) {
+            $prepared->prepareTurn($turn);
+            $preparedLines[$turn] = $prepared->applyTurn($turn, [])->residentLine;
+        }
+        $this->assertNotSame(
+            $fearLine,
+            $preparedLines[7],
+            'On the prepared path the fear line is no longer on turn 7.',
+        );
+        $this->assertSame(
+            $fearLine,
+            $preparedLines[8],
+            'On the prepared path the fear line belongs to turn 8 (the next turn).',
+        );
+    }
+
+    /**
+     * Line-not-lost invariant (Req 13.8): on the prepared path, for EVERY turn,
+     * the resident line SHOWN in that turn's text is the line carried by that
+     * turn's TurnResult — the line the robots read is always the current turn's
+     * line, never a stale one from a different turn and never read twice.
+     *
+     * The resident line surfaces in the text only inside the shaking paragraph,
+     * which renders only while the earthquake is shaking or has just stopped
+     * (isShaking || wasShakingPreviousTurn). On a turn with no shaking paragraph
+     * (e.g. seed 0, turn 8's offset) the line is still recorded on the
+     * TurnResult but has no slot in the text, so this invariant checks the
+     * direction that matters: whenever the text DOES show a line, it equals the
+     * current turn's TurnResult line. A regression that read a line one turn
+     * early or late — exactly the pre-prepareTurn behaviour — would surface a
+     * line in a turn's text that the same turn's TurnResult does not carry, and
+     * this test would fail.
+     *
+     * Checked for both robots across a full earthquake (turns 0–13) on the
+     * seed-0 fixture.
+     */
+    public function testEveryTurnsResidentLineIsTheLineShownInThatTurnsText(): void
+    {
+        [$engine, $world] = $this->makeSeededEngineAndWorld(0);
+        $world->earthquakeStartTurn = 0;
+
+        for ($turn = 0; $turn <= 13; $turn++) {
+            // prepareTurn fixes this turn's line and world; read the text the
+            // robots would read for this turn BEFORE applying it.
+            $engine->prepareTurn($turn);
+            $textLineA = $this->residentLineInText($engine->situationTextFor('robot_a'));
+            $textLineB = $this->residentLineInText($engine->situationTextFor('robot_b'));
+
+            $result = $engine->applyTurn($turn, []);
+
+            if ($textLineA !== null) {
+                $this->assertSame(
+                    $result->residentLine,
+                    $textLineA,
+                    "Turn {$turn}: the line in robot_a's text must be this turn's TurnResult line.",
+                );
+            }
+            if ($textLineB !== null) {
+                $this->assertSame(
+                    $result->residentLine,
+                    $textLineB,
+                    "Turn {$turn}: the line in robot_b's text must be this turn's TurnResult line.",
+                );
+            }
+        }
+    }
+
+    /**
+     * Build an Engine over a seed-derived world (no explicit SituationSpec, so
+     * the layout comes from the seed exactly as the property test's buildEngine
+     * does), handing back the Engine and the live WorldModel so a test can set
+     * earthquakeStartTurn before driving turns.
+     *
+     * @return array{Engine,WorldModel}
+     */
+    private function makeSeededEngineAndWorld(int $seedValue): array
+    {
+        $world = new WorldModel($this->config);
+        $world->reset(Seed::fromInt($seedValue));
+
+        $engine = new Engine(
+            $world,
+            $this->config,
+            new RulesEvaluator(),
+            new ActionExecutor(),
+            new EarthquakePhase(),
+            new ResidentController(),
+            new SituationTextGenerator(),
+        );
+
+        return [$engine, $world];
+    }
+
+    /**
+     * Extract the resident line quoted in the shaking paragraph of a situation
+     * text, or null when the text voices no resident line this turn. The
+     * generator renders the line as either `The man shouts, "…"` (resident in
+     * the robot's room) or `You hear the man shout, "…"` (another room), so a
+     * single pattern captures both forms.
+     */
+    private function residentLineInText(string $text): ?string
+    {
+        if (preg_match('/(?:The man shouts, |You hear the man shout, )"([^"]*)"/', $text, $m) === 1) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Reduce a TurnResult to a plain, comparable array of its observable
+     * fields so two results can be compared by value without depending on
+     * object identity. Mirrors describeSnapshot for the resident/house/robot
+     * state the result carries.
+     *
+     * @param TurnResult $result
+     * @return array<string,mixed>
+     */
+    private function describeResult(TurnResult $result): array
+    {
+        $judgements = [];
+        foreach ($result->judgements as $robotId => $judgement) {
+            $judgements[$robotId] = [
+                'possible' => $judgement->possible,
+                'reason' => $judgement->reason,
+                'dangerous' => $judgement->dangerous,
+                'dangerCode' => $judgement->dangerCode,
+            ];
+        }
+
+        $outcomes = [];
+        foreach ($result->outcomes as $robotId => $outcome) {
+            $outcomes[$robotId] = [
+                'success' => $outcome->success,
+                'whatHappenedText' => $outcome->whatHappenedText,
+                'errorMessage' => $outcome->errorMessage,
+            ];
+        }
+
+        return [
+            'turnNumber' => $result->turnNumber,
+            'residentLine' => $result->residentLine,
+            'episodeEnded' => $result->episodeEnded,
+            'isError' => $result->isError,
+            'errorMessage' => $result->errorMessage,
+            'judgements' => $judgements,
+            'outcomes' => $outcomes,
+            'snapshot' => $this->describeSnapshot($result->worldSnapshot),
+        ];
+    }
+
+    /**
+     * Reduce a WorldSnapshot to a plain, comparable array of its observable
+     * fields (same shape as EnginePropertyTest::describeSnapshot), so two
+     * snapshots can be compared field-by-field without object identity.
+     *
+     * @param mixed $snapshot WorldSnapshot
+     * @return array<string,mixed>
+     */
+    private function describeSnapshot(mixed $snapshot): array
+    {
+        $objects = [];
+        foreach ($snapshot->objects as $id => $object) {
+            $objects[$id] = [
+                'room' => $object->room,
+                'spot' => $object->spot,
+                'on' => $object->on,
+                'open' => $object->open,
+                'broken' => $object->broken,
+                'fallen' => $object->fallen,
+            ];
+        }
+
+        $robots = [];
+        foreach ($snapshot->robotStates as $id => $robot) {
+            $robots[$id] = [
+                'room' => $robot->room,
+                'spot' => $robot->spot,
+                'heldObjectId' => $robot->heldObjectId,
+                'coverFlag' => $robot->coverFlag,
+                'supportTurnsRemaining' => $robot->supportTurnsRemaining,
+            ];
+        }
+
+        $resident = $snapshot->residentState;
+        $house = $snapshot->houseState;
+
+        return [
+            'objects' => $objects,
+            'robots' => $robots,
+            'resident' => [
+                'bodyTemp' => $resident->bodyTemp,
+                'water' => $resident->water,
+                'injury' => $resident->injury,
+                'fear' => $resident->fear,
+                'weakened' => $resident->weakened,
+                'room' => $resident->room,
+                'spot' => $resident->spot,
+                'coverFlag' => $resident->coverFlag,
+            ],
+            'house' => [
+                'power' => $house->power,
+                'gasMain' => $house->gasMain,
+                'floorWaterLevel' => $house->floorWaterLevel,
+                'shaking' => $house->shaking,
+                'fallingObjects' => $house->fallingObjects,
+                'timeOfDay' => $house->timeOfDay,
+            ],
+        ];
+    }
 }

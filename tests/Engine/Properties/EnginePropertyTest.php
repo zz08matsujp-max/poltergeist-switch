@@ -173,6 +173,95 @@ class EnginePropertyTest extends TestCase
     }
 
     /**
+     * Property: prepareTurn then applyTurn advances the earthquake exactly once
+     * and leaves the same world snapshot as applyTurn alone (task 28.3).
+     *
+     * For any earthquake episode and any run length of 1–13 turns, driving each
+     * turn as prepareTurn($n) followed by applyTurn($n, …) must, turn by turn,
+     * (a) advance the earthquake EXACTLY ONCE and (b) leave the identical world
+     * SNAPSHOT as driving the very same turns with applyTurn($n, …) alone. The
+     * earthquake advancing once is what makes the two snapshots match: prepareTurn
+     * advances it and applyTurn's $preparedTurn guard skips the second advance
+     * (Req 13.4, Req 13.5), while the plain run advances it inside applyTurn as
+     * before (Req 13.7). A double advance on the prepared path would push the
+     * shaking/power/falling-object state one offset ahead and the snapshots would
+     * diverge; equal snapshots across every turn are the evidence of the single
+     * advance. The two runs reset separate WorldModel instances from the same
+     * seed, so any snapshot difference would be caused solely by prepareTurn.
+     *
+     * The property is deliberately NARROWED to the earthquake-advance count and
+     * the world snapshot; it does NOT assert full TurnResult equality, because
+     * the TurnResult's `residentLine` legitimately DIFFERS between the two paths
+     * (maintainer decision, 2026-11-08). On the prepared path a scripted line
+     * belongs to the turn in which the robots READ it: a line triggered by
+     * turn n's resident update is fixed by prepareTurn(n+1) and so is carried into
+     * turn n+1's text and TurnResult. On the old unprepared path the same line was
+     * recorded on turn n's TurnResult but was also only first read in turn n+1's
+     * text — i.e. it was stored a turn before it was read, and when turn n+1 had
+     * no shaking paragraph the line was lost from the text entirely. prepareTurn
+     * closes that gap by shifting the line one turn later so the TurnResult turn
+     * and the read turn coincide; that one-turn residentLine shift is intended by
+     * Req 13.8 and is exactly why full TurnResult equality must not be asserted
+     * here. (For the concrete seed-0 shift — fear line turn 7 → turn 8 — and the
+     * per-turn text/TurnResult agreement, see the integration tests
+     * testSeed0FearLineShiftsToNextTurnOnPreparedPath and
+     * testEveryTurnsResidentLineIsTheLineShownInThatTurnsText.)
+     *
+     * Validates: Requirements 13.4, 13.5, 13.7, 11.4
+     */
+    public function testPrepareThenApplyAdvancesEarthquakeOnceAndMatchesSnapshot(): void
+    {
+        $this->limitTo(100)
+            ->forAll(
+                Generators::int(),
+                Generators::choose(1, 13),
+            )
+            ->then(function (int $seedValue, int $turnCount): void {
+                // Two independent Seed instances from the same int: a Seed's
+                // PRNG state is consumed by reset(), so each engine needs its
+                // own Seed to derive the identical starting world (SeedTest).
+                $plainSeed = Seed::fromInt($seedValue);
+                $preparedSeed = Seed::fromInt($seedValue);
+
+                // Run A: applyTurn alone, earthquake from turn 0. The earthquake
+                // advances once per turn inside applyTurn (Req 13.7), so this run
+                // is the "exactly once" reference the prepared run must match.
+                $plain = $this->buildEngine($plainSeed, $plainWorld);
+                $plainWorld->earthquakeStartTurn = 0;
+
+                // Run B: prepareTurn before each applyTurn, same seed and start.
+                // prepareTurn advances the earthquake; applyTurn's $preparedTurn
+                // guard then skips its own advance, so the earthquake still
+                // advances exactly once for the turn (Req 13.4, Req 13.5).
+                $prepared = $this->buildEngine($preparedSeed, $preparedWorld);
+                $preparedWorld->earthquakeStartTurn = 0;
+
+                for ($turn = 0; $turn < $turnCount; $turn++) {
+                    $plainResult = $plain->applyTurn($turn, []);
+
+                    $prepared->prepareTurn($turn);
+                    $preparedResult = $prepared->applyTurn($turn, []);
+
+                    // The single-advance evidence: the earthquake-driven world
+                    // SNAPSHOT (shaking, power, falling objects, rooms, resident
+                    // placement) must match turn by turn. Were the earthquake
+                    // advanced twice on the prepared path, this snapshot would be
+                    // one offset ahead and diverge. We intentionally compare only
+                    // the snapshot, NOT the whole TurnResult, because residentLine
+                    // legitimately differs between the two paths (see the method
+                    // docblock and Req 13.8).
+                    $this->assertEquals(
+                        $this->describeSnapshot($plainResult->worldSnapshot),
+                        $this->describeSnapshot($preparedResult->worldSnapshot),
+                        "World snapshot must match with and without prepareTurn for turn {$turn} "
+                            . "(the earthquake advanced exactly once) "
+                            . "(seed {$seedValue}, turnCount {$turnCount})"
+                    );
+                }
+            });
+    }
+
+    /**
      * Property 4: applyTurn idempotency.
      *
      * Validates: Requirements 10.2, 10.3, 11.4
