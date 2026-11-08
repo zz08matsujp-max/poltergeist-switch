@@ -102,7 +102,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 1.7_
 
 - [ ] 7. House_Renderer
-  - [~] 7.1 Implement `house-renderer.js` ported from `pilot/look.php`
+  - [x] 7.1 Implement `house-renderer.js` ported from `pilot/look.php`
     - Own a `<canvas width="480" height="236">` drawn with `imageSmoothingEnabled = false` and displayed scaled with CSS `image-rendering: pixelated` (Req 1.1); draw the six rooms in the fixed left-to-right bands mapping the engine's room keys onto the ported cross-section, with the ported furniture, decorations, and outdoor scenery (jack-o'-lantern lantern, persimmon tree, bats, pampas grass, will-o'-the-wisp) (Req 1.2); draw a window in the five rooms that have a window fixture and none in the storeroom
     - Draw Amber (amber, round head, antenna), Jade (jade, square head, scanning eye), and the man with a cane (Req 1.5); place each character via the Position_Map for its Room_Key and Spot, falling back to the room's default standing place when the map returns no position (Req 1.6, 1.7); offset two characters horizontally when they resolve to the same position (Req 1.8)
     - Choose the man's pose from his Spot first (`under_table` → crouch/`duck`, `beside_futon` → beside the futon) then fall back to his Man_Activity pose (sitting at the low table, asleep in the futon, in the bathtub, cooking at the stove, standing with the cane) (Req 1.9)
