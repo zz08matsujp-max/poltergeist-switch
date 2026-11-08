@@ -108,7 +108,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x]* 6.4 Write an example test for the Appendix A `Memories_Block` format and its position between the house and recent-events sections (heading, each body in its own `"""` block, oldest first, the exact separators)
     - _Requirements: 6.3, 6.4, 9.9_
 
-- [ ] 7. MemoryService — snapshot, reset, status
+- [x] 7. MemoryService — snapshot, reset, status
   - [x] 7.1 Implement `MemoryService` in `src/Memory/MemoryService.php`:
     - `snapshotForNewEpisode($episodeId)`: read the current generation, read each robot's active-memory bodies of that generation across all disasters oldest first capped at 18, store the two ordered lists and the generation with the episode (called inside `createEpisode`, reusing the same insert transaction)
     - `reset()`: advance the current generation to a new higher integer, delete no memory row; returns a `MemoryStatus`
@@ -123,7 +123,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x]* 7.3 Write an example test in `tests/Memory/MemoryServiceTest.php` for a reset during a running episode: the running episode keeps its generation and snapshot and its later reflection is stored under its own generation
     - _Requirements: 4.4, 9.9_
 
-- [ ] 8. ReflectService — asking, idempotency, storing answers
+- [x] 8. ReflectService — asking, idempotency, storing answers
   - [x] 8.1 Implement `ReflectService` in `src/Memory/ReflectService.php` (reuses the turn-loop `RobotClient`, `ParallelHttp`, `EngineFactory`, `Config`; holds no rules logic):
     - guard: load the episode; 404 if unknown; 409 `not_ended` if it has not ended (including an episode released after 5 idle minutes — it is not marked ended), changing no state and making no `RobotClient` call; 409 `not_reflectable` for a pre-feature episode whose snapshot columns are NULL, changing no state and making no `RobotClient` call
     - rebuild the episode via `EngineFactory::forEpisode` (which now sets memories from the stored snapshot) to obtain the ordered `TurnRecord`s, the earthquake start turn, and the final `WorldModel`
@@ -148,12 +148,12 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - extend `api/episodes_create.php` to call `MemoryService::snapshotForNewEpisode($episodeId)` inside the create flow so every new episode carries a snapshot and a generation; add the three routes to `router.php`
     - each entry point only parses the request, calls one service method, writes JSON, and sends `Cache-Control: no-store`; no logic in `api/`; no device id, key, credential, or company/model name in any body
     - _Requirements: 2.1, 2.12, 4.1, 4.5, 5.1, 5.4, 5.5, 6.1_
-  - [~] 9.2 Write the no-leak and no-store property tests in `tests/Memory/Properties/`:
+  - [x] 9.2 Write the no-leak and no-store property tests in `tests/Memory/Properties/`:
     - **Property 9: No memory response leaks a secret, device id, or provider name** — for any reflect, reset, or status response the serialized body contains none of the configured API keys, database credentials, the secrets path, or any device id, and names neither AI provider nor model
     - **Property 10: Every memory response is JSON and uncacheable** — for any request to reflect, reset, or status the response body parses as JSON and carries `Cache-Control: no-store`
     - Each tagged `Feature: robot-memory, Property N: …`, `->limitTo(100)` (required, not optional)
     - _Requirements: 2.12, 4.5, 5.4, 5.5_
-  - [ ]* 9.3 Write a smoke/integration test in `tests/Memory/ApiRoutingTest.php` with a fake-backed service: the three routes resolve to their service methods; a reflection prompt/response is stored with `kind = 'reflection'` and turn number `-1` and no existing turn read (`kind = 'turn'`, turn numbers `0 … n`) returns it; a repository scan finds no secret literal in the files this spec changes
+  - [x]* 9.3 Write a smoke/integration test in `tests/Memory/ApiRoutingTest.php` with a fake-backed service: the three routes resolve to their service methods; a reflection prompt/response is stored with `kind = 'reflection'` and turn number `-1` and no existing turn read (`kind = 'turn'`, turn numbers `0 … n`) returns it; a repository scan finds no secret literal in the files this spec changes
     - _Requirements: 2.1, 2.5, 4.1, 5.1, 8.3_
 
 - [~] 10. Checkpoint — PHP side complete
