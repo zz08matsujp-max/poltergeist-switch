@@ -515,6 +515,20 @@
   function handleTurn409(res) {
     if (!res || res.status !== 409) { return false; }
     var body = res.body || {};
+    // An ended episode is reported as a 409 (error 'episode_ended'); do not
+    // re-ask it — stop advancing and fetch the final view for the End_Card
+    // (Req 5.11, 6.1). Returns true so the caller stops without surfacing a
+    // notice.
+    if (body.error === 'episode_ended') {
+      pendingAsk = null;
+      state.ended = true;
+      if (typeof body.currentExpectedTurn === 'number') {
+        state.expectedTurn = body.currentExpectedTurn;
+      }
+      stopLoop();
+      finishFromServer();
+      return true;
+    }
     if (typeof body.currentExpectedTurn === 'number') {
       state.expectedTurn = body.currentExpectedTurn;
       // The prefetched ask (if any) may now be for the wrong turn; drop it.
@@ -524,43 +538,424 @@
     return false;
   }
 
-  // ── seams for task 9.4 (End_Card + slot/resume/lab-busy UI) ─────────────────
+  // When a turn call reveals the episode has already ended (an 'episode_ended'
+  // 409), fetch the authoritative view once and show the End_Card from it
+  // (Req 5.11, 6.1). No further ask/apply is sent.
+  function finishFromServer() {
+    if (!api || !state.episodeId) { return; }
+    api.getEpisode(state.episodeId).then(function (res) {
+      if (res && res.status === 200 && res.body) {
+        onEpisodeEnded(res.body);
+      }
+    }, function () { /* ignore — the episode is ended regardless */ });
+  }
+
+  // ── End_Card (task 9.4, Req 6.1–6.7) ────────────────────────────────────────
 
   /**
-   * onEpisodeEnded(view) — SEAM for task 9.4. Called once, after the final
-   * turn's acting-out, when apply reported the episode ended (Req 5.11). Task
-   * 9.4 shows the End_Card here; task 9.3 marks the ended state and stops.
+   * onEpisodeEnded(view) — called once, after the final turn's acting-out, when
+   * apply reported the episode ended (Req 5.11). Renders the End_Card into
+   * #endcard-host (Req 6.1–6.7):
+   *   - the TOTAL turns taken as a non-negative integer (Req 6.1), counting only
+   *     the robot turns that were applied — turn 0 is the quiet, pre-earthquake
+   *     setup turn and is NOT a "turn taken", so a just-created / zero-robot-turn
+   *     episode shows 0 (Req 6.2);
+   *   - a per-robot SUMMARY drawn from the outcome texts across the episode, in
+   *     Amber/Jade terms (Req 6.1); a zero-turn end instead states that no robot
+   *     actions occurred (Req 6.2);
+   *   - the man's FINAL state from the last turn's world.man (Req 6.1);
+   *   - the FULL stored replies for Amber and Jade across turns (Req 6.1);
+   *   - the robots are named only Amber and Jade, with no AI company name in the
+   *     robots' text (Req 6.5 / 12.8);
+   *   - "Watch again" and "Close" buttons (Req 6.3): Close dismisses the card
+   *     (Req 6.4); "Watch again" opens Replay for this episode's id via the
+   *     relative URL replay.php?episode=<id> (Req 6.6), and on failure keeps the
+   *     card and shows an error (Req 6.7).
    */
   function onEpisodeEnded(view) {
     state.ended = true;
-    // TODO(9.4): show the End_Card with the turn count, per-robot summary, the
-    // man's final state, and the full stored replies (Amber/Jade only).
+    renderEndCard(view);
   }
+
+  // Count the robot turns actually taken: every applied turn with a positive
+  // turn number (turn 0 is the quiet setup turn, not a turn "taken"). Never
+  // negative (Req 6.1, 6.2).
+  function countTurnsTaken(view) {
+    if (!view || !view.turns) { return 0; }
+    var n = 0;
+    for (var i = 0; i < view.turns.length; i++) {
+      var t = view.turns[i];
+      if (t && typeof t.turnNumber === 'number' && t.turnNumber > 0 &&
+          t.state === 'applied') {
+        n++;
+      }
+    }
+    return n < 0 ? 0 : n;
+  }
+
+  // Robot turns in ascending order, turn 0 excluded (turn 0 carries no robot
+  // records). Used for the per-robot summary and the full replies.
+  function robotTurns(view) {
+    var out = [];
+    if (!view || !view.turns) { return out; }
+    view.turns.forEach(function (t) {
+      if (t && typeof t.turnNumber === 'number' && t.turnNumber > 0) {
+        out.push(t);
+      }
+    });
+    out.sort(function (a, b) { return a.turnNumber - b.turnNumber; });
+    return out;
+  }
+
+  // Per-robot summary line drawn from the outcome whatHappenedText across the
+  // episode (Req 6.1). Joins each turn's outcome text for that robot; falls back
+  // to the spoken words, then to a neutral "did nothing notable". Never the
+  // reply text, never a thought, never a company name.
+  function summariseRobot(turns, robotKey) {
+    var parts = [];
+    turns.forEach(function (t) {
+      var layers = t.robots && t.robots[robotKey];
+      if (!layers) { return; }
+      var text = '';
+      if (layers.outcome && layers.outcome.whatHappenedText) {
+        text = String(layers.outcome.whatHappenedText);
+      } else {
+        var words = (layers.reading && layers.reading.words) || [];
+        if (words && words.length) { text = words.join(' '); }
+      }
+      if (text) { parts.push(text); }
+    });
+    if (!parts.length) { return 'did nothing notable.'; }
+    return parts.join(' ');
+  }
+
+  // The full stored reply for a robot across the turns, shown in full (Req 6.1).
+  // Each turn's reply is the robot's own stored text; a no-reply turn is noted.
+  function fullReplyFor(turns, robotKey) {
+    var blocks = [];
+    turns.forEach(function (t) {
+      var layers = t.robots && t.robots[robotKey];
+      if (!layers) { return; }
+      var head = 'Turn ' + String(t.turnNumber) + ':';
+      if (layers.noReply || !layers.reply) {
+        blocks.push(head + ' (no reply)');
+      } else {
+        blocks.push(head + '\n' + String(layers.reply));
+      }
+    });
+    return blocks.join('\n\n');
+  }
+
+  // Describe the man's final state from the last turn's world.man (Req 6.1).
+  function describeManFinal(view) {
+    var turns = (view && view.turns) ? view.turns.slice() : [];
+    turns.sort(function (a, b) {
+      return (a.turnNumber || 0) - (b.turnNumber || 0);
+    });
+    var man = null;
+    for (var i = turns.length - 1; i >= 0; i--) {
+      if (turns[i] && turns[i].world && turns[i].world.man) {
+        man = turns[i].world.man;
+        break;
+      }
+    }
+    if (!man) { return 'The man\u2019s final state is not recorded.'; }
+    var bits = [];
+    if (typeof man.bodyTemp === 'number') { bits.push('temperature ' + man.bodyTemp.toFixed(1) + '\u00b0'); }
+    if (typeof man.water === 'number') { bits.push('water ' + Math.round(man.water)); }
+    if (typeof man.injury === 'number') { bits.push('injury ' + Math.round(man.injury)); }
+    if (typeof man.fear === 'number') { bits.push('fear ' + Math.round(man.fear)); }
+    var line = 'The man ends with ' + (bits.length ? bits.join(', ') : 'no recorded meters') + '.';
+    if (man.weakened) { line += ' He is weakened.'; }
+    if (man.injury && man.injury > 0 && !man.weakened) { line += ' He is hurt.'; }
+    return line;
+  }
+
+  // Build and show the End_Card in #endcard-host (Req 6.1–6.7).
+  function renderEndCard(view) {
+    if (!el.endcardHost) { return; }
+    clearNotice();
+
+    var count = countTurnsTaken(view);
+    var turns = robotTurns(view);
+    var zero = (count === 0);
+
+    // Clear any previous card.
+    el.endcardHost.textContent = '';
+
+    var card = document.createElement('div');
+    card.className = 'endcard';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-label', 'Episode ended');
+
+    var h = document.createElement('h2');
+    h.textContent = 'Episode ended \u2014 ' + String(count) +
+      (count === 1 ? ' turn taken' : ' turns taken');
+    card.appendChild(h);
+
+    // Per-robot summary (Req 6.1 / 6.2).
+    var summary = document.createElement('div');
+    summary.className = 'endcard-summary';
+    if (zero) {
+      var none = document.createElement('p');
+      none.textContent = 'No robot actions occurred.';
+      summary.appendChild(none);
+    } else {
+      summary.appendChild(summaryLine('Amber', summariseRobot(turns, 'robot_a')));
+      summary.appendChild(summaryLine('Jade', summariseRobot(turns, 'robot_b')));
+    }
+    card.appendChild(summary);
+
+    // The man's final state (Req 6.1).
+    var manP = document.createElement('p');
+    manP.className = 'endcard-man';
+    manP.textContent = describeManFinal(view);
+    card.appendChild(manP);
+
+    // Full stored replies for Amber and Jade (Req 6.1).
+    if (!zero) {
+      card.appendChild(replyBlock('Amber', 'amber', fullReplyFor(turns, 'robot_a')));
+      card.appendChild(replyBlock('Jade', 'jade', fullReplyFor(turns, 'robot_b')));
+    }
+
+    // Error line (used only when "Watch again" fails — Req 6.7).
+    var err = document.createElement('div');
+    err.className = 'message error';
+    err.hidden = true;
+    card.appendChild(err);
+
+    // Buttons (Req 6.3).
+    var actions = document.createElement('div');
+    actions.className = 'controls';
+
+    var again = document.createElement('button');
+    again.type = 'button';
+    again.className = 'btn primary';
+    again.textContent = 'Watch again';
+    again.addEventListener('click', function () {
+      openReplay(state.episodeId, function () {
+        // Req 6.7: keep the card, show the error.
+        err.textContent = 'The replay could not be opened.';
+        err.hidden = false;
+      });
+    });
+    actions.appendChild(again);
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn';
+    close.textContent = 'Close';
+    close.addEventListener('click', dismissEndCard);
+    actions.appendChild(close);
+
+    card.appendChild(actions);
+    el.endcardHost.appendChild(card);
+  }
+
+  function summaryLine(name, text) {
+    var p = document.createElement('p');
+    var b = document.createElement('strong');
+    b.textContent = name + ': ';
+    p.appendChild(b);
+    p.appendChild(document.createTextNode(text));
+    return p;
+  }
+
+  function replyBlock(name, cls, text) {
+    var wrap = document.createElement('div');
+    wrap.className = 'reply ' + cls;
+    var h3 = document.createElement('h3');
+    h3.textContent = name + ' \u2014 full reply';
+    wrap.appendChild(h3);
+    var body = document.createElement('div');
+    body.className = 'text';
+    body.textContent = text || '(no reply recorded)';
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  // Dismiss the End_Card (Req 6.4).
+  function dismissEndCard() {
+    if (el.endcardHost) { el.endcardHost.textContent = ''; }
+  }
+
+  // Open the Replay screen for an episode id via a RELATIVE URL (no leading
+  // slash), consistent with the api.js / index.php relative-URL rule (Req 6.6,
+  // 12.9/12.10). Calls onFail() if it cannot be opened (Req 6.7).
+  function openReplay(episodeId, onFail) {
+    if (!episodeId) { if (typeof onFail === 'function') { onFail(); } return; }
+    try {
+      var url = 'replay.php?episode=' + encodeURIComponent(String(episodeId));
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.assign(url);
+        return;
+      }
+      if (typeof onFail === 'function') { onFail(); }
+    } catch (e) {
+      if (typeof onFail === 'function') { onFail(); }
+    }
+  }
+
+  // ── slot / resume / lab-busy handling (task 9.4, Req 7.1–7.4) ───────────────
 
   /**
-   * handleSlotConflict(body) — SEAM for task 9.4. Called when POST /api/episodes
-   * is rejected with 409 (this device already runs an episode, or the lab is
-   * busy). Task 9.4 builds the resume / "lab is busy" UI; task 9.3 shows a plain
-   * notice so a 409 never crashes the loop (Req 7.1–7.4).
+   * handleSlotConflict(body) — called when POST /api/episodes is rejected with
+   * 409. The server encodes the reason in the body's `error` code (see
+   * TurnService::createEpisode):
+   *   - 'device_already_running' → this device already runs an episode: show a
+   *     message and a RESUME control (Req 7.1); resume fetches
+   *     GET /api/episodes/{id} and continues from the returned
+   *     currentExpectedTurn (Req 7.2); on failure show a could-not-resume error
+   *     and offer Replay (Req 7.3). The 409 body carries no id, so the id comes
+   *     from body.episodeId when present, else the device's running episode id
+   *     this page already holds (state.episodeId).
+   *   - 'too_many_running' → 5 episodes run across all devices: show a
+   *     "lab is busy" message and a control that opens Replay (Req 7.4).
    */
   function handleSlotConflict(body) {
-    // TODO(9.4): device-busy → resume control (GET /api/episodes/{id}); 5
-    // running → "lab is busy" + open Replay. For now, a plain notice.
-    showNotice('An episode is already in progress. Please try again shortly.');
+    body = body || {};
+    var code = body.error;
+    if (code === 'too_many_running') {
+      showLabBusy();
+      return;
+    }
+    // Default to the device-busy path (device_already_running, or any other
+    // create 409): offer resume.
+    var resumeId = body.episodeId || state.episodeId || null;
+    showDeviceBusy(resumeId);
   }
 
-  // ── notice helpers (a plain seam 9.4 replaces with the resume/busy UI) ──────
+  // Device already runs an episode (Req 7.1): a message plus a Resume control
+  // and a Replay fallback.
+  function showDeviceBusy(resumeId) {
+    renderNoticePanel(
+      'A running episode already exists on this device.',
+      [
+        { label: 'Resume', primary: true, onClick: function () { resumeEpisode(resumeId); } },
+        { label: 'Watch a past episode', onClick: goReplayList }
+      ]
+    );
+  }
+
+  // Lab is busy (Req 7.4): a message plus a control that opens Replay.
+  function showLabBusy() {
+    renderNoticePanel(
+      'The lab is busy \u2014 five episodes are already running. Please try again later.',
+      [
+        { label: 'Watch a past episode', primary: true, onClick: goReplayList }
+      ]
+    );
+  }
+
+  // Resume the device's running episode (Req 7.2): GET /api/episodes/{id} and
+  // continue from the returned currentExpectedTurn; on failure show a
+  // could-not-resume error and offer Replay (Req 7.3).
+  function resumeEpisode(resumeId) {
+    if (!resumeId || !api) { showResumeFailed(); return; }
+    api.getEpisode(resumeId).then(function (res) {
+      if (!res || res.status !== 200 || !res.body || !res.body.episodeId) {
+        showResumeFailed();
+        return;
+      }
+      clearNotice();
+      adoptEpisode(res.body);
+      // Redraw from the latest recorded turn so the house reflects where the
+      // episode stands, then continue the loop (Req 7.2). Never discards the
+      // recorded turns.
+      redrawLatest(res.body);
+      if (state.ended) {
+        // Already finished — show the End_Card instead of running (Req 5.11).
+        onEpisodeEnded(res.body);
+        return;
+      }
+      setEarthquakeLever(res.body.earthquakeStartTurn !== null &&
+        res.body.earthquakeStartTurn !== undefined);
+      runLoop();
+    }, function () {
+      showResumeFailed();
+    });
+  }
+
+  function showResumeFailed() {
+    renderNoticePanel(
+      'That episode could not be resumed.',
+      [
+        { label: 'Watch a past episode', primary: true, onClick: goReplayList }
+      ],
+      true
+    );
+  }
+
+  // Draw the house from the latest recorded turn's world (resume redraw).
+  function redrawLatest(view) {
+    var turns = (view && view.turns) ? view.turns.slice() : [];
+    turns.sort(function (a, b) { return (a.turnNumber || 0) - (b.turnNumber || 0); });
+    var world = null;
+    for (var i = turns.length - 1; i >= 0; i--) {
+      if (turns[i] && turns[i].world) { world = turns[i].world; break; }
+    }
+    if (house && world) {
+      try { house.setWorld(world); } catch (e) { /* ignore */ }
+      if (world.man) { updateMeters(world.man); }
+    }
+    // Re-populate the log from every recorded robot turn, in order.
+    turns.forEach(function (t) {
+      if (t && typeof t.turnNumber === 'number' && t.turnNumber > 0 &&
+          t.state === 'applied') {
+        appendLog(t.turnNumber, buildLogEntries(t));
+      }
+    });
+  }
+
+  // Navigate to the Replay list (no chosen episode) via a relative URL (Req 7.4,
+  // 7.3, 12.9/12.10).
+  function goReplayList() {
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.assign('replay.php');
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── notice helpers + the resume/busy panel ──────────────────────────────────
 
   function showNotice(text) {
     if (!el.notice) { return; }
+    el.notice.className = 'message';
     el.notice.textContent = text || '';
     el.notice.hidden = !text;
   }
 
   function clearNotice() {
     if (!el.notice) { return; }
+    el.notice.className = 'message';
     el.notice.textContent = '';
     el.notice.hidden = true;
+  }
+
+  // Render a message plus one or more action buttons into #notice (used by the
+  // device-busy / lab-busy / resume-failed flows, Req 7.1–7.4).
+  function renderNoticePanel(message, buttons, isError) {
+    if (!el.notice) { return; }
+    el.notice.className = 'message' + (isError ? ' error' : '');
+    el.notice.textContent = '';
+    el.notice.hidden = false;
+
+    var p = document.createElement('p');
+    p.textContent = message;
+    el.notice.appendChild(p);
+
+    var row = document.createElement('div');
+    row.className = 'controls';
+    (buttons || []).forEach(function (b) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn' + (b.primary ? ' primary' : '');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      row.appendChild(btn);
+    });
+    el.notice.appendChild(row);
   }
 
   // ── UI setup wiring (task 9.2) ──────────────────────────────────────────────
@@ -620,6 +1015,7 @@
     clearMeters();
     clearLog();
     clearNotice();
+    dismissEndCard();
   }
 
   function lookupDom() {
