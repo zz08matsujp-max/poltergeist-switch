@@ -61,6 +61,7 @@ final class FakeRobotClient implements RobotClient
             $d->cost,
             $d->unanswered,
             $d->truncated,
+            $d->failureReason,
         );
     }
 
