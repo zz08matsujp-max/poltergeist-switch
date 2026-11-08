@@ -852,6 +852,54 @@
         "chatSessionId": "sess_107cdc85-04a0-43e3-9e51-0eb0f4f36315",
         "timestamp": 1794063027169
       }
+    ],
+    "28.1 Implement `prepareTurn(int $turnNumber): void` on `Engine` (Req 13):": [
+      {
+        "executionId": "6d8f09f3-7c2f-4262-a254-c6731d655242",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794095248943
+      },
+      {
+        "executionId": "6d8f09f3-7c2f-4262-a254-c6731d655242",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794095456666
+      }
+    ],
+    "28.2 Guard `applyTurn` step 2 on the `$preparedTurn` marker (Req 13):": [
+      {
+        "executionId": "6d8f09f3-7c2f-4262-a254-c6731d655242",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794095461712
+      },
+      {
+        "executionId": "6d8f09f3-7c2f-4262-a254-c6731d655242",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794095696181
+      }
+    ],
+    "28.3 Tests in `tests/Engine/EngineIntegrationTest.php` and the property suite:": [
+      {
+        "executionId": "6d8f09f3-7c2f-4262-a254-c6731d655242",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794095704092
+      },
+      {
+        "executionId": "31ea99d1-35ae-4151-bfde-d871832947d4",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794096478732
+      },
+      {
+        "executionId": "31ea99d1-35ae-4151-bfde-d871832947d4",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794097157048
+      }
+    ],
+    "28. Engine::prepareTurn — same-world turn preparation (added 2026-11-08)": [
+      {
+        "executionId": "31ea99d1-35ae-4151-bfde-d871832947d4",
+        "chatSessionId": "sess_db07f4c4-dd70-4fc3-a218-e94d41e0d468",
+        "timestamp": 1794097157226
+      }
     ]
   }
 }

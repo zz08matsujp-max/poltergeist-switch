@@ -461,7 +461,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
   - [x] 27.3 Model solution test: assert that every planned action is judged possible, and in S2 that the bedroom is not dark on turns T5–T11
   - _Requirements: Req 2.4–2.5, Req 4.6, Req 11.6_
 
-- [ ] 28. Engine::prepareTurn — same-world turn preparation (added 2026-11-08)
+- [x] 28. Engine::prepareTurn — same-world turn preparation (added 2026-11-08)
   - [x] 28.1 Implement `prepareTurn(int $turnNumber): void` on `Engine` (Req 13):
     - Advance the earthquake world to the turn about to be played WITHOUT judging: capture the stove-was-on flag on the earthquake-start transition (call `EarthquakePhase::captureStoveWasOn()` when `earthquakeStartTurn` is set), advance the earthquake phase by that turn's offset via the same `EarthquakePhase::advanceTurn($world, $seed, $offset)` call `applyTurn` uses, select falling objects on a shaking turn, and set the four SituationView flags (`wasShakingPreviousTurn`, `didLightsGoOutThisTurn`, `residentSpeaksThisTurn`, `residentLine`) and the resident line
     - Idempotent per turn: record the prepared turn in a `$preparedTurn` int marker; a second call for the same turn number does nothing
@@ -473,7 +473,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - If the turn was already prepared, skip the earthquake advance (it already happened in `prepareTurn`) and proceed to evaluation; otherwise advance the earthquake here as before, so `applyTurn` stays correct whether or not `prepareTurn` was called (backward compatible)
     - A `prepareTurn($n)` followed by `applyTurn($n, …)` must advance the earthquake exactly once
     - _Requirements: Req 13.4, Req 13.5_
-  - [-] 28.3 Tests in `tests/Engine/EngineIntegrationTest.php` and the property suite:
+  - [x] 28.3 Tests in `tests/Engine/EngineIntegrationTest.php` and the property suite:
     - After `prepareTurn($n)`, `situationTextFor()` for both robots renders turn $n's world (e.g. the first shaking turn after the switch opens "Suddenly the floor begins to shake hard."; an offset-5 turn shows "The shaking has stopped." consistently with the judgement)
     - `prepareTurn($n)` is idempotent: calling it twice then `applyTurn($n, …)` gives the same TurnResult and snapshot as calling it once
     - A turn played WITHOUT `prepareTurn` yields the identical TurnResult as before this task (backward compatibility)
