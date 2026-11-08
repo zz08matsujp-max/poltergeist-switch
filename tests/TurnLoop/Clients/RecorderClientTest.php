@@ -82,7 +82,7 @@ class RecorderClientTest extends TestCase
         $this->assertNotContains('futon', $input->roomObjectIds);
 
         // Fixed spots and the literal resident id, nothing else.
-        $this->assertSame(['window', 'gas_stove', 'under_table', 'beside_futon'], $input->spotNames);
+        $this->assertSame(['window', 'gas_stove', 'under_table', 'beside_futon', 'near_resident'], $input->spotNames);
         $this->assertSame('resident', $input->residentId);
     }
 
@@ -138,6 +138,34 @@ class RecorderClientTest extends TestCase
         $this->assertSame(Operation::speak->value, $reading->action->operation);
         $this->assertSame(['Are you all right?'], $reading->action->words);
         $this->assertNull($reading->action->targetId);
+        // The actionQuote is the first spoken line so the reading survives the
+        // evidence check as `speak` (it is an exact substring of the reply).
+        $this->assertSame('Are you all right?', $reading->action->actionQuote);
+    }
+
+    public function testSpeakOnlyReadingSurvivesEvidenceCheckAsSpeak(): void
+    {
+        // A speak-only reply: the robot only speaks and does nothing physical.
+        // The spoken line is copied verbatim from the reply, so the mapped
+        // `speak` action must survive EvidenceCheck instead of becoming
+        // `unknown` (Part C regression: a null actionQuote used to drop it).
+        $reply = 'I say to the man, "Are you all right?"';
+        $mapper = new ReadingMapper();
+        $json = json_encode([
+            'operation' => null,
+            'words' => ['Are you all right?'],
+        ]);
+
+        $reading = $mapper->map('robot_a', $json, 'recorder-2');
+
+        $this->assertSame(Operation::speak->value, $reading->action->operation, 'guard: maps to speak');
+        $this->assertSame('Are you all right?', $reading->action->actionQuote, 'guard: quote is the first spoken line');
+
+        $verified = VerifiedReading::verify($reply, $reading);
+
+        $this->assertFalse($verified->unknown, 'a speak-only reading must survive the evidence check');
+        $this->assertSame(Operation::speak->value, $verified->action->operation);
+        $this->assertSame(['Are you all right?'], $verified->action->words, 'the spoken line survives');
     }
 
     public function testMapsExplicitWaitToWait(): void
@@ -299,6 +327,42 @@ class RecorderClientTest extends TestCase
     {
         $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
         $this->assertNotSame('', $client->promptVersion());
+    }
+
+    public function testPromptVersionIsRecorderTwo(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $this->assertSame('recorder-2', $client->promptVersion());
+    }
+
+    /**
+     * Guards the "sends the text between the two `---` lines, exactly" contract
+     * (Requirement 3.5): the recorder's fixed instruction text must equal the
+     * block between the two `---` delimiters in docs/en/recorder-prompt-v2.md,
+     * character-for-character.
+     */
+    public function testInstructionTextEqualsRecorderPromptDocBlock(): void
+    {
+        $docPath = dirname(__DIR__, 3) . '/docs/en/recorder-prompt-v2.md';
+        $this->assertFileExists($docPath);
+
+        $doc = file_get_contents($docPath);
+        $this->assertIsString($doc);
+
+        // Slice the block between the first and second `---` delimiter lines.
+        $parts = preg_split('/^---$/m', $doc);
+        $this->assertNotFalse($parts);
+        $this->assertGreaterThanOrEqual(3, count($parts), 'the doc must have two --- delimiter lines');
+
+        // Trim only the newlines the markdown delimiters introduce around the
+        // block, leaving the block's own text untouched.
+        $expected = trim($parts[1], "\n");
+
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $method = new \ReflectionMethod($client, 'instructionText');
+        $actual = $method->invoke($client);
+
+        $this->assertSame($expected, $actual);
     }
 
     // ---------- FakeRecorderClient (Requirement 14.1) ----------

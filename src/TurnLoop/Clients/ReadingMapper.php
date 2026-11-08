@@ -73,6 +73,13 @@ final class ReadingMapper
 
         // Speak-only: no physical operation but spoken lines present →
         // operation `speak` carrying the spoken lines (Requirement 3.3).
+        //
+        // The actionQuote is the first spoken line. Each spoken line is copied
+        // verbatim from the reply (recorder rule 5), so the first line is an
+        // exact substring of the reply, which lets EvidenceCheck::verify keep
+        // the `speak` operation instead of turning it into `unknown`. Without a
+        // non-null, quote-backed actionQuote the evidence check would discard a
+        // valid speak-only reading.
         if (($operation === null || $operation === Operation::speak->value) && $words !== []) {
             $action = new Action(
                 robotId: $robotId,
@@ -80,7 +87,7 @@ final class ReadingMapper
                 targetId: null,
                 targetSpot: null,
                 words: $words,
-                actionQuote: $operation === Operation::speak->value ? $actionQuote : null,
+                actionQuote: $words[0],
                 reported: $reported,
             );
 

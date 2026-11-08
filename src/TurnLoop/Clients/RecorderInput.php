@@ -29,7 +29,7 @@ readonly class RecorderInput
      */
     public static function spotNames(): array
     {
-        return ['window', 'gas_stove', 'under_table', 'beside_futon'];
+        return ['window', 'gas_stove', 'under_table', 'beside_futon', 'near_resident'];
     }
 
     /**
@@ -37,7 +37,7 @@ readonly class RecorderInput
      * @param string[] $roomKeys       the six room keys
      * @param string[] $roomObjectIds  ids of objects in the robot's current room
      * @param ?string  $heldObjectId   the held object's id, or null
-     * @param string[] $spotNames      ['window','gas_stove','under_table','beside_futon']
+     * @param string[] $spotNames      ['window','gas_stove','under_table','beside_futon','near_resident']
      * @param string   $residentId     'resident'
      */
     public function __construct(
