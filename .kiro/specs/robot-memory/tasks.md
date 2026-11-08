@@ -50,7 +50,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x]* 3.2 Write unit tests in `tests/Memory/Values/` for round-trip construction of each value object; `MemorySnapshot::isEmpty()`; `RobotReflection` carries a reason only when not answered
     - _Requirements: 2.6, 3.7, 5.2_
 
-- [ ] 4. EpisodeRepository additions — interface, in-memory fake, and PDO implementation
+- [x] 4. EpisodeRepository additions — interface, in-memory fake, and PDO implementation
   - [x] 4.1 Extend the turn-loop `EpisodeRepository` interface with the memory methods:
     - generations (`currentGeneration`, `advanceGeneration`), per-episode snapshot + generation (`storeEpisodeMemory`, `episodeGeneration`, `episodeSnapshot`), memory reads (`activeMemories`, `activeCount`), the atomic cap/retire write (`appendMemory`), and the reflection slot claim/commit (`claimReflectionSlot`, `commitReflectionAnswer`, `commitReflectionFailure`, `reflectionAnswer`)
     - _Requirements: 8.1_
@@ -68,7 +68,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - **Property 2: Memories round-trip verbatim with their tags in finish order** — storing a non-empty answer appends exactly one memory whose body equals the answer byte-for-byte with matching robot, generation, disaster, source episode, and created time, read back in finish order
     - Each tagged `Feature: robot-memory, Property N: …`, `Eris\TestTrait`, `->limitTo(100)`
     - _Requirements: 9.2, 3.3, 3.4, 3.5, 3.6, 3.8, 8.4, 2.6, 3.7_
-  - [ ]* 4.5 Write unit tests in `tests/Memory/Repository/EpisodeRepositoryTest.php` against the in-memory fake (required behaviour), with the `PdoEpisodeRepository` locking/atomicity tests written to SKIP when no MySQL test database is available:
+  - [-]* 4.5 Write unit tests in `tests/Memory/Repository/EpisodeRepositoryTest.php` against the in-memory fake (required behaviour), with the `PdoEpisodeRepository` locking/atomicity tests written to SKIP when no MySQL test database is available:
     - the atomic store commits only after insert + retire; a duplicate store for the same source episode + robot creates no duplicate; a stale `in_progress` (older than 120 s) is re-claimable while a fresh one returns `skip`; the PDO two-connection test asserts a second `claimReflectionSlot` blocks then reads committed state and two per-triple commits serialize to exactly 6 active
     - _Requirements: 8.4, 8.5, 2.8, 2.9, 2.10_
 
@@ -87,10 +87,10 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 9.6, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.10, 1.11_
   - [x] 5.3 Write a golden test in `tests/Engine/ReflectionTextVersionTest.php` asserting `ReflectionTextBuilder::REFLECTION_TEXT_VERSION === 'reflection-text-2026-11-09'` so any change to the fixed text, lead-in, event-block forms, or question forces a conscious bump (required, not optional)
     - _Requirements: 1.8, 1.9_
-  - [ ]* 5.4 Write example tests in `tests/Engine/ReflectionTextBuilderTest.php` for the exact wording not covered universally: the forward count-up heading literals (turn 1 = `0 to 15 seconds after the shaking began:`), the exact lead-in and question literals, a turn event block that includes the man's line heard and the house events perceived (shaking start/continue/stop, lights out, objects falling/breaking where visible) with no per-turn object list repeated, and the `Nothing happened that you noticed.` neutral line
+  - [-]* 5.4 Write example tests in `tests/Engine/ReflectionTextBuilderTest.php` for the exact wording not covered universally: the forward count-up heading literals (turn 1 = `0 to 15 seconds after the shaking began:`), the exact lead-in and question literals, a turn event block that includes the man's line heard and the house events perceived (shaking start/continue/stop, lights out, objects falling/breaking where visible) with no per-turn object list repeated, and the `Nothing happened that you noticed.` neutral line
     - _Requirements: 1.2, 1.3, 1.4, 1.10, 9.7_
 
-- [ ] 6. Thread memories into turn texts — SituationTextGenerator / Engine
+- [x] 6. Thread memories into turn texts — SituationTextGenerator / Engine
   - [x] 6.1 Implement the memories-block threading in `src/Engine/`:
     - add `Engine::setMemories(array $memoriesByRobot)` (`['robot_a' => string[], 'robot_b' => string[]]`); `Engine::situationTextFor` builds the `$memoriesBlock` from that robot's list and passes it to `SituationTextGenerator::generate`; when `setMemories` is not called or an empty list is set, pass `null` so no block appears and behaviour is unchanged
     - `SituationTextGenerator` fills its section-3 placeholder with the `Memories_Block` in the Appendix A form (heading `Your memories (what you wrote down after an earlier disaster in this house):`, then each body in its own `"""` block oldest first, verbatim), inserted between the fixed house section and the recent-events section; memory bodies are exempt from the banned-word check while every engine-authored part stays checked
@@ -105,11 +105,11 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - with no memories the S0–S5 situation texts are byte-for-byte unchanged (required, not optional)
     - `Engine::situationTextVersion()` equals `'situation-text-2026-11-09'` so adding the block forces a conscious bump (required, not optional)
     - _Requirements: 9.8, 6.5, 6.8_
-  - [ ]* 6.4 Write an example test for the Appendix A `Memories_Block` format and its position between the house and recent-events sections (heading, each body in its own `"""` block, oldest first, the exact separators)
+  - [-]* 6.4 Write an example test for the Appendix A `Memories_Block` format and its position between the house and recent-events sections (heading, each body in its own `"""` block, oldest first, the exact separators)
     - _Requirements: 6.3, 6.4, 9.9_
 
 - [ ] 7. MemoryService — snapshot, reset, status
-  - [~] 7.1 Implement `MemoryService` in `src/Memory/MemoryService.php`:
+  - [x] 7.1 Implement `MemoryService` in `src/Memory/MemoryService.php`:
     - `snapshotForNewEpisode($episodeId)`: read the current generation, read each robot's active-memory bodies of that generation across all disasters oldest first capped at 18, store the two ordered lists and the generation with the episode (called inside `createEpisode`, reusing the same insert transaction)
     - `reset()`: advance the current generation to a new higher integer, delete no memory row; returns a `MemoryStatus`
     - `status()`: return the current generation and, per robot reported as Amber (robot_a) / Jade (robot_b), the active-memory count and each active memory's length, excluding retired and other-generation rows; return no device id, key, credential, or company/model name
