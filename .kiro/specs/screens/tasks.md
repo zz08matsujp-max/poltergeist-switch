@@ -85,7 +85,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - The endpoint sends `Cache-Control: no-store` (Req 11.9); an empty set returns an empty list (Req 11.8); the starting-situation one-liner names the time of day and each robot's and the man's starting room using Amber/Jade and no provider name (Req 11.3, 8.5)
     - _Requirements: 11.9, 11.8, 11.3, 8.5_
 
-- [~] 5. Checkpoint - API additions
+- [x] 5. Checkpoint - API additions
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Position_Map pure function
