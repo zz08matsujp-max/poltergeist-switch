@@ -203,7 +203,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Run `php -l` with no error on every PHP file changed by this spec; use only PHP 8.2 language features (no typed class constants, `json_validate()`, `#[\Override]`, property hooks, asymmetric visibility, or the pipe operator)
     - _Requirements: 14.1, 14.6, 14.7, 14.8_
 
-- [~] 18. Final checkpoint
+- [x] 18. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
