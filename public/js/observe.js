@@ -90,11 +90,20 @@
       if (!entry) { return; }
       var row = document.createElement('div');
       row.className = 'entry';
-      if (entry.who) {
+      // Colour the row by `who` (amber/jade/man). The viewer-facing robot
+      // action and spoken lines already name the actor (e.g. "Amber moved…",
+      // "Amber said: …"), so they set `noPrefix` to avoid "Amber: Amber moved…".
+      // The man's spoken line keeps the "The man: " prefix as before.
+      if (entry.who && !entry.noPrefix) {
         var who = document.createElement('span');
         who.className = 'who' + (entry.who === 'jade' ? ' jade' : '');
         who.textContent = labelFor(entry.who) + ': ';
         row.appendChild(who);
+      } else if (entry.who === 'amber' || entry.who === 'jade') {
+        // No "Name:" prefix (the sentence already names the robot), but keep the
+        // robot's colour cue on the row text using the same CSS variables the
+        // prefix span uses (--amber / --jade).
+        row.style.color = 'var(--' + entry.who + ')';
       }
       row.appendChild(document.createTextNode(entry.text || ''));
       group.appendChild(row);
@@ -161,6 +170,95 @@
     if (who === 'jade') { return 'Jade'; }
     if (who === 'man') { return 'The man'; }
     return String(who);
+  }
+
+  // ── viewer-facing text builders (tasks 16.1–16.3) ───────────────────────────
+  //
+  // The "What happened" log and the End_Card summary are written for the VIEWER
+  // in the third person, never in the robot's own second-person voice
+  // (Req 5.12, 5.13, 6.8). The robots are named only Amber/Jade; no robot
+  // thought and no AI company name ever reaches these builders (Req 1.14, 12.8).
+
+  // The viewer-facing name for a robot layer key.
+  function robotName(robotKey) {
+    return robotKey === 'robot_b' ? 'Jade' : 'Amber';
+  }
+
+  // Build the third-person ACTION sentence for one robot's outcome (Req 5.12,
+  // 5.13, 6.8). Prefer `seenByOtherText`: it is already third-person viewer
+  // text whose subject is "The other robot" when non-empty, so we replace a
+  // LEADING "The other robot" (at the very start, optional following space)
+  // with this robot's name — "The other robot moved…" -> "Amber moved…". Any
+  // other non-empty `seenByOtherText` is used as-is (already third-person).
+  // Only when `seenByOtherText` is empty do we fall back to `whatHappenedText`.
+  // The log must never show a second-person "You …" sentence (Req 5.13): the
+  // fallback `whatHappenedText` is the robot's own second-person voice, so if
+  // the chosen text begins with "You" we return '' (omit the action line) — the
+  // spoken line (16.2) may still show. Never the raw `reply` (thoughts+speech)
+  // and never a provider name.
+  function robotActionText(layers, robotKey) {
+    if (!layers || !layers.outcome) { return ''; }
+    var seen = layers.outcome.seenByOtherText;
+    if (typeof seen === 'string' && seen.length > 0) {
+      var name = robotName(robotKey);
+      // Replace only a leading "The other robot" (case-sensitive) with the name.
+      if (seen.indexOf('The other robot') === 0) {
+        var rest = seen.slice('The other robot'.length);
+        if (rest.charAt(0) === ' ') { rest = rest.slice(1); }
+        return name + (rest.length ? ' ' + rest : '');
+      }
+      return seen;
+    }
+    // Fallback: `whatHappenedText` is second-person. Never emit a "You …"
+    // sentence (Req 5.13) — omit the action line instead.
+    var what = layers.outcome.whatHappenedText;
+    if (typeof what === 'string' && what.length > 0) {
+      if (what.indexOf('You ') === 0 || what === 'You' || what.indexOf('You') === 0) {
+        return '';
+      }
+      return what;
+    }
+    return '';
+  }
+
+  // Build the separate spoken line `<Name> said: "<words>"` for a robot that
+  // spoke (Req 5.14, 6.8). `reading.words` holds the SPOKEN words (not a
+  // thought). Returns '' when the robot said nothing.
+  function robotSpokenText(layers, robotKey) {
+    var words = (layers && layers.reading && layers.reading.words) || [];
+    if (!words || !words.length) { return ''; }
+    var said = words.join(' ').trim();
+    if (!said) { return ''; }
+    return robotName(robotKey) + ' said: "' + said + '"';
+  }
+
+  // Truncate an over-long line at a sentence boundary and append an ellipsis,
+  // never mid-word (Req 5.15, 6.8). A sentence boundary is the end of a
+  // sentence: '.', '!', '?' or the Japanese '。', '！', '？'. If there is no
+  // sentence boundary at or before maxLen, cut at the last whitespace before
+  // maxLen (never mid-word) and append '…'. maxLen chosen as ~140 chars — long
+  // enough for a full action sentence, short enough to keep the End_Card and
+  // log rows from overflowing (the exact value is not specified).
+  var TRUNCATE_MAX_LEN = 140;
+  function truncateAtSentence(text, maxLen) {
+    text = String(text == null ? '' : text);
+    maxLen = (typeof maxLen === 'number' && maxLen > 0) ? maxLen : TRUNCATE_MAX_LEN;
+    if (text.length <= maxLen) { return text; }
+    var window = text.slice(0, maxLen);
+    var boundary = -1;
+    var enders = ['.', '!', '?', '\u3002', '\uff01', '\uff1f'];
+    for (var i = 0; i < enders.length; i++) {
+      var idx = window.lastIndexOf(enders[i]);
+      if (idx > boundary) { boundary = idx; }
+    }
+    if (boundary >= 0) {
+      // Include the sentence-ending punctuation, then the ellipsis.
+      return text.slice(0, boundary + 1) + '\u2026';
+    }
+    // No sentence boundary: cut at the last whitespace, never mid-word.
+    var ws = window.lastIndexOf(' ');
+    if (ws > 0) { return text.slice(0, ws) + '\u2026'; }
+    return window + '\u2026';
   }
 
   // Reset the four meters to their empty first-load look (Req 4.5).
@@ -497,16 +595,16 @@
   function pushRobotEntry(entries, turn, robotKey, who) {
     var layers = turn.robots && turn.robots[robotKey];
     if (!layers) { return; }
-    // Prefer the rules' outcome text (what actually happened); fall back to the
-    // spoken words. Never the reply text or any thought.
-    var text = '';
-    if (layers.outcome && layers.outcome.whatHappenedText) {
-      text = String(layers.outcome.whatHappenedText);
-    } else {
-      var words = (layers.reading && layers.reading.words) || [];
-      if (words && words.length) { text = words.join(' '); }
+    // Third-person ACTION line (16.1): already names the robot, so no prefix.
+    var action = robotActionText(layers, robotKey);
+    if (action) {
+      entries.push({ who: who, noPrefix: true, text: truncateAtSentence(action) });
     }
-    if (text) { entries.push({ who: who, text: text }); }
+    // Separate SPOKEN line (16.2): a robot that both acts and speaks shows both.
+    var spoken = robotSpokenText(layers, robotKey);
+    if (spoken) {
+      entries.push({ who: who, noPrefix: true, text: truncateAtSentence(spoken) });
+    }
   }
 
   // A turn call (ask/apply) may 409 with the current expected turn. Resync the
@@ -607,26 +705,28 @@
     return out;
   }
 
-  // Per-robot summary line drawn from the outcome whatHappenedText across the
-  // episode (Req 6.1). Joins each turn's outcome text for that robot; falls back
-  // to the spoken words, then to a neutral "did nothing notable". Never the
-  // reply text, never a thought, never a company name.
+  // Per-robot summary lines for the End_Card, built the SAME viewer-facing way
+  // as the "What happened" log (Req 6.8): third-person action text from
+  // `seenByOtherText` (leading "The other robot" -> the robot's name), falling
+  // back to `whatHappenedText` only when empty and never emitting a "You …"
+  // sentence; each spoken line shown separately as `<Name> said: "<words>"`;
+  // and every line truncated at a sentence boundary. Returns an array of
+  // already-truncated third-person lines (each already names the robot). Never
+  // the reply text, never a thought, never a company name (Req 1.14, 12.8).
   function summariseRobot(turns, robotKey) {
-    var parts = [];
+    var lines = [];
     turns.forEach(function (t) {
       var layers = t.robots && t.robots[robotKey];
       if (!layers) { return; }
-      var text = '';
-      if (layers.outcome && layers.outcome.whatHappenedText) {
-        text = String(layers.outcome.whatHappenedText);
-      } else {
-        var words = (layers.reading && layers.reading.words) || [];
-        if (words && words.length) { text = words.join(' '); }
-      }
-      if (text) { parts.push(text); }
+      var action = robotActionText(layers, robotKey);
+      if (action) { lines.push(truncateAtSentence(action)); }
+      var spoken = robotSpokenText(layers, robotKey);
+      if (spoken) { lines.push(truncateAtSentence(spoken)); }
     });
-    if (!parts.length) { return 'did nothing notable.'; }
-    return parts.join(' ');
+    if (!lines.length) {
+      lines.push(robotName(robotKey) + ' did nothing notable.');
+    }
+    return lines;
   }
 
   // The full stored reply for a robot across the turns, shown in full (Req 6.1).
@@ -701,8 +801,8 @@
       none.textContent = 'No robot actions occurred.';
       summary.appendChild(none);
     } else {
-      summary.appendChild(summaryLine('Amber', summariseRobot(turns, 'robot_a')));
-      summary.appendChild(summaryLine('Jade', summariseRobot(turns, 'robot_b')));
+      appendSummaryLines(summary, summariseRobot(turns, 'robot_a'));
+      appendSummaryLines(summary, summariseRobot(turns, 'robot_b'));
     }
     card.appendChild(summary);
 
@@ -752,13 +852,16 @@
     el.endcardHost.appendChild(card);
   }
 
-  function summaryLine(name, text) {
-    var p = document.createElement('p');
-    var b = document.createElement('strong');
-    b.textContent = name + ': ';
-    p.appendChild(b);
-    p.appendChild(document.createTextNode(text));
-    return p;
+  // Render each already-third-person summary line as its own paragraph. The
+  // lines already name the robot (e.g. "Amber moved…", "Amber said: …"), so no
+  // "Name:" prefix is added (consistent with the log's action/spoken rows).
+  function appendSummaryLines(summary, lines) {
+    (lines || []).forEach(function (text) {
+      if (!text) { return; }
+      var p = document.createElement('p');
+      p.appendChild(document.createTextNode(text));
+      summary.appendChild(p);
+    });
   }
 
   function replyBlock(name, cls, text) {

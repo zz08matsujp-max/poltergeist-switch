@@ -181,13 +181,13 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - _Requirements: 8.2, 8.5, 12.4_
 
 - [ ] 16. Build viewer-facing log and End_Card text
-  - [ ] 16.1 Describe each robot action in the third person in `public/js/observe.js`
+  - [x] 16.1 Describe each robot action in the third person in `public/js/observe.js`
     - Build each "What happened" log action entry and each End_Card per-robot summary from `outcome.seenByOtherText` with its leading "The other robot" replaced by the robot's name (Amber/Jade); fall back to `whatHappenedText` only when `seenByOtherText` is empty; never emit a "You …" sentence
     - _Requirements: 5.10, 6.1, 12.8_
-  - [ ] 16.2 Show spoken words as a separate `<Name> said: "<words>"` line
+  - [x] 16.2 Show spoken words as a separate `<Name> said: "<words>"` line
     - A robot that both acts and speaks shows both the action entry and a separate spoken-line entry, in `public/js/observe.js`; keep thoughts and AI company names out
     - _Requirements: 5.10, 6.1, 1.14, 12.8_
-  - [ ] 16.3 Truncate long log/summary lines at a sentence boundary
+  - [x] 16.3 Truncate long log/summary lines at a sentence boundary
     - Add a small shared helper that cuts an over-long line at the end of a sentence and appends an ellipsis, never mid-word (the End_Card no longer ends with "wardrob")
     - _Requirements: 5.10, 6.1_
 

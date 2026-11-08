@@ -299,6 +299,27 @@
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794133678139
       }
+    ],
+    "16.1 Describe each robot action in the third person in `public/js/observe.js`": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794133754570
+      }
+    ],
+    "16.2 Show spoken words as a separate `<Name> said: \"<words>\"` line": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794133756002
+      }
+    ],
+    "16.3 Truncate long log/summary lines at a sentence boundary": [
+      {
+        "executionId": "8dd49e32-9374-44ca-9a53-99251d992263",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794133756910
+      }
     ]
   }
 }
