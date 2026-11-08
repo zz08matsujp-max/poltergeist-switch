@@ -185,7 +185,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
   - [x]* 13.2 Write a rendering test asserting the per-robot started-with count equals the stored snapshot length
     - _Requirements: 7.6_
 
-- [ ] 14. Final checkpoint — language level and full suite
+- [x] 14. Final checkpoint — language level and full suite
   - [x] 14.1 Run `php -l` with no error on every PHP file changed by this spec and confirm only PHP 8.2 language features are used (no typed class constants, `json_validate()`, `#[\Override]`, property hooks, asymmetric visibility, or the pipe operator); run the full PHPUnit suite including every required property test (Properties 1–10) and the golden tests, and confirm they pass
     - _Requirements: 9.1, 9.10_
 

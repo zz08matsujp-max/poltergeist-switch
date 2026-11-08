@@ -1,0 +1,381 @@
+{
+  "pbtResults": {
+    "4.4 Write the cap/retirement property test in `tests/Memory/Properties/CapRetirementPropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794172042083
+    },
+    "6.2 Write the snapshot/rebuild-equality property test in `tests/Memory/Properties/SnapshotEqualityPropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794172089808
+    },
+    "8.2 Write the reflect-idempotency property test in `tests/Memory/Properties/ReflectIdempotencyPropertyTest.php`:": {
+      "status": "passed",
+      "lastRunTimestamp": 1794173438919
+    }
+  },
+  "executionHistory": {
+    "1.1 Write a guard test in `tests/Memory/BootstrapAutoloaderTest.php` asserting that every top-level namespace directory under `src/` is registered in the hand-written autoloader prefix list in `api/bootstrap.php`: for each directory `<Dir>` under `src/`, the prefix `PoltergeistSwitch\\<Dir>\\` maps to that directory in `api/bootstrap.php`, so a new namespace (such as Memory) can never ship without its server-side mapping and the memory endpoints never 500 on the server; no SQL and no network is involved": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144855512
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144885540
+      }
+    ],
+    "2.1 Write `sql/2026-11-09_add_memory.sql` (file only — never run against a database; the maintainer applies it on the server):": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144855706
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794145361519
+      }
+    ],
+    "2.2 Write a static-check test in `tests/Memory/MigrationFileTest.php` asserting the file exists, declares `utf8mb4`, and contains the `memories`, `memory_generation`, and `reflections` tables, the three `episodes` columns, and the `kind` column on `prompts` and `responses`; no SQL is executed": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144855829
+      }
+    ],
+    "3.1 Implement the value objects in `src/Memory/Values/`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144855946
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794145362151
+      }
+    ],
+    "4.1 Extend the turn-loop `EpisodeRepository` interface with the memory methods:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856063
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794145731487
+      }
+    ],
+    "4.2 Implement the additions in `InMemoryEpisodeRepository` (the turn-loop test fake):": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856179
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794170809983
+      }
+    ],
+    "4.3 Implement the additions in `PdoEpisodeRepository` (PDO/MySQL):": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856296
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794170811237
+      }
+    ],
+    "4.4 Write the cap/retirement property test in `tests/Memory/Properties/CapRetirementPropertyTest.php`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856421
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794171879919
+      }
+    ],
+    "5.1 Implement `ReflectionTextBuilder` in `src/Engine/ReflectionTextBuilder.php`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856532
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794145732581
+      }
+    ],
+    "5.2 Write the banned-word / no-reply-text and structure property tests in `tests/Engine/Properties/`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856712
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794170812726
+      }
+    ],
+    "5.3 Write a golden test in `tests/Engine/ReflectionTextVersionTest.php` asserting `ReflectionTextBuilder::REFLECTION_TEXT_VERSION === 'reflection-text-2026-11-09'` so any change to the fixed text, lead-in, event-block forms, or question forces a conscious bump (required, not optional)": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856829
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794170814546
+      }
+    ],
+    "6.1 Implement the memories-block threading in `src/Engine/`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144856947
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794170815344
+      }
+    ],
+    "6.2 Write the snapshot/rebuild-equality property test in `tests/Memory/Properties/SnapshotEqualityPropertyTest.php`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857076
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794171881212
+      }
+    ],
+    "6.3 Write the golden tests in `tests/Engine/SituationTextMemoriesBlockTest.php`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857183
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794171882263
+      }
+    ],
+    "7.1 Implement `MemoryService` in `src/Memory/MemoryService.php`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857315
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172274239
+      }
+    ],
+    "7.2 Write the reset and status property tests in `tests/Memory/Properties/`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857438
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172538865
+      }
+    ],
+    "8.1 Implement `ReflectService` in `src/Memory/ReflectService.php` (reuses the turn-loop `RobotClient`, `ParallelHttp`, `EngineFactory`, `Config`; holds no rules logic):": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857549
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172541877
+      }
+    ],
+    "8.2 Write the reflect-idempotency property test in `tests/Memory/Properties/ReflectIdempotencyPropertyTest.php`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857676
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794173172948
+      }
+    ],
+    "9.1 Implement the three `api/` entry points, extend create, and add routes:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857873
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794173171614
+      }
+    ],
+    "9.2 Write the no-leak and no-store property tests in `tests/Memory/Properties/`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144857994
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794173875938
+      }
+    ],
+    "10. Checkpoint — PHP side complete": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144858112
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174217898
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174221624
+      }
+    ],
+    "11.1 Extend `public/index.php`, `public/js/observe.js`, add `public/js/memory-ui.js`, and `public/css/screens.css`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144858216
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174227499
+      }
+    ],
+    "12.1 Extend the Observe End_Card flow in `public/js/observe.js` + `public/js/memory-ui.js`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144858333
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174620641
+      }
+    ],
+    "13.1 Extend `public/replay.php` and `public/js/replay.js`:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144858450
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174228363
+      }
+    ],
+    "14.1 Run `php -l` with no error on every PHP file changed by this spec and confirm only PHP 8.2 language features are used (no typed class constants, `json_validate()`, `#[\\Override]`, property hooks, asymmetric visibility, or the pipe operator); run the full PHPUnit suite including every required property test (Properties 1–10) and the golden tests, and confirm they pass": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794144858572
+      },
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794175018214
+      }
+    ],
+    "4.5 Write unit tests in `tests/Memory/Repository/EpisodeRepositoryTest.php` against the in-memory fake (required behaviour), with the `PdoEpisodeRepository` locking/atomicity tests written to SKIP when no MySQL test database is available:": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172264563
+      }
+    ],
+    "5.4 Write example tests in `tests/Engine/ReflectionTextBuilderTest.php` for the exact wording not covered universally: the forward count-up heading literals (turn 1 = `0 to 15 seconds after the shaking began:`), the exact lead-in and question literals, a turn event block that includes the man's line heard and the house events perceived (shaking start/continue/stop, lights out, objects falling/breaking where visible) with no per-turn object list repeated, and the `Nothing happened that you noticed.` neutral line": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172266894
+      }
+    ],
+    "6.4 Write an example test for the Appendix A `Memories_Block` format and its position between the house and recent-events sections (heading, each body in its own `\"\"\"` block, oldest first, the exact separators)": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172268222
+      }
+    ],
+    "7.3 Write an example test in `tests/Memory/MemoryServiceTest.php` for a reset during a running episode: the running episode keeps its generation and snapshot and its later reflection is stored under its own generation": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794172540652
+      }
+    ],
+    "8.3 Write example tests in `tests/Memory/ReflectServiceTest.php` using fakes: the not-ended / idle-released guard (409 `not_ended`, no `RobotClient` call); the pre-feature `not_reflectable` guard (NULL snapshot, no `RobotClient` call); the retry path after a failed robot asks only that robot again; the stale-claim re-claim path (an `in_progress` older than 120 s is re-claimable, a fresh one skipped); the empty-answer vs failed-call reason paths; the reflect client invoked with one user message, no system prompt, max 4000 tokens under the turn-loop timeout": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794173176198
+      }
+    ],
+    "9.3 Write a smoke/integration test in `tests/Memory/ApiRoutingTest.php` with a fake-backed service: the three routes resolve to their service methods; a reflection prompt/response is stored with `kind = 'reflection'` and turn number `-1` and no existing turn read (`kind = 'turn'`, turn numbers `0 … n`) returns it; a repository scan finds no secret literal in the files this spec changes": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794173877854
+      }
+    ],
+    "13.2 Write a rendering test asserting the per-robot started-with count equals the stored snapshot length": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174625086
+      }
+    ],
+    "11.2 Write a rendering test / assertion for the status-line format and the in-page confirm panel (no browser dialog) in the project's JS/PHP test harness": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174847940
+      }
+    ],
+    "12.2 Write a rendering test for the End_Card: the awaiting text, the collapsible memory with its count, and the two distinct phrasings for empty-answer vs failed-call": [
+      {
+        "executionId": "3f85a57f-1902-4fe9-bd1e-dfa485c52478",
+        "chatSessionId": "sess_29abd1d8-3acd-45d0-a061-5dd0f62b15ce",
+        "timestamp": 1794174849067
+      }
+    ]
+  }
+}
