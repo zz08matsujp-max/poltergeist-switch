@@ -153,17 +153,22 @@ final class ClaudeRecorderClient implements RecorderClient
         // ReadingMapper turns the recorder's JSON into an engine Action, and
         // records `unknown` when the JSON is not of the Reading shape
         // (Requirement 3.6). The transport was fine, so an unknown result here
-        // means the recorder's returned JSON was not the Reading shape: mark it
-        // "unreadable", distinct from transport/HTTP failures. A successful
-        // reading keeps the mapper's null reason.
+        // splits two ways. If the recorder text carried a decodable JSON object
+        // but there was nothing to read (no operation, no spoken words, no
+        // reported speech — for example a reply with only conditional plans),
+        // the reason is "no_action". If there was no JSON object at all (or a
+        // non-array JSON), the reason is "unreadable". A successful reading
+        // keeps the mapper's null reason.
         $reading = $this->mapper->map($this->robotIdOf($input), $rawJson, self::PROMPT_VERSION);
         if ($reading->unknown) {
+            $reason = $this->mapper->hasJsonObject($rawJson) ? 'no_action' : 'unreadable';
+
             return new Reading(
                 $reading->action,
                 true,
                 $reading->rawJson,
                 $reading->promptVersion,
-                'unreadable',
+                $reason,
             );
         }
 

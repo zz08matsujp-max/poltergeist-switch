@@ -267,6 +267,19 @@ class RecorderClientTest extends TestCase
         $this->assertSame(Operation::unknown->value, $reading->action->operation);
     }
 
+    public function testHasJsonObjectTrueForDecodableObjectFalseForProse(): void
+    {
+        $mapper = new ReadingMapper();
+
+        // A decodable top-level object (even wrapped in prose) → true.
+        $this->assertTrue($mapper->hasJsonObject('{"operation":null,"words":[],"reported":[]}'));
+        $this->assertTrue($mapper->hasJsonObject('Here is my reading: {"operation":"wait"} done.'));
+
+        // No JSON object at all → false.
+        $this->assertFalse($mapper->hasJsonObject('not json at all'));
+        $this->assertFalse($mapper->hasJsonObject(''));
+    }
+
     // ---------- Robust recorder JSON extraction (task 20.1, Requirement 3.6) ----------
 
     public function testMapsFencedJsonReplyToWaitReading(): void
@@ -554,6 +567,36 @@ class RecorderClientTest extends TestCase
 
         $this->assertTrue($reading->unknown);
         $this->assertSame('unreadable', $reading->failureReason);
+    }
+
+    public function testRecorderValidJsonWithNothingToReadMapsToNoAction(): void
+    {
+        $client = new ClaudeRecorderClient(self::PLACEHOLDER_KEY, $this->config());
+        $input = $this->sampleInput();
+
+        // Transport fine, Anthropic envelope fine, and the recorder returns a
+        // valid Reading-shape JSON object, but there is nothing to read: no
+        // operation, no spoken words, no reported speech (a reply with only
+        // conditional plans). The reading stays unknown, but because there WAS
+        // a decodable JSON object its failure reason is "no_action", not
+        // "unreadable" (task 23.1).
+        $recorderJson = json_encode([
+            'operation' => null,
+            'targetId' => null,
+            'targetSpot' => null,
+            'actionQuote' => null,
+            'words' => [],
+            'reported' => [],
+        ]);
+        $body = json_encode([
+            'content' => [['type' => 'text', 'text' => $recorderJson]],
+        ]);
+
+        $reading = $client->finish($input, 'If it eases, I will move.', $this->makeResult(['body' => $body]));
+
+        $this->assertTrue($reading->unknown);
+        $this->assertSame(Operation::unknown->value, $reading->action->operation);
+        $this->assertSame('no_action', $reading->failureReason);
     }
 
     public function testRecorderSuccessfulReadingHasNullFailureReason(): void

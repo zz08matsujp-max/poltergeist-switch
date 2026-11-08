@@ -238,6 +238,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Tests, including a property test: after repair, every kept quote is an exact substring of the reply
     - _Requirements: 3.8_
 
+- [x] 23. Label no-action readings (added 2026-11-08)
+  - [x] 23.1 Use failure reason `no_action` for a valid-JSON reading with nothing to read:
+    - When the recorder returns valid JSON of the Reading shape with no operation, no spoken words and no reported speech (for example a reply with only conditional plans), the reading stays unknown as today but its failure reason is `no_action`, not `unreadable`
+    - Keep `unreadable` only for recorder text with no JSON object at all (or non-array JSON)
+    - Add a test
+    - _Requirements: 3.6_
+
 ## Notes
 
 - **(a) Hard engine prerequisite.** `house-rules-engine` tasks 28 (`Engine::prepareTurn`) and 29 (`Engine::situationTextVersion`) must be complete before the ask/apply/text tasks (11, 12) and the same-world and rehydration property tests (16.2) and the end-to-end test (17.1) run. Those tasks live in the `house-rules-engine` spec, not this one; the dependency graph below can only list this spec's task ids, so wave 0 (scaffold) assumes engine 28/29 are already done.
@@ -271,7 +278,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     { "id": 14, "tasks": ["19.1", "19.2", "19.3"] },
     { "id": 15, "tasks": ["20.1"] },
     { "id": 16, "tasks": ["21.1"] },
-    { "id": 17, "tasks": ["22.1"] }
+    { "id": 17, "tasks": ["22.1"] },
+    { "id": 18, "tasks": ["23.1"] }
   ]
 }
 ```

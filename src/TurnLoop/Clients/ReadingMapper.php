@@ -52,19 +52,12 @@ final class ReadingMapper
         // first complete top-level `{…}` object before decoding; the ORIGINAL
         // raw text is still stored on the Reading (Requirement 8.5), so only
         // WHAT is handed to json_decode changes, not what is stored.
-        $candidate = $this->firstJsonObject($rawJson);
+        $decoded = $this->decodeFirstJsonObject($rawJson);
 
-        // No complete balanced object found → behave exactly as before: the
-        // reading is unknown/unreadable, storing the original raw text.
-        if ($candidate === null) {
-            return $this->unknownReading($robotId, [], [], $rawJson, $promptVersion);
-        }
-
-        $decoded = json_decode($candidate, true);
-
-        // Invalid JSON, or JSON that is not an object → unknown (Req 3.6). No
-        // words or reported items can be read from a non-array shape.
-        if (!is_array($decoded)) {
+        // No complete balanced object found, or JSON that is not an object →
+        // unknown (Req 3.6). No words or reported items can be read from a
+        // non-array shape. This is the "no JSON object at all" case.
+        if ($decoded === null) {
             return $this->unknownReading($robotId, [], [], $rawJson, $promptVersion);
         }
 
@@ -141,6 +134,39 @@ final class ReadingMapper
         );
 
         return new Reading($action, false, $rawJson, $promptVersion);
+    }
+
+    /**
+     * Whether the recorder text carries a decodable JSON object: there is a
+     * first complete balanced top-level `{…}` object AND it decodes to an
+     * array. Shares {@see decodeFirstJsonObject} with {@see map}, so the two
+     * always agree on "was there a decodable JSON object". The recorder client
+     * uses this to choose a `no_action` failure reason (a valid-JSON reading
+     * with nothing to read) over `unreadable` (no JSON object at all).
+     */
+    public function hasJsonObject(string $rawText): bool
+    {
+        return $this->decodeFirstJsonObject($rawText) !== null;
+    }
+
+    /**
+     * Pull the first complete top-level `{…}` object out of the raw text and
+     * decode it, returning the decoded array, or null when there is no complete
+     * object or it does not decode to an array. Both {@see map} and
+     * {@see hasJsonObject} go through here so they stay consistent.
+     *
+     * @return array<mixed>|null
+     */
+    private function decodeFirstJsonObject(string $text): ?array
+    {
+        $candidate = $this->firstJsonObject($text);
+        if ($candidate === null) {
+            return null;
+        }
+
+        $decoded = json_decode($candidate, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 
     /**
