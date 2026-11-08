@@ -221,14 +221,29 @@
     return '';
   }
 
+  // A slightly smaller budget for the spoken WORDS than the general line
+  // budget, so once we wrap the cut words in `<Name> said: "…"` the whole line
+  // stays about the same length as an action line (Req 5.15, 6.8). The exact
+  // value is not specified; TRUNCATE_MAX_LEN minus the fixed wrapper cost is a
+  // sensible choice. See robotSpokenText for why the words are cut first.
+  var SPOKEN_WORDS_MAX_LEN = TRUNCATE_MAX_LEN - 20;
+
   // Build the separate spoken line `<Name> said: "<words>"` for a robot that
   // spoke (Req 5.14, 6.8). `reading.words` holds the SPOKEN words (not a
   // thought). Returns '' when the robot said nothing.
+  //
+  // The WORDS are truncated FIRST (at a sentence boundary, never mid-word) and
+  // only THEN wrapped, so the closing quote is always kept and any ellipsis
+  // sits BEFORE it — `Amber said: "<cut words>…"` — rather than the old order
+  // (wrap, then cut) which dropped the closing quote (Req 5.15, 6.8). Because
+  // the result is already final (truncated and quote-closed), its callers
+  // (pushRobotEntry, summariseRobot) must NOT truncate it a second time.
   function robotSpokenText(layers, robotKey) {
     var words = (layers && layers.reading && layers.reading.words) || [];
     if (!words || !words.length) { return ''; }
     var said = words.join(' ').trim();
     if (!said) { return ''; }
+    said = truncateAtSentence(said, SPOKEN_WORDS_MAX_LEN);
     return robotName(robotKey) + ' said: "' + said + '"';
   }
 
@@ -601,9 +616,12 @@
       entries.push({ who: who, noPrefix: true, text: truncateAtSentence(action) });
     }
     // Separate SPOKEN line (16.2): a robot that both acts and speaks shows both.
+    // robotSpokenText already truncated the WORDS before wrapping, so the line
+    // is final (quote-closed) — do NOT truncate it again, or the closing quote
+    // could be re-cut (task 20.1).
     var spoken = robotSpokenText(layers, robotKey);
     if (spoken) {
-      entries.push({ who: who, noPrefix: true, text: truncateAtSentence(spoken) });
+      entries.push({ who: who, noPrefix: true, text: spoken });
     }
   }
 
@@ -718,12 +736,23 @@
     turns.forEach(function (t) {
       var layers = t.robots && t.robots[robotKey];
       if (!layers) { return; }
+      // Each End_Card summary line starts with its turn number (task 20.2),
+      // e.g. "Turn 3 — Amber took cover." The em dash (U+2014) matches the
+      // task text. The "What happened" LOG does NOT get this prefix — it groups
+      // entries under a "Turn N" heading (appendLog) — so only the End_Card
+      // summary carries the inline "Turn N — " prefix.
+      var prefix = 'Turn ' + t.turnNumber + ' \u2014 ';
       var action = robotActionText(layers, robotKey);
-      if (action) { lines.push(truncateAtSentence(action)); }
+      if (action) { lines.push(prefix + truncateAtSentence(action)); }
+      // robotSpokenText already truncated the words before wrapping, so the
+      // spoken line is final (quote-closed) — do NOT truncate it again (task
+      // 20.1).
       var spoken = robotSpokenText(layers, robotKey);
-      if (spoken) { lines.push(truncateAtSentence(spoken)); }
+      if (spoken) { lines.push(prefix + spoken); }
     });
     if (!lines.length) {
+      // Per-robot fallback, not a per-turn line: there is no single turn to
+      // name here, so it carries no "Turn N — " prefix (task 20.2).
       lines.push(robotName(robotKey) + ' did nothing notable.');
     }
     return lines;

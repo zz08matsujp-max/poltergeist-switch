@@ -107,7 +107,14 @@ class EpisodeListServiceTest extends TestCase
         $item = $list[0];
         $this->assertSame(['id', 'createdDate', 'turns', 'startingSituation'], array_keys($item));
         $this->assertSame('a', $item['id']);
-        $this->assertSame('2026-11-01 10:00:00', $item['createdDate']);
+        // createdDate is the stored 'Y-m-d H:i:s' (Japan time) returned as ISO
+        // 8601 WITH the +09:00 offset so any viewer can render it locally
+        // (task 20.3, Requirement 8.5).
+        $this->assertSame('2026-11-01T10:00:00+09:00', $item['createdDate']);
+        // Lock the ISO-8601-with-offset shape in: a 'T' separator and the
+        // +09:00 Japan offset at the end.
+        $this->assertStringContainsString('T', $item['createdDate']);
+        $this->assertStringEndsWith('+09:00', $item['createdDate']);
         // turn 0 + turns 1 and 2 are stored, so the robot turns taken (after
         // turn 0) is 2 — NOT 3 (the old count that wrongly included turn 0).
         $this->assertSame(2, $item['turns']);

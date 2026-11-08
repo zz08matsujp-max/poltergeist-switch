@@ -165,13 +165,18 @@
     return node;
   }
 
-  // Format the created date for display. The server sends an ISO-ish string;
-  // fall back to the raw string if it does not parse.
+  // Format the created date for display. The server sends an ISO-8601 string
+  // WITH an offset (e.g. "2026-11-08T19:03:13+09:00"), so new Date() resolves
+  // the correct instant; we show it in the VIEWER's local time with the zone
+  // name (e.g. "GMT+1") so the time reads correctly in any zone (task 20.3).
+  // Fall back to the raw string if it does not parse; empty → "Unknown date".
   function formatWhen(createdDate) {
     if (!createdDate) { return 'Unknown date'; }
     try {
       var d = new Date(createdDate);
-      if (!isNaN(d.getTime())) { return d.toLocaleString(); }
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString(undefined, { timeZoneName: 'short' });
+      }
     } catch (e) { /* fall through */ }
     return String(createdDate);
   }

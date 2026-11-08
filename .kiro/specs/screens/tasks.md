@@ -215,6 +215,18 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     - The list said "14 turns" for an episode the End_Card calls "13 turns taken" because `EpisodeListService` counts turn 0; count only applied turns after turn 0 (robot turns taken) for the `turns` field, matching the End_Card, and update the list property test accordingly
     - _Requirements: 11.3_
 
+- [x] 20. Live-run polish: cut quotes, End_Card turn numbers, Replay date time zone (added 2026-11-08)
+  - [x] 20.1 Keep the closing quote on a cut spoken line
+    - A long spoken line is cut mid-quote today, e.g. `Amber said: "… I'm coming!…` with no closing quote. In `public/js/observe.js`, cut the WORDS first and then wrap them, so the result is `Amber said: "<cut words>…"` with the closing quote kept. Apply the same rule in the "What happened" log and the End_Card summary
+    - _Requirements: 5.10, 5.14, 5.15, 6.8_
+  - [x] 20.2 Start each End_Card summary line with its turn number
+    - In `public/js/observe.js`, prefix each End_Card per-robot summary line with its turn, e.g. `Turn 3 — Amber took cover.` and `Turn 3 — Amber said: "…"`. Keep the per-robot grouping and the collapsed `<details>` full replies
+    - _Requirements: 6.1, 6.8, 6.9_
+  - [x] 20.3 Return the Replay list date with its time-zone offset and show it in local time
+    - `created_at` is stored in Japan time (UTC+9, no DST); the list showed "7:03:13 PM" to everyone. In `src/TurnLoop/EpisodeListService.php` return `createdDate` as ISO 8601 with the +09:00 offset (e.g. `2026-11-08T19:03:13+09:00`); in `public/js/replay.js` show it in the viewer's local time with the zone name (e.g. `toLocaleString` with `timeZoneName: 'short'`). Update the list tests for the new format
+    - _Requirements: 8.5, 11.3_
+
+---
 
 ## Notes
 
@@ -255,7 +267,8 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
     { "id": 19, "tasks": ["16.2", "16.3"] },
     { "id": 20, "tasks": ["17.1"] },
     { "id": 21, "tasks": ["18.1"] },
-    { "id": 22, "tasks": ["19.1", "19.2", "19.3", "19.4"] }
+    { "id": 22, "tasks": ["19.1", "19.2", "19.3", "19.4"] },
+    { "id": 23, "tasks": ["20.1", "20.2", "20.3"] }
   ]
 }
 ```

@@ -98,7 +98,10 @@ final class EpisodeListService
 
             $items[] = [
                 'id'                => $episode->id,
-                'createdDate'       => $episode->createdAt,
+                // The stored timestamp is Japan time (UTC+9, no DST); return it
+                // as ISO 8601 WITH the offset so a viewer in any zone can render
+                // the correct instant in their own local time (Requirement 8.5).
+                'createdDate'       => $this->createdDateIso($episode->createdAt),
                 // The number of turns as a non-negative integer: the count of
                 // applied turns AFTER turn 0 (the robot turns taken, excluding
                 // the quiet turn-0 setup), so it matches the End_Card's "turns
@@ -129,6 +132,25 @@ final class EpisodeListService
         }
 
         return $count;
+    }
+
+    /**
+     * Format the stored `created_at` ('Y-m-d H:i:s', Japan time — UTC+9, no
+     * DST) as ISO 8601 WITH its offset, e.g. "2026-11-08T19:03:13+09:00"
+     * (Requirement 8.5). The stored string is interpreted in Asia/Tokyo and
+     * formatted with the 'c' format. A malformed stored value that cannot be
+     * parsed is returned unchanged, so a bad row never breaks the list. This
+     * leaks nothing new — it is just the created timestamp, already returned.
+     */
+    private function createdDateIso(string $createdAt): string
+    {
+        $dt = \DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            $createdAt,
+            new \DateTimeZone('Asia/Tokyo'),
+        );
+
+        return $dt === false ? $createdAt : $dt->format('c');
     }
 
     /**

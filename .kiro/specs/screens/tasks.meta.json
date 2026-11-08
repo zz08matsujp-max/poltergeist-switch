@@ -362,6 +362,27 @@
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794134372426
       }
+    ],
+    "20.2 Start each End_Card summary line with its turn number": [
+      {
+        "executionId": "73dab93b-2399-4b81-90f6-1bacf2ced8e2",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794138039100
+      }
+    ],
+    "20.3 Return the Replay list date with its time-zone offset and show it in local time": [
+      {
+        "executionId": "73dab93b-2399-4b81-90f6-1bacf2ced8e2",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794138040334
+      }
+    ],
+    "20.1 Keep the closing quote on a cut spoken line": [
+      {
+        "executionId": "73dab93b-2399-4b81-90f6-1bacf2ced8e2",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794138041078
+      }
     ]
   }
 }
