@@ -58,7 +58,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
   - [x]* 4.2 Write unit tests in `tests/TurnLoop/ParallelHttpTest.php` exercising the result-shaping against prepared handles (no real network; local handles or stub handles), asserting a timed-out/errored handle yields `error` set
     - _Requirements: 1.6, 1.7_
 
-- [-] 5. RobotClient interface and the two providers plus the fake
+- [x] 5. RobotClient interface and the two providers plus the fake
   - [x] 5.1 Implement the `RobotClient` interface in `src/TurnLoop/Clients/RobotClient.php` (`call`, `prepare`, `finish`) and `ClaudeClient` + `GptClient`:
     - `ClaudeClient` calls model `claude-haiku-5-5` through the Anthropic Messages API; truncated when `stop_reason === "max_tokens"`; tokens from `usage.input_tokens`/`usage.output_tokens`
     - `GptClient` calls model `gpt-6-luna` through the OpenAI Responses API; truncated when `status === "incomplete"`; tokens from the response usage fields
@@ -72,19 +72,19 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - `finish` maps a `stop_reason=max_tokens` body to `truncated=true` (Claude) and `status=incomplete` to `truncated=true` (GPT); an error/timeout result maps to `unanswered=true` with zero tokens/cost; the request body carries one user message, no system prompt, `max output 4000`; `FakeRobotClient` counts calls
     - _Requirements: 1.2, 1.4, 1.5, 1.8_
 
-- [ ] 6. RecorderClient, RecorderInput, ReadingMapper, and EvidenceCheck wiring
-  - [ ] 6.1 Implement `RecorderInput` and `RecorderInput::forRobot` in `src/TurnLoop/Clients/RecorderInput.php`:
+- [x] 6. RecorderClient, RecorderInput, ReadingMapper, and EvidenceCheck wiring
+  - [x] 6.1 Implement `RecorderInput` and `RecorderInput::forRobot` in `src/TurnLoop/Clients/RecorderInput.php`:
     - Carries only the operation names, the room keys, the ids of objects in that robot's current room, the held object's id when one is held, the spot names `window`/`gas_stove`/`under_table`/`beside_futon`, and the literal `resident` — nothing else (no other room's objects, no danger words, no hints/formats/examples)
     - _Requirements: 3.4_
-  - [ ] 6.2 Implement `ReadingMapper` in `src/TurnLoop/Clients/ReadingMapper.php`:
+  - [x] 6.2 Implement `ReadingMapper` in `src/TurnLoop/Clients/ReadingMapper.php`:
     - Maps recorder JSON to an engine `Action`: speak-only → `speak` carrying spoken lines; explicit stay-still/do-nothing → `wait`; unreadable, invalid JSON, or JSON not matching the Reading shape → `unknown` while still returning any spoken lines and reported-speech items; assigns no action codes A1–N1
     - _Requirements: 3.2, 3.3, 3.6, 3.9, 3.10_
-  - [ ] 6.3 Implement the `RecorderClient` interface and `ClaudeRecorderClient` + `FakeRecorderClient` in `src/TurnLoop/Clients/`:
+  - [x] 6.3 Implement the `RecorderClient` interface and `ClaudeRecorderClient` + `FakeRecorderClient` in `src/TurnLoop/Clients/`:
     - `ClaudeRecorderClient` calls model `claude-haiku-5-5` at temperature 0, reads exactly one reply per call under a fixed versioned recorder prompt, returns `unknown` on invalid JSON or on a failed/timed-out call with no retry; exposes `promptVersion()`
     - `FakeRecorderClient` returns a configured `Reading` deterministically with no network
     - `TurnService` (task 11/12) calls `EvidenceCheck::verify($reply, $reading->action)` before using any reading; an action whose `actionQuote` is missing or not an exact substring of the reply becomes `unknown`, and surviving spoken lines/reported quotes are exact substrings — wire the call site here as a small helper used by apply
     - _Requirements: 3.1, 3.5, 3.6, 3.7, 3.8, 1.7_
-  - [ ]* 6.4 Write unit tests in `tests/TurnLoop/Clients/RecorderClientTest.php`:
+  - [x]* 6.4 Write unit tests in `tests/TurnLoop/Clients/RecorderClientTest.php`:
     - `RecorderInput` contains only the allowed identifiers (no other room's object ids); the three classification cases speak/wait/unknown map correctly; invalid JSON → `unknown`; a failed/timeout result → `unknown`; the recorder prompt version is returned and non-empty
     - _Requirements: 3.3, 3.4, 3.6, 3.7_
 
