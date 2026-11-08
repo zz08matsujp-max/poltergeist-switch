@@ -89,7 +89,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Position_Map pure function
-  - [~] 6.1 Implement `positionMap` in `public/js/position-map.js`
+  - [x] 6.1 Implement `positionMap` in `public/js/position-map.js`
     - Pure function `positionMap(roomKey, spot, manActivity, manPos)` returning `{ ok: true, x, y }` with `0 ≤ x ≤ 479`, `0 ≤ y ≤ 235` or `{ ok: false, reason: 'unrecognised' }` (Req 2.1)
     - Return a position for each of the six Room_Keys (Req 2.2) and each Man_Activity `sitting_at_table`/`asleep_in_futon`/`bathing`/`cooking`/`standing` (Req 2.5); fixed positions for the spots `window` (per the five rooms that have a window fixture), `gas_stove`, `under_table`, `beside_futon`, and the man's start spots `low_table`/`futon`/`bathtub` (Req 2.3); for `near_resident` return a position next to `manPos` (offset by a small fixed dx, clamped into the area), depending on `manPos` not fixed (Req 2.4)
     - For a Room_Key with no spot return that room's default standing place (Req 2.7); keep the returned x inside that room's drawn `x0..x1` band, and for a spot defined for that room keep both x and y inside the room's bounds (Req 2.8, 2.10); determinism: same inputs → same `(x, y)` (Req 2.6)
