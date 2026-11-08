@@ -242,6 +242,25 @@ class Engine
     }
 
     /**
+     * Return this episode's ordered, append-only {@see TurnRecord} history —
+     * one per applied turn, in turn order, exactly as the live loop accumulated
+     * it (design §d step 10, §i). Read-only: the list is returned as a plain,
+     * zero-based array and the Engine's own copy is never exposed for mutation.
+     *
+     * The reflection flow (robot-memory Requirement 2.3) reads this after a
+     * full replay through {@see \PoltergeistSwitch\TurnLoop\ReplayEngineFactory}
+     * to render the fact-only Reflection_Text: it includes the quiet turn 0,
+     * which the reflection recap drops because the recap begins at the first
+     * played/shaking turn (turn 1). This is a pure read and advances no state.
+     *
+     * @return list<TurnRecord>
+     */
+    public function turnRecords(): array
+    {
+        return array_values($this->turnRecords);
+    }
+
+    /**
      * Return the situation-text version (Req 14.1). This is the plain
      * SituationTextGenerator::VERSION constant, which identifies the fixed body
      * text, the fixed house text, and the generator's output format and is

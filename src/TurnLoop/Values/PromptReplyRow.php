@@ -24,5 +24,6 @@ readonly class PromptReplyRow
         public int $attempt,                  // 1..2 (Req 5.4)
         public string $situationTextVersion,  // Engine::situationTextVersion() per prompt (Req 8.3, 11.6)
         public ReplyRecord $reply,            // prompt text + reply + usage/flags (Req 8.3, 8.4)
+        public string $kind = 'turn',         // 'turn' | 'reflection' (robot-memory Req 2.5)
     ) {}
 }

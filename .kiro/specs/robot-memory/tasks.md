@@ -124,7 +124,7 @@ Stack: PHP 8.2 (no features added after 8.2 — no typed class constants, `json_
     - _Requirements: 4.4, 9.9_
 
 - [ ] 8. ReflectService — asking, idempotency, storing answers
-  - [-] 8.1 Implement `ReflectService` in `src/Memory/ReflectService.php` (reuses the turn-loop `RobotClient`, `ParallelHttp`, `EngineFactory`, `Config`; holds no rules logic):
+  - [x] 8.1 Implement `ReflectService` in `src/Memory/ReflectService.php` (reuses the turn-loop `RobotClient`, `ParallelHttp`, `EngineFactory`, `Config`; holds no rules logic):
     - guard: load the episode; 404 if unknown; 409 `not_ended` if it has not ended (including an episode released after 5 idle minutes — it is not marked ended), changing no state and making no `RobotClient` call; 409 `not_reflectable` for a pre-feature episode whose snapshot columns are NULL, changing no state and making no `RobotClient` call
     - rebuild the episode via `EngineFactory::forEpisode` (which now sets memories from the stored snapshot) to obtain the ordered `TurnRecord`s, the earthquake start turn, and the final `WorldModel`
     - per robot claim a slot (`claimReflectionSlot`): `answered` → reuse the stored answer and make no call; a fresh `in_progress` → skip (not double-asked); unclaimed/failed/stale → claim and call

@@ -282,6 +282,24 @@ interface EpisodeRepository
      */
     public function episodeSnapshot(string $episodeId, string $robotId): MemorySnapshot;
 
+    /**
+     * Return whether an episode carries a stored Memory_Snapshot, i.e. whether
+     * it was created after this feature shipped (robot-memory Requirement 2.2).
+     *
+     * A post-feature episode always writes both snapshot columns at creation
+     * (even an empty snapshot as the JSON array `[]`), so this is true for it;
+     * a pre-feature episode — created before the migration ran — has NULL
+     * snapshot columns and is NOT reflectable, so this is false. The reflect
+     * guard uses it to answer 409 `not_reflectable` without touching state or
+     * calling a Robot_Client. A missing/unknown episode is treated as having no
+     * snapshot (false), because {@see findEpisode} already answers 404 first.
+     *
+     * {@see episodeSnapshot} alone cannot distinguish a NULL column from a
+     * stored empty snapshot (both decode to an empty MemorySnapshot), which is
+     * why this separate signal exists.
+     */
+    public function episodeHasSnapshot(string $episodeId): bool;
+
     // --- Memories: read --------------------------------------------------
 
     /**

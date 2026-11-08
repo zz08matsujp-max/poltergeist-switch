@@ -587,12 +587,14 @@ final class PdoEpisodeRepository implements EpisodeRepository
 
     private function upsertPrompt(PromptReplyRow $row): void
     {
-        // Turn prompts are tagged kind = 'turn' so a reflection prompt
-        // (kind = 'reflection', turn_number = -1) never collides with a turn
-        // read (robot-memory Requirement 2.5).
+        // Turn prompts are tagged kind = 'turn'; a reflection prompt is tagged
+        // kind = 'reflection' with the sentinel turn_number -1, so the two
+        // never collide and no turn read picks up a reflection row (robot-memory
+        // Requirement 2.5). The kind comes from the PromptReplyRow DTO, whose
+        // only values are the fixed literals 'turn'/'reflection'.
         $sql = 'INSERT INTO prompts '
             . "(episode_id, turn_number, robot_id, prompt_text, situation_text_version, kind) "
-            . "VALUES (:episode_id, :turn_number, :robot_id, :prompt_text, :version, 'turn') "
+            . 'VALUES (:episode_id, :turn_number, :robot_id, :prompt_text, :version, :kind) '
             . 'ON DUPLICATE KEY UPDATE '
             . 'prompt_text = VALUES(prompt_text), '
             . 'situation_text_version = VALUES(situation_text_version)';
@@ -603,20 +605,23 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt->bindValue(':robot_id', $row->robotId);
         $stmt->bindValue(':prompt_text', $row->reply->prompt);
         $stmt->bindValue(':version', $row->situationTextVersion);
+        $stmt->bindValue(':kind', $row->kind);
         $stmt->execute();
     }
 
     private function upsertResponse(PromptReplyRow $row): void
     {
-        // Turn responses are tagged kind = 'turn' so a reflection response
-        // (kind = 'reflection', turn_number = -1) never collides with a turn
-        // read (robot-memory Requirement 2.5).
+        // Turn responses are tagged kind = 'turn'; a reflection response is
+        // tagged kind = 'reflection' with the sentinel turn_number -1, so the
+        // two never collide and no turn read picks up a reflection row
+        // (robot-memory Requirement 2.5). The kind comes from the
+        // PromptReplyRow DTO's fixed 'turn'/'reflection' literals.
         $sql = 'INSERT INTO responses '
             . "(episode_id, turn_number, robot_id, attempt, reply_text, "
             . 'input_tokens, output_tokens, seconds, cost, unanswered, truncated, failure_reason, kind) '
             . 'VALUES '
             . "(:episode_id, :turn_number, :robot_id, :attempt, :reply_text, "
-            . ":input_tokens, :output_tokens, :seconds, :cost, :unanswered, :truncated, :failure_reason, 'turn') "
+            . ':input_tokens, :output_tokens, :seconds, :cost, :unanswered, :truncated, :failure_reason, :kind) '
             . 'ON DUPLICATE KEY UPDATE '
             . 'reply_text = VALUES(reply_text), '
             . 'input_tokens = VALUES(input_tokens), '
@@ -644,6 +649,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
         } else {
             $stmt->bindValue(':failure_reason', $row->reply->failureReason);
         }
+        $stmt->bindValue(':kind', $row->kind);
         $stmt->execute();
     }
 
@@ -1268,6 +1274,24 @@ final class PdoEpisodeRepository implements EpisodeRepository
         }
 
         return $this->decodeSnapshot((string) $value);
+    }
+
+    public function episodeHasSnapshot(string $episodeId): bool
+    {
+        // A post-feature episode writes both snapshot columns at creation (an
+        // empty snapshot as '[]', never NULL), so a non-NULL robot_a snapshot
+        // marks it reflectable; a pre-feature episode keeps the column NULL and
+        // is not reflectable (Requirement 2.2). An unknown episode (no row)
+        // yields false — findEpisode already answers 404 ahead of this check.
+        $stmt = $this->pdo->prepare(
+            'SELECT robot_a_memory_snapshot FROM episodes WHERE id = :id'
+        );
+        $stmt->bindValue(':id', $episodeId);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+
+        return $value !== false && $value !== null;
     }
 
     // --- Memories: read --------------------------------------------------

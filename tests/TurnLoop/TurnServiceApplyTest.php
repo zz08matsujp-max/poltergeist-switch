@@ -481,6 +481,11 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         return $this->inner->episodeSnapshot($episodeId, $robotId);
     }
 
+    public function episodeHasSnapshot(string $episodeId): bool
+    {
+        return $this->inner->episodeHasSnapshot($episodeId);
+    }
+
     public function activeMemories(string $robotId, int $generation, int $cap): \PoltergeistSwitch\Memory\Values\MemorySnapshot
     {
         return $this->inner->activeMemories($robotId, $generation, $cap);

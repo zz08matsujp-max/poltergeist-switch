@@ -1014,6 +1014,15 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         return $stored[$robotId] ?? new MemorySnapshot([]);
     }
 
+    public function episodeHasSnapshot(string $episodeId): bool
+    {
+        // A post-feature episode has had storeEpisodeMemory called at creation,
+        // so it carries a stored snapshot (even an empty one) and is
+        // reflectable; a pre-feature / unknown episode has none and is not
+        // (Requirement 2.2), mirroring the PDO NULL-column check.
+        return isset($this->episodeMemory[$episodeId]);
+    }
+
     // --- Memories: read --------------------------------------------------
 
     public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
