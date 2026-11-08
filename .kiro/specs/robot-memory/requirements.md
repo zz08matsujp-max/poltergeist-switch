@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Robot-memory is the fifth spec of PoltergeistSwitch (product brief §15 item 6). It gives each robot a memory that accumulates across every episode it lives through. After an ended episode each robot is asked once, in its own words, what it wants to remember; a non-empty answer becomes a memory. At the start of every later episode the robot receives all its retained memories of the current generation, oldest first, in the fixed memories block, so a robot that lived through one disaster may draw on it in another.
+Robot-memory is the fourth spec of PoltergeistSwitch, after house-rules-engine, turn-loop, and screens. It gives each robot a memory that accumulates across every episode it lives through. After an ended episode each robot is asked once, in its own words, what it wants to remember; a non-empty answer becomes a memory. At the start of every later episode the robot receives all its retained memories of the current generation, oldest first, in the fixed memories block, so a robot that lived through one disaster may draw on it in another.
 
 This spec builds on the `house-rules-engine`, `turn-loop`, and `screens` specs. It adds a pure engine method that builds the reflection text a robot reads before the question, a reflection endpoint that asks both robots after an episode ends, a memory store with a per-robot per-disaster cap and a generation mechanism, the memories block inside every turn's situation text, an All reset and a status endpoint, and small additions to the Observe, End card, and Replay screens. It MUST NOT change the turn rules or the recorder.
 
@@ -27,7 +27,7 @@ The following are explicitly out of scope for this spec:
 - **Robot_Memory**: The system this spec defines — the reflection text builder, the reflection endpoint, the memory store with its cap and generations, the memories block in turn texts, the All reset and status endpoints, and the screen additions that show memory.
 - **Memory**: One stored answer a robot gave to the reflection question, stored verbatim as the robot's own words, tagged with the robot, the generation of its source episode, the disaster, the source episode, and a created time.
 - **Active_Memory**: A memory that is still passed to a robot — not retired. The memories block and the status counts use only active memories.
-- **Retired_Memory**: A memory marked retired because a newer memory for the same robot and disaster pushed the per-disaster active count past 6. A retired memory is never passed to a robot again, keeps its row in the database, and is never deleted.
+- **Retired_Memory**: A memory marked retired because a newer memory for the same robot, disaster, and generation pushed that robot's active count for that disaster and generation past 6. A retired memory is never passed to a robot again, keeps its row in the database, and is never deleted.
 - **Generation**: The numbered era of the memory store. A robot in an episode sees only active memories of the episode's generation. All reset starts a new generation so new episodes see zero memories; records of earlier generations are kept.
 - **Current_Generation**: The generation in effect for a new episode at the moment it is created. All reset advances it.
 - **Reflection_Question**: The exact text a robot is asked after an ended episode: `Is there anything from what happened this time that you want to remember?`
@@ -57,7 +57,7 @@ The following are explicitly out of scope for this spec:
 
 1. THE Engine SHALL expose a method that builds, for one robot and one ended episode, that robot's Reflection_Text, making no AI call, no HTTP call, and no database or external memory call.
 2. THE Reflection_Text SHALL contain, in this order: the fixed body section and the fixed house section exactly as in the turn texts; the Memories_Block this robot had in this episode when that block is non-empty; a fixed lead-in line; one event block per turn from the first turn to the last turn, oldest first; a "Right now:" paragraph for the world after the last turn; a blank line; and then the Reflection_Question word for word.
-3. THE Reflection_Text SHALL render each turn's event block in the same line forms and the same order as the recent-events blocks of the turn texts defined in `house-rules-engine` Requirement 9.16 — the result of the robot's own action, each line the robot spoke, each reported-speech item of the robot, the other robot's action under rule A, each line the other robot spoke, and each reported-speech item of the other robot.
+3. THE Reflection_Text SHALL render each turn's event block so that the robot is shown what it did, said, heard, and saw that turn, in the same wording the turn texts use: the result of the robot's own action, each line the robot spoke, and each reported-speech item of the robot (as in the recent-events blocks of `house-rules-engine` Requirement 9.16); the other robot's action under rule A, each line the other robot spoke, and each reported-speech item of the other robot (also Requirement 9.16); the man's line the robot heard that turn, rendered as in `house-rules-engine` Requirements 9.10–9.11; and the house events the robot perceived that turn — the shaking starting, continuing, or stopping, the lights going out, and objects falling or breaking where the robot could see them — rendered as in the shaking paragraph of `house-rules-engine` Requirement 9.14. THE Reflection_Text SHALL NOT repeat the static list of the room's objects for each turn.
 4. THE Reflection_Text SHALL head each turn's event block with the elapsed time since the shaking began, following the same heading convention as `house-rules-engine` Requirement 9.17 (the design proposes the exact heading text).
 5. THE Reflection_Text SHALL NOT include the robot's own replies, the robot's thoughts, any judgement data (possible or impossible reasons, danger codes), any resident meter value, or any AI company or model name.
 6. THE engine-authored parts of the Reflection_Text SHALL satisfy the Banned_Word_Rule, containing no judgement word and no AI company or model name from the `house-rules-engine` Requirement 9.15 word set.
@@ -75,7 +75,7 @@ The following are explicitly out of scope for this spec:
 
 1. THE Robot_Memory SHALL expose the Reflect_Endpoint `POST /api/episodes/{id}/reflect`.
 2. IF the Reflect_Endpoint is called for an episode that has not ended, THEN THE Robot_Memory SHALL reject the request, SHALL change no stored state, and SHALL make no Robot_Client call.
-3. WHEN the Reflect_Endpoint is called for an ended episode, THE Robot_Memory SHALL build each robot's Reflection_Text with Requirement 1, append the Reflection_Question, and call both Robot_Clients in parallel using `curl_multi`.
+3. WHEN the Reflect_Endpoint is called for an ended episode, THE Robot_Memory SHALL build each robot's Reflection_Text with Requirement 1, which already ends with the Reflection_Question, and SHALL send that Reflection_Text as-is to both Robot_Clients in parallel using `curl_multi` without appending the Reflection_Question a second time.
 4. WHEN the Reflect_Endpoint calls a Robot_Client, THE Robot_Memory SHALL send exactly one user message with no system prompt, provider default parameters, and a maximum output of 4000 tokens, using the same per-call timeout and failure handling as a turn as defined in the turn-loop spec.
 5. WHEN the Reflect_Endpoint calls a Robot_Client, THE Robot_Memory SHALL store the full prompt text with its Reflection_Text_Version and the full response text with its usage metadata, in the same way a turn's prompt and response are stored.
 6. WHEN a robot returns a non-empty answer, THE Robot_Memory SHALL store that answer verbatim as one Memory tagged with the robot, the generation of the source episode, the episode's disaster, the source episode, and a created time.
@@ -83,7 +83,7 @@ The following are explicitly out of scope for this spec:
 8. WHEN the Reflect_Endpoint is called for an episode in which a robot already has a stored reflection answer, THE Robot_Memory SHALL NOT ask that robot again and SHALL reuse the stored answer, so that repeating the call is idempotent.
 9. WHEN two Reflect_Endpoint calls for the same episode run concurrently, THE Robot_Memory SHALL ask each robot at most once, so that no robot is asked twice for the same episode.
 10. WHERE a robot's earlier reflection call failed or was abandoned and recorded no answer, WHEN the Reflect_Endpoint is called again for that episode, THE Robot_Memory SHALL ask only that robot again.
-11. THE Robot_Memory SHALL never reflect an episode that did not end, including an episode whose Device_Episode_Slot was released after 5 idle minutes.
+11. THE Robot_Memory SHALL never reflect an episode that did not end, including an episode that was released after 5 idle minutes of inactivity.
 12. WHEN the Reflect_Endpoint responds, THE Robot_Memory SHALL send a JSON body and the HTTP header `Cache-Control: no-store`, and SHALL include no device id, API key, database credential, or AI company or model name in the body.
 
 ### Requirement 3: Memory Store, Cap, and Retirement
@@ -94,12 +94,12 @@ The following are explicitly out of scope for this spec:
 
 1. THE Robot_Memory SHALL store memories in a `memories` table defined in a dated migration file under `sql/`, using the utf8mb4 character set.
 2. THE Robot_Memory SHALL store one memory store per robot, accumulated across all episodes — live demo, research, and development alike. (Decided by the maintainer on 2026-11-01.)
-3. THE Robot_Memory SHALL keep at most 6 Active_Memories per robot per disaster, and therefore at most 18 Active_Memories per robot across the three disasters. (Decided by the maintainer on 2026-11-01.)
-4. WHEN a 7th memory for the same robot and disaster is added, THE Robot_Memory SHALL retire the oldest Active_Memory for that robot and disaster by marking its row retired, SHALL keep that row in the database, and SHALL never delete it. (Decided by the maintainer on 2026-11-08.)
+3. THE Robot_Memory SHALL keep at most 6 Active_Memories per robot, per disaster, and per generation, and therefore at most 18 Active_Memories per robot per generation across the three disasters. (Decided by the maintainer on 2026-11-01.)
+4. WHEN a 7th memory for the same robot, disaster, and generation is added, THE Robot_Memory SHALL retire the oldest Active_Memory for that robot, disaster, and generation by marking its row retired, SHALL leave memories of any other generation unretired, SHALL keep the retired row in the database, and SHALL never delete it. (Decided by the maintainer on 2026-11-08.)
 5. THE Robot_Memory SHALL never pass a Retired_Memory to a robot in any Memories_Block or Reflection_Text. (Decided by the maintainer on 2026-11-08.)
 6. THE Robot_Memory SHALL append memories in the order the reflections finish, so that a memory's order reflects when its reflection completed.
 7. THE Robot_Memory SHALL store each Memory tagged with the robot, the generation, the disaster, the source episode, a created time, and whether the memory is active or retired.
-8. WHEN memories are read for a robot and a generation, THE Robot_Memory SHALL return the Active_Memories of that robot and generation oldest first, and SHALL exclude every Retired_Memory.
+8. WHEN memories are read for a robot and a generation, THE Robot_Memory SHALL return the Active_Memories of that robot and that generation oldest first, and SHALL exclude every Retired_Memory and every memory of another generation.
 
 ### Requirement 4: Generations and All Reset
 
@@ -110,7 +110,7 @@ The following are explicitly out of scope for this spec:
 1. THE Robot_Memory SHALL track a Current_Generation and SHALL expose the Memory_Reset_Endpoint `POST /api/memory/reset`.
 2. WHEN the Memory_Reset_Endpoint is called, THE Robot_Memory SHALL advance the Current_Generation to a new generation and SHALL delete no memory record. (Decided by the maintainer on 2026-11-01.)
 3. WHEN an episode is created after an All reset, THE Robot_Memory SHALL give that episode's robots the Active_Memories of the new Current_Generation only, so that a robot in a freshly reset generation starts with zero memories until it reflects in that generation. (Decided by the maintainer on 2026-11-01.)
-4. WHILE an episode is running, THE Robot_Memory SHALL keep that episode's own generation and its Memory_Snapshot unchanged when an All reset occurs, and SHALL store that episode's reflection memories under that episode's generation, so that an All reset during a run carries no old memories into the new generation. (Decided by the maintainer on 2026-11-01.)
+4. WHILE an episode is running, THE Robot_Memory SHALL keep that episode's own generation and its Memory_Snapshot unchanged when an All reset occurs. (Decided by the maintainer on 2026-11-01.) THE Robot_Memory SHALL store that episode's reflection memories under that episode's generation, so that an All reset during a run carries no old memories into the new generation. (From the request document `docs/en/memory-request.md`, 2026-11-08.)
 5. WHEN the Memory_Reset_Endpoint responds, THE Robot_Memory SHALL send a JSON body and the HTTP header `Cache-Control: no-store`, and SHALL include no device id, API key, database credential, or AI company or model name in the body.
 6. THE Robot_Memory SHALL store the Current_Generation and the per-episode generation through the Episode_Repository in a dated migration under `sql/`.
 
@@ -180,6 +180,7 @@ The following are explicitly out of scope for this spec:
 4. THE test suite SHALL include an Eris property test, configured for at least 100 cases, verifying that the memories passed to an episode are exactly that episode's generation's Active_Memories at creation time, oldest first, and that every turn of the episode — including after a ReplayEngineFactory rebuild — uses the same Memories_Block.
 5. THE test suite SHALL include an Eris property test, configured for at least 100 cases, verifying that the Reflect_Endpoint is idempotent: once a robot has a stored answer for an episode, it is asked at most once for that episode across repeated and concurrent calls.
 6. THE test suite SHALL include an Eris property test, configured for at least 100 cases, verifying that the engine-authored part of the Reflection_Text contains no banned word and no AI company or model name and never contains the robot's reply text.
-7. THE test suite SHALL include a golden test verifying that with no memories the S0–S5 situation texts are byte-for-byte unchanged.
-8. THE test suite SHALL include an example test for the Memories_Block format (the Appendix A heading and each memory in its own `"""` block, oldest first) and an example test for an All reset during a running episode showing the running episode keeps its generation and snapshot.
-9. THE test suite SHALL run `php -l` with no reported error on every PHP file changed by this spec, and SHALL use only PHP 8.2 language features, excluding features introduced after PHP 8.2.
+7. THE test suite SHALL include an example test verifying that a turn's event block in the Reflection_Text includes, in the same wording the turn texts use, the man's line the robot heard that turn and the house events the robot perceived that turn (shaking starting, continuing, or stopping; the lights going out; objects falling or breaking where the robot could see them), and SHALL NOT repeat the static list of the room's objects for each turn.
+8. THE test suite SHALL include a golden test verifying that with no memories the S0–S5 situation texts are byte-for-byte unchanged.
+9. THE test suite SHALL include an example test for the Memories_Block format (the Appendix A heading and each memory in its own `"""` block, oldest first) and an example test for an All reset during a running episode showing the running episode keeps its generation and snapshot.
+10. THE test suite SHALL run `php -l` with no reported error on every PHP file changed by this spec, and SHALL use only PHP 8.2 language features, excluding features introduced after PHP 8.2.
