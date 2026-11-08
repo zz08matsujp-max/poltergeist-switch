@@ -230,6 +230,14 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - Copy the edited instruction text from `docs/en/recorder-prompt-v2.md` into `ClaudeRecorderClient` exactly and set `PROMPT_VERSION` to `recorder-2c`
     - _Requirements: 3.4_
 
+- [x] 22. Repair recorder quotes before the evidence check (added 2026-11-08)
+  - [x] 22.1 Add a quote-repair step before EvidenceCheck:
+    - For every recorder quote (actionQuote, each spoken line, each reported-speech quote) that is NOT an exact substring of the reply, look for it in the reply treating only the apostrophes `’ ‘ ʼ '` as equal and the double quotes `“ ” "` as equal; when exactly one match is found, replace the quote with the reply's own exact substring. All other characters must match byte-for-byte; EvidenceCheck itself stays byte-for-byte and runs on the repaired Reading
+    - This removes the one-company typographic-quote bias (GPT writes `’`/`“”`, Claude writes `'`/`"`), so a line the recorder copied with straight quotes is still matched to the reply's curly-quote original
+    - Record in house-rules-engine Requirement 12 (as a note) and turn-loop Requirement 3 that the stored quote is always the reply's exact text
+    - Tests, including a property test: after repair, every kept quote is an exact substring of the reply
+    - _Requirements: 3.8_
+
 ## Notes
 
 - **(a) Hard engine prerequisite.** `house-rules-engine` tasks 28 (`Engine::prepareTurn`) and 29 (`Engine::situationTextVersion`) must be complete before the ask/apply/text tasks (11, 12) and the same-world and rehydration property tests (16.2) and the end-to-end test (17.1) run. Those tasks live in the `house-rules-engine` spec, not this one; the dependency graph below can only list this spec's task ids, so wave 0 (scaffold) assumes engine 28/29 are already done.
@@ -262,7 +270,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     { "id": 13, "tasks": ["17.1"] },
     { "id": 14, "tasks": ["19.1", "19.2", "19.3"] },
     { "id": 15, "tasks": ["20.1"] },
-    { "id": 16, "tasks": ["21.1"] }
+    { "id": 16, "tasks": ["21.1"] },
+    { "id": 17, "tasks": ["22.1"] }
   ]
 }
 ```

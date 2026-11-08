@@ -207,6 +207,13 @@
         "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
         "timestamp": 1794117033003
       }
+    ],
+    "22.1 Add a quote-repair step before EvidenceCheck:": [
+      {
+        "executionId": "17b45b00-aa68-4106-93a1-94926f32d004",
+        "chatSessionId": "sess_2c20efff-a318-4402-a2ba-edda1b7386bb",
+        "timestamp": 1794118593812
+      }
     ]
   }
 }

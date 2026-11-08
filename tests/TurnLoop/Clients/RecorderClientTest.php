@@ -654,6 +654,36 @@ class RecorderClientTest extends TestCase
         $this->assertSame(['Stay down.'], $verified->action->words, 'only the quoted line survives');
     }
 
+    public function testVerifiedReadingRepairsTypographicQuoteBeforeEvidenceCheck(): void
+    {
+        // The reply writes a curly apostrophe and curly double quotes; the
+        // recorder copied them back as straight glyphs. Without repair, neither
+        // the actionQuote nor the spoken line would be an exact substring, so
+        // the action would drop to `unknown` and the line would vanish. Repair
+        // runs first, so the reading survives (task 22.1).
+        $curlyApos = "\u{2019}";
+        $ldquo = "\u{201C}";
+        $rdquo = "\u{201D}";
+        $reply = 'I don' . $curlyApos . 't move, and I say ' . $ldquo . 'Stay here' . $rdquo . ' to him.';
+
+        $reading = new Reading(
+            new Action('robot_b', 'wait', null, null, ['"Stay here"'], "I don't move"),
+            false,
+            '{"operation":"wait"}',
+            'recorder-2c',
+        );
+
+        $verified = VerifiedReading::verify($reply, $reading);
+
+        $this->assertFalse($verified->unknown, 'the typographic-quote reading must survive');
+        $this->assertSame(Operation::wait->value, $verified->action->operation, 'operation kept');
+        $this->assertSame('I don' . $curlyApos . 't move', $verified->action->actionQuote, 'actionQuote repaired to the reply text');
+        $this->assertSame([$ldquo . 'Stay here' . $rdquo], $verified->action->words, 'spoken line repaired and kept');
+        // Every kept quote is now an exact byte-for-byte substring of the reply.
+        $this->assertTrue(str_contains($reply, (string) $verified->action->actionQuote));
+        $this->assertTrue(str_contains($reply, $verified->action->words[0]));
+    }
+
     private function sampleInput(): RecorderInput
     {
         $world = new WorldModel();

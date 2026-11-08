@@ -284,6 +284,8 @@ Decided by the maintainer on 2026-11-02 (proposed by Claude after the turn-2 pil
     3. results the robot claims ("the flame went out") are not read, and actions it narrates for the other robot are not read;
     4. every quoted line is delivered (speaking does not use the action, Requirement 5.12); reported speech ("I call to the other robot to…") is delivered in the Reading's own words, with the original passage as its quote.
 
+> **Note (added 2026-11-08):** EvidenceCheck's behaviour and its criteria above are unchanged — the check stays byte-for-byte with no normalisation. A caller (the turn-loop) MAY, before the check, repair a recorder quote that differs from the reply only by typographic-quote variants (the apostrophe glyphs `’` `‘` `ʼ` `'` treated as equal, the double-quote glyphs `“` `”` `"` treated as equal) to the reply's own exact substring when exactly one such substring matches. Because that repair rewrites the quote to the reply's exact text before the check, the stored evidence quote is always an exact substring of the reply. This note records the caller's contract; it does not change the engine's byte-for-byte check.
+
 ---
 
 ### Requirement 13: Same-world turn preparation (prepareTurn)

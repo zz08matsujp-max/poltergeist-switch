@@ -20,6 +20,14 @@ use PoltergeistSwitch\TurnLoop\Values\Reading;
  * reply becomes operation `unknown`, and spoken lines / reported quotes that
  * are not exact substrings are dropped.
  *
+ * Before the byte-for-byte check runs, {@see QuoteRepair::repair} rewrites each
+ * recorder quote that is not an exact substring of the reply to the reply's own
+ * exact text when they differ only by quote-glyph variants (a curly apostrophe
+ * copied back as a straight one, or straight double quotes copied back as curly
+ * ones). This removes a systematic one-company typographic-quote bias without
+ * loosening EvidenceCheck, which stays byte-for-byte: the stored quote is always
+ * the reply's exact substring (turn-loop Requirement 3).
+ *
  * This helper returns a new Reading carrying the verified action, with
  * `unknown` set to true when the verified action's operation is `unknown`
  * (Requirement 3.8). The raw JSON and prompt version are preserved so the
@@ -33,7 +41,11 @@ final class VerifiedReading
      */
     public static function verify(string $reply, Reading $reading): Reading
     {
-        $verified = EvidenceCheck::verify($reply, $reading->action);
+        // Repair typographic-quote variants to the reply's exact text first, so
+        // a quote that differs from the reply only by quote glyph still survives
+        // the byte-for-byte EvidenceCheck that follows.
+        $repaired = QuoteRepair::repair($reply, $reading->action);
+        $verified = EvidenceCheck::verify($reply, $repaired);
 
         $unknown = $reading->unknown || $verified->operation === Operation::unknown->value;
 
