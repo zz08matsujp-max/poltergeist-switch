@@ -236,6 +236,90 @@ class RecorderClientTest extends TestCase
         $this->assertSame(Operation::unknown->value, $reading->action->operation);
     }
 
+    // ---------- Robust recorder JSON extraction (task 20.1, Requirement 3.6) ----------
+
+    public function testMapsFencedJsonReplyToWaitReading(): void
+    {
+        $mapper = new ReadingMapper();
+        $raw = "```json\n{\"operation\":\"wait\",\"targetId\":null,\"targetSpot\":null,\"actionQuote\":\"I wait.\",\"words\":[],\"reported\":[]}\n```";
+
+        $reading = $mapper->map('robot_a', $raw, 'recorder-1');
+
+        $this->assertFalse($reading->unknown, 'a fenced reply must decode, not fall through to unknown');
+        $this->assertSame(Operation::wait->value, $reading->action->operation);
+        // The original raw text (fence included) is stored verbatim (Req 8.5).
+        $this->assertSame($raw, $reading->rawJson);
+    }
+
+    public function testMapsProseWrappedJsonReplyToMoveReading(): void
+    {
+        $mapper = new ReadingMapper();
+        $raw = 'Here is my reading: {"operation":"move","targetId":"kitchen","targetSpot":null,"actionQuote":"I go to the kitchen.","words":[],"reported":[]} — let me know if you need more.';
+
+        $reading = $mapper->map('robot_a', $raw, 'recorder-1');
+
+        $this->assertFalse($reading->unknown, 'a prose-wrapped reply must decode');
+        $this->assertSame(Operation::move->value, $reading->action->operation);
+        $this->assertSame('kitchen', $reading->action->targetId);
+        $this->assertSame('I go to the kitchen.', $reading->action->actionQuote);
+        // The original prose-wrapped text is stored verbatim (Req 8.5).
+        $this->assertSame($raw, $reading->rawJson);
+    }
+
+    public function testExtractsObjectWhenBraceAppearsInsideStringValue(): void
+    {
+        // A literal "}" and "{" inside a string value must not end the object
+        // early: the string-aware scan skips braces inside strings.
+        $mapper = new ReadingMapper();
+        $raw = '{"operation":"wait","targetId":null,"targetSpot":null,"actionQuote":"I think about the } and { symbols.","words":[],"reported":[]}';
+
+        $reading = $mapper->map('robot_a', $raw, 'recorder-1');
+
+        $this->assertFalse($reading->unknown, 'braces inside a string value must not break extraction');
+        $this->assertSame(Operation::wait->value, $reading->action->operation);
+        $this->assertSame('I think about the } and { symbols.', $reading->action->actionQuote);
+    }
+
+    public function testExtractsObjectWhenEscapedQuoteInsideStringValue(): void
+    {
+        // An escaped quote (\") inside a string must not end the string, so the
+        // following brace stays "inside" and the whole object is extracted.
+        $mapper = new ReadingMapper();
+        $raw = 'prose {"operation":"wait","actionQuote":"He said \"stop\" and left.","words":[],"reported":[]} trailing';
+
+        $reading = $mapper->map('robot_a', $raw, 'recorder-1');
+
+        $this->assertFalse($reading->unknown);
+        $this->assertSame(Operation::wait->value, $reading->action->operation);
+        $this->assertSame('He said "stop" and left.', $reading->action->actionQuote);
+    }
+
+    public function testPureProseWithNoJsonObjectStaysUnknown(): void
+    {
+        $mapper = new ReadingMapper();
+        $raw = 'I am not sure what to do here, so I will not return any JSON.';
+
+        $reading = $mapper->map('robot_a', $raw, 'recorder-1');
+
+        $this->assertTrue($reading->unknown, 'prose with no object stays unknown/unreadable');
+        $this->assertSame(Operation::unknown->value, $reading->action->operation);
+        $this->assertSame($raw, $reading->rawJson, 'the original prose is stored verbatim');
+    }
+
+    public function testStoredRawJsonIsOriginalTextWhileDecodedOperationIsCorrect(): void
+    {
+        $mapper = new ReadingMapper();
+        $raw = "```json\n{\"operation\":\"move\",\"targetId\":\"kitchen\",\"actionQuote\":\"I go to the kitchen.\",\"words\":[],\"reported\":[]}\n```";
+
+        $reading = $mapper->map('robot_b', $raw, 'recorder-1');
+
+        // Decoded layer is correct …
+        $this->assertFalse($reading->unknown);
+        $this->assertSame(Operation::move->value, $reading->action->operation);
+        // … while the stored raw text is the original, fence and all (Req 8.5).
+        $this->assertSame($raw, $reading->rawJson);
+    }
+
     public function testMapperAssignsNoActionCodes(): void
     {
         // The engine Action has no A1-N1 code field; assert the mapped action

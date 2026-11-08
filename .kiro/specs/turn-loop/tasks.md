@@ -218,6 +218,18 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - When the URL has `?episode=<id>`, load that episode read-only with a GET and render all its applied turns; offer no advance buttons for a loaded episode; keep `Cache-Control: no-store`
     - _Requirements: 10.5_
 
+- [x] 20. Robust recorder JSON
+  - [x] 20.1 Extract the first complete top-level JSON object from the recorder text before decoding:
+    - In `ReadingMapper`, scan the raw recorder text and pull out the first balanced top-level `{...}` object (string- and brace-aware, so braces inside strings and a code fence or prose around the JSON do not break it) before `json_decode`; still unknown/unreadable when there is no complete object
+    - Add tests with fenced (```json) and prose-wrapped JSON
+    - _Requirements: 3.6_
+
+- [ ] 21. Recorder knows the current room (recorder-2c)
+  - [ ] 21.1 Give the recorder the robot's current room:
+    - Add the robot's current room key to `RecorderInput` and emit a `current room: <key>` line in the input block; update turn-loop Requirement 3.4
+    - Copy the edited instruction text from `docs/en/recorder-prompt-v2.md` into `ClaudeRecorderClient` exactly and set `PROMPT_VERSION` to `recorder-2c`
+    - _Requirements: 3.4_
+
 ## Notes
 
 - **(a) Hard engine prerequisite.** `house-rules-engine` tasks 28 (`Engine::prepareTurn`) and 29 (`Engine::situationTextVersion`) must be complete before the ask/apply/text tasks (11, 12) and the same-world and rehydration property tests (16.2) and the end-to-end test (17.1) run. Those tasks live in the `house-rules-engine` spec, not this one; the dependency graph below can only list this spec's task ids, so wave 0 (scaffold) assumes engine 28/29 are already done.
@@ -248,7 +260,9 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     { "id": 11, "tasks": ["14.2", "15.1"] },
     { "id": 12, "tasks": ["16.1", "16.2"] },
     { "id": 13, "tasks": ["17.1"] },
-    { "id": 14, "tasks": ["19.1", "19.2", "19.3"] }
+    { "id": 14, "tasks": ["19.1", "19.2", "19.3"] },
+    { "id": 15, "tasks": ["20.1"] },
+    { "id": 16, "tasks": ["21.1"] }
   ]
 }
 ```

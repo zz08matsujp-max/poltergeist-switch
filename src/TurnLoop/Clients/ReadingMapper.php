@@ -47,7 +47,20 @@ final class ReadingMapper
      */
     public function map(string $robotId, string $rawJson, string $promptVersion): Reading
     {
-        $decoded = json_decode($rawJson, true);
+        // Recorders sometimes wrap the JSON object in prose or a Markdown code
+        // fence (```json … ```), so decoding the whole text fails. Pull out the
+        // first complete top-level `{…}` object before decoding; the ORIGINAL
+        // raw text is still stored on the Reading (Requirement 8.5), so only
+        // WHAT is handed to json_decode changes, not what is stored.
+        $candidate = $this->firstJsonObject($rawJson);
+
+        // No complete balanced object found → behave exactly as before: the
+        // reading is unknown/unreadable, storing the original raw text.
+        if ($candidate === null) {
+            return $this->unknownReading($robotId, [], [], $rawJson, $promptVersion);
+        }
+
+        $decoded = json_decode($candidate, true);
 
         // Invalid JSON, or JSON that is not an object → unknown (Req 3.6). No
         // words or reported items can be read from a non-array shape.
@@ -128,6 +141,69 @@ final class ReadingMapper
         );
 
         return new Reading($action, false, $rawJson, $promptVersion);
+    }
+
+    /**
+     * Extract the first complete top-level JSON object `{…}` from arbitrary
+     * recorder text, so prose or a Markdown code fence around the JSON does
+     * not break decoding (Requirement 3.6).
+     *
+     * The scan is string- and brace-aware: it finds the first `{`, then tracks
+     * brace depth, but only counts braces that are outside a JSON string. A `"`
+     * toggles in/out of a string, and a `\` inside a string escapes the next
+     * character (so `\"` does not end the string and `\\` is a literal
+     * backslash). When depth returns to 0 the first complete object is
+     * returned. A code fence or prose before/after the object is skipped
+     * naturally. Returns null when no balanced object is found.
+     */
+    private function firstJsonObject(string $text): ?string
+    {
+        $length = strlen($text);
+        $start = strpos($text, '{');
+        if ($start === false) {
+            return null;
+        }
+
+        $depth = 0;
+        $inString = false;
+        $escaped = false;
+
+        for ($i = $start; $i < $length; $i++) {
+            $char = $text[$i];
+
+            if ($inString) {
+                if ($escaped) {
+                    // This character is escaped; consume it literally.
+                    $escaped = false;
+                } elseif ($char === '\\') {
+                    // Backslash escapes the next character inside a string.
+                    $escaped = true;
+                } elseif ($char === '"') {
+                    // Unescaped quote closes the string.
+                    $inString = false;
+                }
+
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = true;
+                continue;
+            }
+
+            if ($char === '{') {
+                $depth++;
+            } elseif ($char === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    // Depth back to 0: first complete top-level object found.
+                    return substr($text, $start, $i - $start + 1);
+                }
+            }
+        }
+
+        // Ran off the end without balancing: no complete object.
+        return null;
     }
 
     /**
