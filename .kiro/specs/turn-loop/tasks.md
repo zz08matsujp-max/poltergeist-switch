@@ -88,8 +88,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - `RecorderInput` contains only the allowed identifiers (no other room's object ids); the three classification cases speak/wait/unknown map correctly; invalid JSON → `unknown`; a failed/timeout result → `unknown`; the recorder prompt version is returned and non-empty
     - _Requirements: 3.3, 3.4, 3.6, 3.7_
 
-- [ ] 7. SQL DDL for the turn-loop tables
-  - [ ] 7.1 Create `sql/turn_loop.sql` with utf8mb4 tables and keys as in the design:
+- [x] 7. SQL DDL for the turn-loop tables
+  - [x] 7.1 Create `sql/turn_loop.sql` with utf8mb4 tables and keys as in the design:
     - `episodes` (id, device_id, disaster, seed, current_expected_turn, earthquake_start_turn, ended, created_at, last_activity_at; running/device indexes)
     - `turns` (episode_id, turn_number, state, attempts_a/b, no_reply_a/b, resident_line; PK on episode_id+turn_number)
     - `prompts` (…, prompt_text, `situation_text_version`; PK per robot per turn)
@@ -99,8 +99,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/TurnLoop/`, thin en
     - No secret, credential, or provider name anywhere in the file
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 13.3, 2.3_
 
-- [ ] 8. EpisodeRepository interface, in-memory fake, and PDO implementation
-  - [ ] 8.1 Implement the `EpisodeRepository` interface in `src/TurnLoop/Repository/EpisodeRepository.php`:
+- [~] 8. EpisodeRepository interface, in-memory fake, and PDO implementation
+  - [x] 8.1 Implement the `EpisodeRepository` interface in `src/TurnLoop/Repository/EpisodeRepository.php`:
     - Episode CRUD/slot queries (`createEpisode`, `findEpisode`, `countRunningEpisodes`, `findRunningEpisodeForDevice`, `setEarthquakeStartTurn`, `markEpisodeEnded`, `setCurrentExpectedTurn`), turn lifecycle (`findTurn`, `createTurn`, `setTurnState`), reply persistence (`savePromptAndReply`, `incrementAttempt`, `markNoReply`), the single-transaction four-layer write `storeAppliedTurn`, and `loadEpisodeView`
     - _Requirements: 8.7, 9.4_
   - [ ] 8.2 Implement `InMemoryEpisodeRepository` in `tests/TurnLoop/` (or a shared test double) for driving `TurnService` without a database:
