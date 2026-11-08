@@ -11,7 +11,8 @@
     "autoload": {
         "psr-4": {
             "PoltergeistSwitch\\Engine\\": "src/Engine/",
-            "PoltergeistSwitch\\TurnLoop\\": "src/TurnLoop/"
+            "PoltergeistSwitch\\TurnLoop\\": "src/TurnLoop/",
+            "PoltergeistSwitch\\Memory\\": "src/Memory/"
         }
     },
     "autoload-dev": {

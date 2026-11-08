@@ -52,6 +52,7 @@ spl_autoload_register(static function (string $class): void {
     static $prefixes = [
         'PoltergeistSwitch\\Engine\\'   => __DIR__ . '/../src/Engine/',
         'PoltergeistSwitch\\TurnLoop\\' => __DIR__ . '/../src/TurnLoop/',
+        'PoltergeistSwitch\\Memory\\'   => __DIR__ . '/../src/Memory/',
     ];
 
     foreach ($prefixes as $prefix => $baseDir) {
