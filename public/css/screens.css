@@ -43,6 +43,13 @@
 
 * { box-sizing: border-box; }
 
+/* The hidden attribute must beat the layout rules below. The screen regions
+   that start hidden (the house, reply panels, and controls on Replay) carry
+   a display: grid/flex rule that would otherwise override the browser default
+   [hidden] { display: none }, so they must stay hidden until an episode loads
+   (Req 8.2, 8.7). */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   background: var(--night);

@@ -166,7 +166,7 @@ Stack: PHP 8.2 only (no language features added after 8.2), plain classes in `sr
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 13. Fix hidden elements showing on Replay
-  - [ ] 13.1 Add `[hidden] { display: none !important; }` to `public/css/screens.css`
+  - [x] 13.1 Add `[hidden] { display: none !important; }` to `public/css/screens.css`
     - A `display: grid`/`flex` rule currently overrides the `hidden` attribute, so replay.php shows the house, the reply panels and the controls under the episode list before any episode is chosen; the global `[hidden]` rule restores `hidden`'s effect so those regions stay hidden until an episode is loaded
     - _Requirements: 8.2, 8.7_
 
