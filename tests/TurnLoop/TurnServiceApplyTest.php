@@ -377,9 +377,9 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         return $this->inner->findTurn($episodeId, $turnNumber);
     }
 
-    public function createTurn(string $episodeId, int $turnNumber): void
+    public function createTurn(string $episodeId, int $turnNumber, ?string $worldJson = null): void
     {
-        $this->inner->createTurn($episodeId, $turnNumber);
+        $this->inner->createTurn($episodeId, $turnNumber, $worldJson);
     }
 
     public function setTurnState(string $episodeId, int $turnNumber, string $state): void

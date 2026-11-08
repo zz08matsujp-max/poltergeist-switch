@@ -24,6 +24,151 @@
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794124293360
       }
+    ],
+    "3.1 Extend the repository to read and write `world_json`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124705242
+      },
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124730330
+      }
+    ],
+    "3.2 Extend `TurnService` to store the world and include it in the episode view": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124705363
+      }
+    ],
+    "3.3 Implement the one-time backfill for pre-existing episodes": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124705631
+      }
+    ],
+    "3.4 Write the required backfill property tests in `tests/TurnLoop/Properties/`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124705729
+      }
+    ],
+    "4.1 Implement `EpisodeListService` in `src/TurnLoop/EpisodeListService.php` (plain PHP)": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124705830
+      }
+    ],
+    "4.2 Implement the thin handler `api/episodes_list.php` and wire the route": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124705931
+      }
+    ],
+    "4.3 Write the required list property tests in `tests/TurnLoop/Properties/`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706028
+      }
+    ],
+    "5. Checkpoint - API additions": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706130
+      }
+    ],
+    "6.1 Implement `positionMap` in `public/js/position-map.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706233
+      }
+    ],
+    "7.1 Implement `house-renderer.js` ported from `pilot/look.php`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706398
+      }
+    ],
+    "8.1 Implement `act-out.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706497
+      }
+    ],
+    "8.2 Implement `voices.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706600
+      }
+    ],
+    "9.1 Implement the relative-URL API client `public/js/api.js` and shared `public/css/screens.css`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706698
+      }
+    ],
+    "9.2 Implement `public/index.php` and `public/js/observe.js` — layout and setup": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706799
+      }
+    ],
+    "9.3 Implement the Observe run loop in `observe.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124706907
+      }
+    ],
+    "9.4 Implement the End_Card and 409 slot/resume handling in `observe.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124707009
+      }
+    ],
+    "10.1 Implement `public/replay.php` and the Replay episode list in `public/js/replay.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124707110
+      }
+    ],
+    "10.2 Implement Replay playback and evidence highlighting in `replay.js`": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124707211
+      }
+    ],
+    "11.1 Apply the shared look, accessibility, and caching rules to Observe and Replay": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124707384
+      }
+    ],
+    "12. Final checkpoint": [
+      {
+        "executionId": "21698da9-3171-4f04-8479-c5ca6c995d06",
+        "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
+        "timestamp": 1794124707481
+      }
     ]
   }
 }

@@ -12,6 +12,12 @@ namespace PoltergeistSwitch\TurnLoop\Values;
  * (Requirement 5.6) for robot_a and robot_b, and the resident line (null until
  * one is recorded). The state is held as a TurnStateValue so forward-only
  * ordering is enforced by the value object (Requirement 7.2).
+ *
+ * $worldJson carries the per-turn recorded World_State (screens spec
+ * Requirement 10.1, 10.2): the serialised state of the house after this turn
+ * was applied, and the initial calm state for turn 0. It is null until one is
+ * recorded (the column is nullable, so a turn written without a world reads
+ * back as null; the one-time backfill is a later task).
  */
 readonly class TurnRow
 {
@@ -25,5 +31,6 @@ readonly class TurnRow
         public bool $noReplyB,
         public ?string $residentLine,        // null or the resident's line
         public string $createdAt,            // 'Y-m-d H:i:s'
+        public ?string $worldJson = null,    // null or the per-turn World_State (Req 10.1, 10.2)
     ) {}
 }

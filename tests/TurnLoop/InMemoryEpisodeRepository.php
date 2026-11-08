@@ -194,15 +194,18 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         return $this->turns[$this->turnKey($episodeId, $turnNumber)] ?? null;
     }
 
-    public function createTurn(string $episodeId, int $turnNumber): void
+    public function createTurn(string $episodeId, int $turnNumber, ?string $worldJson = null): void
     {
         $key = $this->turnKey($episodeId, $turnNumber);
         // Idempotent: a turn that already exists is left as it is, so its
-        // state and attempt counts are never reset by a repeated createTurn.
+        // state, attempt counts, and any stored world are never reset by a
+        // repeated createTurn.
         if (isset($this->turns[$key])) {
             return;
         }
 
+        // $worldJson stores the per-turn World_State on the new row (turn 0's
+        // initial calm world, Req 10.2); null leaves it unset.
         $this->turns[$key] = new TurnRow(
             episodeId: $episodeId,
             turnNumber: $turnNumber,
@@ -213,6 +216,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             noReplyB: false,
             residentLine: null,
             createdAt: $this->now(),
+            worldJson: $worldJson,
         );
     }
 
@@ -336,12 +340,19 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
         $this->appliedTurns[$key] = $rows;
 
-        // Carry the resident line onto the turn row so loadEpisodeView can
-        // report it; advancing the turn to `applied` is TurnService's job via
-        // setTurnState, not this write's.
+        // Carry the resident line and the post-apply World_State (Req 10.1)
+        // onto the turn row so loadEpisodeView can report them; advancing the
+        // turn to `applied` is TurnService's job via setTurnState, not this
+        // write's. A null world leaves the turn's stored world as it was.
         $turn = $this->turns[$key] ?? null;
-        if ($turn !== null && $rows->residentLine !== null) {
-            $this->turns[$key] = $this->withTurnChanges($turn, residentLine: $rows->residentLine);
+        if ($turn !== null) {
+            if ($rows->residentLine !== null) {
+                $turn = $this->withTurnChanges($turn, residentLine: $rows->residentLine);
+            }
+            if ($rows->worldJson !== null) {
+                $turn = $this->withTurnChanges($turn, worldJson: $rows->worldJson);
+            }
+            $this->turns[$key] = $turn;
         }
     }
 
@@ -767,6 +778,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         ?bool $noReplyA = null,
         ?bool $noReplyB = null,
         ?string $residentLine = null,
+        ?string $worldJson = null,
     ): TurnRow {
         return new TurnRow(
             episodeId: $turn->episodeId,
@@ -778,6 +790,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             noReplyB: $noReplyB ?? $turn->noReplyB,
             residentLine: $residentLine ?? $turn->residentLine,
             createdAt: $turn->createdAt,
+            worldJson: $worldJson ?? $turn->worldJson,
         );
     }
 }

@@ -201,20 +201,29 @@ final class PdoEpisodeRepository implements EpisodeRepository
         return $this->turnRowFrom($row);
     }
 
-    public function createTurn(string $episodeId, int $turnNumber): void
+    public function createTurn(string $episodeId, int $turnNumber, ?string $worldJson = null): void
     {
         // Idempotent create: INSERT IGNORE leaves an existing turn untouched so
         // its state and attempt counts are never reset by a repeated create.
+        // $worldJson stores the per-turn World_State on the new row (turn 0's
+        // initial calm world, Req 10.2); nullable so a turn created without a
+        // world leaves world_json NULL. The INSERT IGNORE keeps it idempotent:
+        // a repeat never overwrites an already-stored world.
         $sql = 'INSERT IGNORE INTO turns '
             . '(episode_id, turn_number, state, attempts_a, attempts_b, '
-            . 'no_reply_a, no_reply_b, resident_line, created_at) '
+            . 'no_reply_a, no_reply_b, resident_line, world_json, created_at) '
             . 'VALUES '
-            . '(:episode_id, :turn_number, :state, 0, 0, 0, 0, NULL, :created_at)';
+            . '(:episode_id, :turn_number, :state, 0, 0, 0, 0, NULL, :world_json, :created_at)';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':episode_id', $episodeId);
         $stmt->bindValue(':turn_number', $turnNumber, PDO::PARAM_INT);
         $stmt->bindValue(':state', TurnStateValue::waiting->value);
+        if ($worldJson === null) {
+            $stmt->bindValue(':world_json', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue(':world_json', $worldJson);
+        }
         $stmt->bindValue(':created_at', $this->now());
         $stmt->execute();
     }
@@ -356,6 +365,21 @@ final class PdoEpisodeRepository implements EpisodeRepository
                     . 'WHERE episode_id = :episode_id AND turn_number = :turn_number'
                 );
                 $stmt->bindValue(':resident_line', $rows->residentLine);
+                $stmt->bindValue(':episode_id', $rows->episodeId);
+                $stmt->bindValue(':turn_number', $rows->turnNumber, PDO::PARAM_INT);
+                $stmt->execute();
+            }
+
+            // Carry the post-apply World_State onto the turn row (Req 10.1), in
+            // the same transaction as the four-layer write so a stored applied
+            // turn and its world are committed together. Only written when a
+            // world is supplied; a null leaves world_json as it was.
+            if ($rows->worldJson !== null) {
+                $stmt = $this->pdo->prepare(
+                    'UPDATE turns SET world_json = :world_json '
+                    . 'WHERE episode_id = :episode_id AND turn_number = :turn_number'
+                );
+                $stmt->bindValue(':world_json', $rows->worldJson);
                 $stmt->bindValue(':episode_id', $rows->episodeId);
                 $stmt->bindValue(':turn_number', $rows->turnNumber, PDO::PARAM_INT);
                 $stmt->execute();
@@ -765,6 +789,9 @@ final class PdoEpisodeRepository implements EpisodeRepository
     private function turnRowFrom(array $row): TurnRow
     {
         $residentLine = $row['resident_line'];
+        // world_json is nullable and may be absent on an older schema read;
+        // a missing or null value reads back as null (Req 10.1, 10.2).
+        $worldJson = $row['world_json'] ?? null;
 
         return new TurnRow(
             episodeId: (string) $row['episode_id'],
@@ -776,6 +803,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
             noReplyB: (bool) (int) $row['no_reply_b'],
             residentLine: $residentLine === null ? null : (string) $residentLine,
             createdAt: (string) $row['created_at'],
+            worldJson: $worldJson === null ? null : (string) $worldJson,
         );
     }
 

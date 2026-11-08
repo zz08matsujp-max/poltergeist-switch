@@ -86,9 +86,14 @@ interface EpisodeRepository
     public function findTurn(string $episodeId, int $turnNumber): ?TurnRow;
 
     /**
-     * Create a turn in state 'waiting' (Requirement 7.1).
+     * Create a turn in state 'waiting' (Requirement 7.1). An optional
+     * $worldJson stores the per-turn recorded World_State on the new turns row,
+     * used when turn 0 is created with the initial calm world (screens spec
+     * Requirement 10.2); null leaves the turn's world_json unset. Like the rest
+     * of createTurn, this is idempotent: a turn that already exists is left
+     * unchanged, so a repeated create never overwrites a stored world.
      */
-    public function createTurn(string $episodeId, int $turnNumber): void;
+    public function createTurn(string $episodeId, int $turnNumber, ?string $worldJson = null): void;
 
     /**
      * Set a turn's state. The state only ever advances forward
