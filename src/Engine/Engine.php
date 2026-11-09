@@ -905,6 +905,7 @@ class Engine
             $dangerReason,
             $alternativePreparedBefore,
             $acceptedBefore,
+            $turnNumber,
         );
 
         // Latch acceptance the turn it happens so he never objects again

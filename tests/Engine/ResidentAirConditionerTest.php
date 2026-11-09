@@ -124,6 +124,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: false,
             alternativePreparedBefore: false,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
 
         $this->assertSame('I hate the air conditioner. Turn it off.', $line);
@@ -171,6 +172,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: false,
             alternativePreparedBefore: false,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
 
         $this->assertSame('I hate the air conditioner.', $line);
@@ -222,6 +224,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: false,
             alternativePreparedBefore: false,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
 
         $this->assertSame(
@@ -252,6 +255,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: true,
             alternativePreparedBefore: true,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
 
         $this->assertSame('All right. Just for a while.', $line);
@@ -275,6 +279,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: true,
             alternativePreparedBefore: false,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
         $this->assertSame('I hate the air conditioner.', $onlyDanger);
 
@@ -287,6 +292,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: false,
             alternativePreparedBefore: true,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
         $this->assertSame('I hate the air conditioner.', $onlyPrepared);
     }
@@ -308,6 +314,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: false,
             alternativePreparedBefore: false,
             acAlreadyAccepted: true,
+            turnNumber: 0,
         );
 
         $this->assertNull($line, 'after acceptance the resident never objects again (5.1)');
@@ -402,6 +409,7 @@ class ResidentAirConditionerTest extends TestCase
             dangerReasonGivenThisTurn: false,
             alternativePreparedBefore: false,
             acAlreadyAccepted: false,
+            turnNumber: 0,
         );
 
         $this->assertSame('All right. Just for a while.', $line);
@@ -623,5 +631,176 @@ class ResidentAirConditionerTest extends TestCase
             $world->residentState->acAlternativePrepared,
             'handing the resident water latches AC_Alternative_Prepared (5.8)'
         );
+    }
+
+    // ------------------------------------------------------------------
+    // Bug 1: the cooldown-governed repeat must not fire one turn too early
+    // ------------------------------------------------------------------
+
+    /**
+     * Bug 1 regression. A robot turns the air conditioner on at turn 1 and
+     * leaves it on with no further proposals. The immediate objection fires at
+     * turn 1 and records the shared air-conditioner cooldown window, so the
+     * repeat of "I hate the air conditioner. Turn it off." (5.6) is suppressed
+     * for the whole cooldown window and fires again only once that many turns
+     * have passed — never one turn too early.
+     *
+     * With lineCooldownTurns = 5 and the predicate
+     * (turnNumber - lastDelivered) <= lineCooldownTurns, the correct sequence
+     * is: objection at turn 1 (records 1), silence at turns 2..6, repeat at
+     * turn 7 (records 7), silence at turns 8..12, repeat at turn 13.
+     */
+    public function testRepeatHonoursSharedCooldownAfterImmediateObjection(): void
+    {
+        $world = $this->makeHeatWorld();
+        $engine = $this->makeEngine($world);
+
+        $turnItOff = 'I hate the air conditioner. Turn it off.';
+        $cooldown  = $this->config->lineCooldownTurns;
+
+        // The Engine clock starts at turn 0; play a quiet turn 0 so turn 1 is
+        // reachable, then drive the AC-on at turn 1 as the scenario describes.
+        $engine->applyTurn(0, []);
+
+        // robot_b must be in the living room to use the AC (it only toggles
+        // there), matching makeHeatWorld's starting rooms.
+        $world->robotStates['robot_b']->room = 'living_room';
+        $acUse = new Action('robot_b', Operation::use->value, targetId: self::AC_ID);
+
+        // Turn 1: robot_b turns the AC on; the immediate objection fires.
+        $r1 = $engine->applyTurn(1, ['robot_b' => $acUse]);
+        $this->assertTrue($world->acOn(), 'the AC is on after turn 1');
+        $this->assertSame(
+            $turnItOff,
+            $r1->residentLine,
+            'the immediate objection fires the turn the AC is turned on (5.3)'
+        );
+
+        // The first turn on which the repeat may fire again, from the cooldown
+        // predicate applied to the delivery at turn 1.
+        $firstRepeatTurn = 1 + $cooldown + 1; // = 7 with cooldown 5
+
+        // Turns 2..(firstRepeatTurn - 1): the repeat is on cooldown — silence.
+        for ($turn = 2; $turn < $firstRepeatTurn; $turn++) {
+            $result = $engine->applyTurn($turn, []);
+            $this->assertNotSame(
+                $turnItOff,
+                $result->residentLine,
+                "the repeat is on cooldown and must not fire at turn {$turn}"
+            );
+            $this->assertNotSame(
+                'I hate the air conditioner.',
+                $result->residentLine,
+                "no AC objection of any kind on cooldown at turn {$turn}"
+            );
+        }
+
+        // The repeat fires exactly on firstRepeatTurn and records that turn.
+        $rRepeat = $engine->applyTurn($firstRepeatTurn, []);
+        $this->assertSame(
+            $turnItOff,
+            $rRepeat->residentLine,
+            "the repeat fires exactly at turn {$firstRepeatTurn}"
+        );
+
+        // The next window: silence until one more cooldown has passed, then
+        // the repeat fires again.
+        $secondRepeatTurn = $firstRepeatTurn + $cooldown + 1; // = 13 with cooldown 5
+        for ($turn = $firstRepeatTurn + 1; $turn < $secondRepeatTurn; $turn++) {
+            $result = $engine->applyTurn($turn, []);
+            $this->assertNotSame(
+                $turnItOff,
+                $result->residentLine,
+                "the repeat is on cooldown again and must not fire at turn {$turn}"
+            );
+        }
+
+        $rSecond = $engine->applyTurn($secondRepeatTurn, []);
+        $this->assertSame(
+            $turnItOff,
+            $rSecond->residentLine,
+            "the repeat fires again at turn {$secondRepeatTurn}"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Bug 2: AC mention spellings (5.1–5.2)
+    // ------------------------------------------------------------------
+
+    /**
+     * Bug 2 regression (controller level). Every accepted spelling of the air
+     * conditioner is detected as a mention: the phrases "air conditioner",
+     * "air-conditioner", "air conditioning", "air-conditioning", "aircon", and
+     * the whole words "AC" and "A/C" (case-insensitive). A line with none of
+     * them is not a mention, and the whole-word spellings never match a
+     * substring inside another word.
+     */
+    public function testAcMentionSpellingsAreDetected(): void
+    {
+        $this->assertTrue($this->resident->acMentioned(['Can I switch on the air conditioner for you?']));
+        $this->assertTrue($this->resident->acMentioned(['Can I switch on the air-conditioner for you?']));
+        $this->assertTrue($this->resident->acMentioned(['I will start the air conditioning now.']));
+        $this->assertTrue($this->resident->acMentioned(['I will start the air-conditioning now.']));
+        $this->assertTrue($this->resident->acMentioned(['Let me turn on the aircon.']));
+        $this->assertTrue($this->resident->acMentioned(['Let me turn on the AC.']));
+        $this->assertTrue($this->resident->acMentioned(['Shall I run the A/C?']));
+        // Lowercase whole words count too (the haystack is lowercased).
+        $this->assertTrue($this->resident->acMentioned(['shall I run the a/c?']));
+
+        // No mention at all.
+        $this->assertFalse($this->resident->acMentioned(['The weather is nice today.']));
+
+        // Whole-word "ac"/"a/c" never match inside another word.
+        $this->assertFalse($this->resident->acMentioned(['Please step back from the stove.']));
+        $this->assertFalse($this->resident->acMentioned(['I want some peace and quiet.']));
+    }
+
+    /**
+     * Bug 2 regression (through the Engine). A spoken line using a non-literal
+     * spelling of the air conditioner, with the conditions unmet and no `use`,
+     * draws the spoken-only objection "I hate the air conditioner." (5.2).
+     */
+    public function testEngineDetectsAcMentionSpellingsDrawsSpokenObjection(): void
+    {
+        $spellings = [
+            'Can I switch on the air-conditioner for you?',
+            'Let me turn on the AC.',
+            'I will start the air conditioning now.',
+            'I will start the air-conditioning now.',
+            'Let me turn on the aircon.',
+            'Shall I run the A/C?',
+        ];
+
+        foreach ($spellings as $spelling) {
+            $world = $this->makeHeatWorld();
+            $engine = $this->makeEngine($world);
+
+            $speak = new Action('robot_a', Operation::speak->value, words: [$spelling]);
+            $result = $engine->applyTurn(0, ['robot_a' => $speak]);
+
+            $this->assertFalse($world->acOn(), "a spoken mention never turns the AC on: {$spelling}");
+            $this->assertSame(
+                'I hate the air conditioner.',
+                $result->residentLine,
+                "the spoken-only objection fires for the spelling: {$spelling}"
+            );
+        }
+    }
+
+    /**
+     * Bug 2 regression (through the Engine). A spoken line with no mention of
+     * the air conditioner draws no AC objection, confirming the whole-word
+     * guard does not fire on unrelated words like "back".
+     */
+    public function testEngineNoAcObjectionWithoutMention(): void
+    {
+        $world = $this->makeHeatWorld();
+        $engine = $this->makeEngine($world);
+
+        $speak = new Action('robot_a', Operation::speak->value, words: ['Please step back from the stove.']);
+        $result = $engine->applyTurn(0, ['robot_a' => $speak]);
+
+        $this->assertNotSame('I hate the air conditioner.', $result->residentLine);
+        $this->assertNotSame('I hate the air conditioner. Turn it off.', $result->residentLine);
     }
 }

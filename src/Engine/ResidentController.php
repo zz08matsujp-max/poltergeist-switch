@@ -37,8 +37,22 @@ class ResidentController
      */
     private const AC_LINE_KEY = 'air_conditioner';
 
-    /** The phrase a spoken line must contain to mention the air conditioner (Req 5.1–5.2). */
-    private const AC_MENTION_PHRASE = 'air conditioner';
+    /**
+     * The phrase spellings a spoken line may contain to mention the air
+     * conditioner (Req 5.1–5.2). Each is matched case-insensitively as a plain
+     * substring on the lowercased line. The whole-word spellings "ac" and "a/c"
+     * are handled separately in acMentioned() with word-boundary matching so a
+     * substring inside "back", "aircon", "peace" etc. never counts.
+     *
+     * @var list<string>
+     */
+    private const AC_MENTION_PHRASES = [
+        'air conditioner',
+        'air-conditioner',
+        'air conditioning',
+        'air-conditioning',
+        'aircon',
+    ];
 
     /**
      * The heat words of the AC_Danger_Reason rule (heat-wave Requirement 5.7).
@@ -429,6 +443,7 @@ class ResidentController
      * @param bool $dangerReasonGivenThisTurn an AC_Danger_Reason was spoken this turn
      * @param bool $alternativePreparedBefore AC_Alternative_Prepared holds (earlier turn)
      * @param bool $acAlreadyAccepted         the resident already accepted earlier this episode
+     * @param int  $turnNumber                the current turn, recorded on delivery
      * @return string|null the immediate line to speak this turn, or null
      */
     public function airConditionerReply(
@@ -439,6 +454,7 @@ class ResidentController
         bool $dangerReasonGivenThisTurn,
         bool $alternativePreparedBefore,
         bool $acAlreadyAccepted,
+        int $turnNumber,
     ): ?string {
         // No proposal this turn → the resident says nothing about the AC.
         if (!$acUseTurnedItOnThisTurn && !$acMentionedThisTurn) {
@@ -457,15 +473,27 @@ class ResidentController
             || $world->residentState->weakened;
 
         if ($accepts) {
+            // The immediate reply is uncooled (Req 5.4) — it never checks the
+            // cooldown — but it still records its delivery turn so the
+            // cooldown-governed repeat (Req 5.6) shares one window with it and
+            // never fires one turn too early.
+            $world->residentState->lastLineDeliveredOn[self::AC_LINE_KEY] = $turnNumber;
+
             return $this->acLineText('accept');
         }
 
         // Before acceptance, the two objection lines are mutually exclusive
         // (Req 5.2, 5.3): a `use` that turned it on this turn draws the
-        // turn-it-off line in place of the spoken-only line.
+        // turn-it-off line in place of the spoken-only line. Each objection
+        // records its delivery turn for the shared AC cooldown window (Req 5.6)
+        // while staying uncooled itself (Req 5.4).
         if ($acUseTurnedItOnThisTurn) {
+            $world->residentState->lastLineDeliveredOn[self::AC_LINE_KEY] = $turnNumber;
+
             return $this->acLineText('object_on');
         }
+
+        $world->residentState->lastLineDeliveredOn[self::AC_LINE_KEY] = $turnNumber;
 
         return $this->acLineText('object_spoken');
     }
@@ -538,15 +566,36 @@ class ResidentController
 
     /**
      * Whether a spoken line mentions the air conditioner, case-insensitively
-     * (heat-wave Requirement 5.1–5.2). Matches the phrase "air conditioner"
-     * anywhere in the line; this is the spoken half of "a proposal is made".
+     * (heat-wave Requirement 5.1–5.2); this is the spoken half of "a proposal
+     * is made". A line counts when, on its lowercased form, it contains ANY of
+     * the phrase spellings ("air conditioner", "air-conditioner",
+     * "air conditioning", "air-conditioning", "aircon") as a substring, OR the
+     * whole word "ac", OR the whole word "a/c". The whole-word spellings match
+     * on word boundaries so a substring inside "back", "aircon", "peace" etc.
+     * never counts.
      *
      * @param list<string> $spokenLines every spoken line of either robot this turn
      */
     public function acMentioned(array $spokenLines): bool
     {
         foreach ($spokenLines as $line) {
-            if (str_contains(mb_strtolower($line), self::AC_MENTION_PHRASE)) {
+            $lower = mb_strtolower($line);
+
+            foreach (self::AC_MENTION_PHRASES as $phrase) {
+                if (str_contains($lower, $phrase)) {
+                    return true;
+                }
+            }
+
+            // The whole word "ac" (word boundaries) so "back"/"peace" etc. do
+            // not match; the haystack is already lowercased.
+            if ($this->containsWord($lower, 'ac')) {
+                return true;
+            }
+
+            // The whole word "a/c": the slash is not a word char, so build a
+            // boundary-aware check that rejects "aac", "a/cx", "a/co" etc.
+            if (preg_match('/(?<![\w\/])a\/c(?![\w\/])/u', $lower) === 1) {
                 return true;
             }
         }
