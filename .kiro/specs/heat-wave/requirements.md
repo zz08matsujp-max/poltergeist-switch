@@ -50,11 +50,11 @@ The following are explicitly out of scope for this spec:
 #### Acceptance Criteria
 
 1. BEFORE any heat-wave change to the engine, the texts, the database, the API, or the screens is made, THE Heat_Wave SHALL create the Earthquake_Golden_Master as the first piece of work, so that every later heat-wave change is measured against the recorded earthquake behaviour.
-2. THE Earthquake_Golden_Master SHALL record, for at least 30 fixed seeds that together cover every starting situation and for a fixed seeded sequence of actions per turn — moves, takes, uses, hand-overs, supports, covers, speech, and unknown readings — every turn's situation text for both robots, the judgements, the outcomes, the world snapshot, the resident state, the resident line, and the end flag, and every reflection text, stored as full values or SHA-256 hashes in a committed fixture.
+2. THE Earthquake_Golden_Master SHALL record, for at least 30 fixed seeds that together cover every starting situation — including both a case with no memories and a case with a non-empty memory snapshot — and for a fixed seeded sequence of actions per turn — moves, takes, uses, hand-overs, supports, covers, speech, and unknown readings — every turn's situation text for both robots, the judgements, the outcomes, the world as serialized for storage (the `WorldStateSerializer` output, not a raw snapshot), the resident state, the resident line, and the end flag, and every reflection text, stored as full values or SHA-256 hashes in a committed fixture.
 3. THE Earthquake_Golden_Master test SHALL fail WHEN any recorded earthquake value differs from the committed fixture.
 4. THE Heat_Wave SHALL NOT regenerate or edit the committed Earthquake_Golden_Master fixture in any later work, and no later task SHALL change an expected earthquake value to make a test pass.
 5. IF an Earthquake_Golden_Master value differs from the committed fixture, THEN THE Heat_Wave SHALL stop and report the difference and SHALL NOT change the expected earthquake value.
-6. WHILE an episode's disaster is earthquake, THE Engine SHALL update no room temperature, SHALL send the resident nothing about heat, SHALL emit none of the heat-wave resident lines, and SHALL keep the earthquake `EpisodeConfig` values — including `maxTurns` 40 and the end rule of `house-rules-engine` Requirement 10.6 — unchanged.
+6. WHILE an episode's disaster is earthquake, THE Engine SHALL update no room temperature, SHALL apply no heat rule to the resident, SHALL emit none of the heat-wave resident lines, and SHALL keep the earthquake `EpisodeConfig` values — including `maxTurns` 40 and the end rule of `house-rules-engine` Requirement 10.6 — unchanged.
 7. THE Heat_Wave SHALL keep the earthquake situation text version `situation-text-2026-11-09b` and the earthquake reflection text version `reflection-text-2026-11-09d` unchanged, SHALL give every heat-wave text its own version string, SHALL keep every earthquake text byte-for-byte the same, and SHALL include no thermometer or temperature in any earthquake text.
 8. WHEN the database schema changes for this spec, THE Heat_Wave SHALL only add new tables or add new columns with defaults that an earthquake row never needs, SHALL leave every existing row, column, and API field with its current meaning, and SHALL return from `GET /api/episodes/{id}` for an existing earthquake episode exactly the same bytes as before the change.
 9. WHILE an episode's disaster is earthquake, THE Screens SHALL behave and look the same as today — the Earthquake Breaker_Switch, the turn flow, the speech bubbles, the meters, and the End_Card unchanged — and THE Screens SHALL run heat-wave drawing only when the episode's disaster is heat wave.
@@ -89,9 +89,11 @@ The following are explicitly out of scope for this spec:
 1. WHILE an episode's disaster is heat wave AND the temperature of the resident's room is above the body-heat threshold defined in EpisodeConfig (draft 33 °C), WHEN a turn is applied, THE Engine SHALL increase Resident_State.body_temp by the per-turn rate defined in EpisodeConfig and decrease Resident_State.water by the per-turn rate defined in EpisodeConfig.
 2. WHILE an episode's disaster is heat wave AND the Electric_Fan is on in the resident's room, THE Engine SHALL reduce the per-turn body-temperature rise by the fan amount defined in EpisodeConfig.
 3. WHEN a hand_over action transfers Cold_Water to the resident in the same room, THE Engine SHALL increase Resident_State.water by the amount defined in EpisodeConfig, up to a maximum of 100, as for a water container in `house-rules-engine` Requirement 5.6.
-4. IF Resident_State.body_temp is greater than or equal to the Weakened_Threshold, THEN THE Engine SHALL set Resident_State.weakened to true, as in `house-rules-engine` Requirement 6.9, unchanged.
-5. THE Engine SHALL clamp every Resident_State value to its defined range after each update: body_temp to [35.0, 42.0], water to [0, 100], injury to [0, 100], fear to [0, 100].
-6. THE Engine SHALL store every body and water delta and threshold referenced in this requirement exclusively in EpisodeConfig, with no literal numeric constant for these values in engine logic.
+4. WHILE an episode's disaster is heat wave AND the temperature of the resident's room is at or below the body-heat threshold defined in EpisodeConfig, WHEN a turn is applied, THE Engine SHALL decrease Resident_State.body_temp by the per-turn recovery rate defined in EpisodeConfig toward the resident's starting body temperature, and SHALL NOT lower Resident_State.body_temp below the resident's starting body temperature.
+5. IF Resident_State.body_temp is greater than or equal to the Weakened_Threshold, THEN THE Engine SHALL set Resident_State.weakened to true, as in `house-rules-engine` Requirement 6.9, unchanged.
+6. IF Resident_State.body_temp drops below the Weakened_Threshold after having been at or above it, THEN THE Engine SHALL set Resident_State.weakened to false, as in `house-rules-engine` Requirement 6.10, unchanged, so that a robot can bring the resident back after he weakens.
+7. THE Engine SHALL clamp every Resident_State value to its defined range after each update: body_temp to [35.0, 42.0], water to [0, 100], injury to [0, 100], fear to [0, 100].
+8. THE Engine SHALL store every body and water delta, the recovery rate, and every threshold referenced in this requirement exclusively in EpisodeConfig, with no literal numeric constant for these values in engine logic.
 
 ---
 
@@ -108,6 +110,9 @@ The following are explicitly out of scope for this spec:
 5. THE Situation_Text_Generator SHALL list the objects in a room in the fixed order defined in `house-rules-engine` Requirement 1.6, unchanged, in a heat-wave episode.
 6. THE Engine SHALL expose, through the stored world, the on/off state of the Window_Air_Conditioner and the Electric_Fan and the room the Electric_Fan is in, so that the recorder, the texts, and the screens read them.
 7. WHERE the design opens and closes a window (a fixture today), THE Engine SHALL change a room's open-window state only through the mechanism the design proposes and SHALL keep the window out of the fixed listed-object order.
+8. THE design SHALL state the mechanism by which the Electric_Fan is set down or switched on after it is carried to another room, given that there is no put-down operation today.
+9. THE design SHALL state both how Cold_Water is discoverable as a plain fact in the text a robot reads and how the recorder maps Cold_Water to an object id.
+10. THE Heat_Wave SHALL make the model solution of Requirement 11.7 — water early, the Electric_Fan into the living room, the AC_Danger_Reason given, then the Window_Air_Conditioner — carriable by a robot that reads only its situation text, so that no step of the model solution depends on information the robot is never sent.
 
 ---
 
@@ -117,15 +122,16 @@ The following are explicitly out of scope for this spec:
 
 #### Acceptance Criteria
 
-1. WHEN a robot proposes activating the Window_Air_Conditioner — by a use action turning it on or by any spoken line of either robot that mentions the air conditioner — AND both (a) an AC_Danger_Reason was spoken this turn AND (b) AC_Alternative_Prepared holds, OR Resident_State.weakened is true, THEN THE Resident SHALL accept and say "All right. Just for a while." and SHALL NOT object to the air conditioner again for the rest of the episode.
-2. WHEN a robot proposes activating the Window_Air_Conditioner AND the acceptance conditions of criterion 1 are not met, THE Resident SHALL say "I hate the air conditioner."
-3. WHEN a robot's use action turns the Window_Air_Conditioner on before the acceptance conditions of criterion 1 are met, THE Engine SHALL turn the Window_Air_Conditioner on and cool the living room, AND THE Resident SHALL say "I hate the air conditioner. Turn it off."
-4. THE Resident SHALL NOT turn the Window_Air_Conditioner off himself at any time.
-5. WHILE the Window_Air_Conditioner is on after the resident objected AND the acceptance conditions of criterion 1 are still not met, THE Resident SHALL repeat "I hate the air conditioner. Turn it off." subject to the 5-turn line cooldown and the one-line-per-turn rule of `house-rules-engine` Requirements 7.6–7.7, at the line priority set in EpisodeConfig.
-6. THE Engine SHALL decide an AC_Danger_Reason deterministically from the current turn's spoken lines, by the same mechanism as the destination word in `house-rules-engine` Requirement 7.14, using the exact trigger words proposed in the design and approved by the maintainer.
-7. THE Engine SHALL hold that AC_Alternative_Prepared is true WHEN, on a turn before the current turn, the Electric_Fan was on in the resident's room OR the resident was handed water.
-8. THE Heat_Wave SHALL never send the resident's acceptance conditions, the AC_Danger_Reason trigger words, or any hint of them to a robot.
-9. THE Engine SHALL store the air-conditioner line priority and every threshold referenced in this requirement exclusively in EpisodeConfig, with no literal numeric constant for these values in engine logic.
+1. WHEN a robot proposes activating the Window_Air_Conditioner — by a use action turning it on or by any spoken line of either robot that mentions the air conditioner — AND both (a) an AC_Danger_Reason was spoken this turn AND (b) AC_Alternative_Prepared holds, OR Resident_State.weakened is true, THEN THE Resident SHALL accept on that same turn and say "All right. Just for a while." and SHALL NOT object to the air conditioner again for the rest of the episode.
+2. WHEN a robot proposes activating the Window_Air_Conditioner by a spoken line that mentions the air conditioner AND no use action turned the Window_Air_Conditioner on that turn AND the acceptance conditions of criterion 1 are not met, THE Resident SHALL say "I hate the air conditioner." on that same turn.
+3. WHEN a robot's use action turns the Window_Air_Conditioner on before the acceptance conditions of criterion 1 are met, THE Engine SHALL turn the Window_Air_Conditioner on and cool the living room, AND THE Resident SHALL say "I hate the air conditioner. Turn it off." on that same turn, so that criterion 2 and this criterion are mutually exclusive — when a use action turned the Window_Air_Conditioner on that turn, this criterion's line fires in place of criterion 2's line.
+4. THE Resident SHALL emit the reply of criterion 1, 2, or 3 on the same turn the proposal is made, outside the 5-turn line cooldown and at a priority above every other resident line that turn, exactly like the move refusal of `house-rules-engine` Requirement 7.15.
+5. THE Resident SHALL NOT turn the Window_Air_Conditioner off himself at any time.
+6. WHILE the Window_Air_Conditioner is on after the resident objected AND the acceptance conditions of criterion 1 are still not met, THE Resident SHALL repeat "I hate the air conditioner. Turn it off." subject to the 5-turn line cooldown and the one-line-per-turn rule of `house-rules-engine` Requirements 7.6–7.7, at the line priority set in EpisodeConfig; this repeat is the only air-conditioner line governed by the cooldown, as the replies of criteria 1–3 are immediate and uncooled per criterion 4.
+7. THE Engine SHALL decide an AC_Danger_Reason deterministically from the current turn's spoken lines, by the same mechanism as the destination word in `house-rules-engine` Requirement 7.14, using the exact trigger words proposed in the design and approved by the maintainer.
+8. THE Engine SHALL hold that AC_Alternative_Prepared is true WHEN, on a turn before the current turn, the Electric_Fan was on in the resident's room OR the resident was handed water.
+9. THE Heat_Wave SHALL never send the resident's acceptance conditions, the AC_Danger_Reason trigger words, or any hint of them to a robot.
+10. THE Engine SHALL store the air-conditioner line priority and every threshold referenced in this requirement exclusively in EpisodeConfig, with no literal numeric constant for these values in engine logic.
 
 ---
 
@@ -182,7 +188,7 @@ The following are explicitly out of scope for this spec:
 #### Acceptance Criteria
 
 1. THE Recorder SHALL read a robot's use of the Window_Air_Conditioner, the Electric_Fan, the window, and Cold_Water using the existing operations defined in `turn-loop` Requirement 3 and the recorder prompt, mapping each to an object id or spot already supplied to the recorder.
-2. WHERE the recorder prompt must change to read a heat target, THE Heat_Wave SHALL propose the change and SHALL bump the recorder prompt version stored with every reading.
+2. WHERE reading a heat target requires a recorder prompt change, THE Heat_Wave SHALL use a heat-wave-only recorder prompt variant for heat-wave episodes, carrying its own version string stored with every heat-wave reading, and SHALL leave the earthquake recorder prompt and its version unchanged, so that every earthquake reading uses the same prompt and version as today.
 3. THE Recorder SHALL continue to read only (it never decides whether an action is possible or dangerous), and every action and spoken line it passes on SHALL be backed by an exact substring quote of the reply per `house-rules-engine` Requirement 12, unchanged.
 
 ---
