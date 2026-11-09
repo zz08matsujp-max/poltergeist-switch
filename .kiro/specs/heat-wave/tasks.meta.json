@@ -1,5 +1,10 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "2.2 Write the earthquake-untouched-by-heat property test": {
+      "status": "passed",
+      "lastRunTimestamp": 1794221235325
+    }
+  },
   "executionHistory": {
     "1. Build the earthquake golden-master fixture and test (REQUIRED, FIRST, before any heat-wave change)": [
       {
@@ -11,6 +16,13 @@
         "executionId": "541c495d-5176-42a1-8a0a-dc80d4e41665",
         "chatSessionId": "sess_43a81436-794d-47f1-ad3e-d95d7f559c42",
         "timestamp": 1794214290532
+      }
+    ],
+    "2. Introduce the Disaster enum and thread the disaster through the world (earthquake unchanged)": [
+      {
+        "executionId": "96202c30-c4e5-47b3-b140-8a30301749c6",
+        "chatSessionId": "sess_1283e83b-be97-41f2-bb28-6d912cc6d666",
+        "timestamp": 1794220891475
       }
     ]
   }

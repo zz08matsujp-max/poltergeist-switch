@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PoltergeistSwitch\Engine;
 
 use InvalidArgumentException;
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\Enums\GasState;
 use PoltergeistSwitch\Engine\Enums\LightLevel;
 use PoltergeistSwitch\Engine\Enums\ManActivity;
@@ -41,6 +42,15 @@ class WorldModel implements SituationView
     public HouseState $houseState;
 
     public int $currentTurn = 0;
+
+    /**
+     * The disaster this episode runs (heat-wave Requirement 1.6). Defaults to
+     * earthquake so a world built or reset the old way behaves, reads, and
+     * replays exactly as today; reset() sets it from its argument. Every heat
+     * behaviour is gated on this being Disaster::heat_wave, so an earthquake
+     * world never enters a heat path.
+     */
+    public Disaster $disaster = Disaster::earthquake;
 
     public ?int $earthquakeStartTurn = null;
 
@@ -130,14 +140,23 @@ class WorldModel implements SituationView
      *      (incl. the boiling pot when potBoiling=true)
      *   9. reset the episode counters/flags
      *
-     * @param Seed               $seed the episode seed (stored for EarthquakePhase)
-     * @param SituationSpec|null  $spec explicit start layout; derived from the
-     *                                  seed when null
+     * @param Seed               $seed     the episode seed (stored for EarthquakePhase)
+     * @param SituationSpec|null  $spec     explicit start layout; derived from the
+     *                                      seed when null
+     * @param Disaster|null       $disaster the episode's disaster; null (the
+     *                                      default) means earthquake, so every
+     *                                      existing caller gets today's behaviour
+     *                                      and a rebuilt world knows its disaster
+     *                                      (heat-wave Requirement 1.6)
      */
-    public function reset(Seed $seed, ?SituationSpec $spec = null): void
+    public function reset(Seed $seed, ?SituationSpec $spec = null, ?Disaster $disaster = null): void
     {
         // 1. keep the seed for later deterministic draws (EarthquakePhase).
         $this->seed = $seed;
+
+        // 1b. record the disaster so a rebuilt world knows which rules run.
+        // Null means earthquake, keeping every existing caller unchanged.
+        $this->disaster = $disaster ?? Disaster::earthquake;
 
         // 2/3. resolve the start layout.
         $this->situationSpec = $spec ?? SituationSpec::fromSeed($seed);
@@ -560,5 +579,75 @@ class WorldModel implements SituationView
     public function residentLine(): ?string
     {
         return $this->turnResidentLine;
+    }
+
+    // ==================================================================
+    // Heat reads (heat-wave spec). Pure accessors over existing world
+    // state; they never mutate anything and never change any earthquake
+    // read. The heat rules, texts, recorder input, serializer, and screens
+    // read the heat objects through these so one place defines each read.
+    // In an earthquake episode these simply report the default off/closed
+    // state (the air conditioner and fan start off and no window is opened),
+    // which is exactly what an earthquake world has always held.
+    // ==================================================================
+
+    /**
+     * Whether this world is running the given disaster. A convenience so heat
+     * code can gate on the disaster without reaching for the enum directly.
+     */
+    public function disasterIs(Disaster $disaster): bool
+    {
+        return $this->disaster === $disaster;
+    }
+
+    /** Whether the window air conditioner is switched on. */
+    public function acOn(): bool
+    {
+        return isset($this->objects['window_air_conditioner'])
+            && $this->objects['window_air_conditioner']->on;
+    }
+
+    /** Whether the electric fan is switched on. */
+    public function fanOn(): bool
+    {
+        return isset($this->objects['electric_fan'])
+            && $this->objects['electric_fan']->on;
+    }
+
+    /**
+     * The room the electric fan is in, or null when the fan is not registered.
+     * When a robot holds the fan the object's room is the robot's room (the
+     * carry mechanism keeps the fan's room in step with its carrier), so this
+     * reports where the fan physically is for the cooling and drawing rules.
+     */
+    public function fanRoom(): ?string
+    {
+        return $this->objects['electric_fan']->room ?? null;
+    }
+
+    /**
+     * Whether the window of the given room is open. Always false for a room
+     * whose window has not been opened, which is every room in an earthquake
+     * episode.
+     */
+    public function windowOpen(string $roomKey): bool
+    {
+        return $this->getRoom($roomKey)->windowOpen;
+    }
+
+    /** The live temperature of the given room, in °C. */
+    public function roomTemperature(string $roomKey): float
+    {
+        return $this->getRoom($roomKey)->temperature;
+    }
+
+    /**
+     * The wall thermometer reading for the given room, the room temperature
+     * rounded to a whole °C. The thermometer is a fixture read into the heat
+     * text only; it is never listed among a room's objects.
+     */
+    public function thermometerReading(string $roomKey): int
+    {
+        return (int) round($this->getRoom($roomKey)->temperature);
     }
 }

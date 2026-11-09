@@ -21,15 +21,15 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
   - Use the existing `FakeRobotClient` / `FakeRecorderClient` fakes; no real API call. Run `php -l` on every changed PHP file.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 1.10, 11.9, 11.10, 11.11_
 
-- [ ] 2. Introduce the Disaster enum and thread the disaster through the world (earthquake unchanged)
-  - [ ] 2.1 Add the `Disaster` enum and `WorldModel::$disaster`
+- [-] 2. Introduce the Disaster enum and thread the disaster through the world (earthquake unchanged)
+  - [x] 2.1 Add the `Disaster` enum and `WorldModel::$disaster`
     - Create `src/Engine/Enums/Disaster.php` with the string-backed cases `earthquake` and `heat_wave`.
     - Add `WorldModel::$disaster` defaulting to `Disaster::earthquake`, set by `reset()` from the `SituationSpec` or an explicit argument, so a rebuilt world knows its disaster.
     - Add the pure heat-read accessors on `WorldModel` (`acOn()`, `fanOn()`, `fanRoom()`, `windowOpen()`, `roomTemperature()`, `thermometerReading()`, and a disaster predicate) without changing any earthquake read.
     - Run `php -l` on every changed PHP file.
     - _Requirements: 1.6, 2.1_
 
-  - [ ] 2.2 Write the earthquake-untouched-by-heat property test
+  - [x] 2.2 Write the earthquake-untouched-by-heat property test
     - **Property 12: An earthquake episode is untouched by heat**
     - **Validates: Requirements 1.6, 1.7, 1.9, 8.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 12: An earthquake episode is untouched by heat`.
