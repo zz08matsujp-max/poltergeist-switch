@@ -87,7 +87,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 3.5, 3.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 4: Weakened tracks body temperature`.
 
-- [-] 6. Implement the heat objects in the action layer (all heat-gated)
+- [x] 6. Implement the heat objects in the action layer (all heat-gated)
   - [x] 6.1 Add the air conditioner, electric fan, cold water, and window behaviours
     - In `ActionExecutor` / `RulesEvaluator`, gate every heat behaviour on `$world->disaster === Disaster::heat_wave`; in an earthquake episode none of these branches is entered and the existing paths run unchanged.
     - Window air conditioner: a `use` turning it on sets `on=true` (cooling itself is applied by `HeatWavePhase`); a `use` targeting it in a room other than the living room returns `possible=false` with a reason and leaves the world unchanged.
@@ -111,7 +111,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 4.4, 4.5, 6.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 8: Objects keep their fixed listed order in a heat wave`.
 
-- [ ] 7. Checkpoint - Ensure all tests pass
+- [-] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, including the earthquake golden-master and every existing earthquake test; ask the user if questions arise.
 
 - [ ] 8. Implement the resident's air-conditioner will (heat-gated, immediate reply)
