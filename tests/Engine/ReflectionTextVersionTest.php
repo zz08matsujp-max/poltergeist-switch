@@ -75,4 +75,55 @@ class ReflectionTextVersionTest extends TestCase
             'the reflection-text version must fit the 32-char prompts version column',
         );
     }
+
+    /**
+     * Heat-wave Req 7.4 (COUPLING REMINDER): the heat-wave reflection version
+     * is pinned to its current dated string and MUST differ from the earthquake
+     * version. Any edit to the heat-wave fixed text, the heat lead-in, the
+     * minute-heading forms, a heat event-block form, or the question must be
+     * accompanied by a bump of REFLECTION_TEXT_VERSION_HEAT in the same change,
+     * since this test would otherwise fail. The earthquake version must stay
+     * byte-for-byte unchanged alongside it (heat-wave Requirement 1.7).
+     */
+    public function testHeatVersionConstantIsPinnedAndDiffersFromEarthquake(): void
+    {
+        $this->assertSame(
+            'reflection-text-heatwave-2026-11-09a',
+            ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT,
+            'bump REFLECTION_TEXT_VERSION_HEAT whenever the heat fixed text, lead-in, '
+            . 'minute headings, event-block forms, or the question changes',
+        );
+        $this->assertSame(
+            'reflection-text-2026-11-09d',
+            ReflectionTextBuilder::REFLECTION_TEXT_VERSION,
+            'the earthquake reflection version must stay byte-for-byte unchanged',
+        );
+        $this->assertNotSame(
+            ReflectionTextBuilder::REFLECTION_TEXT_VERSION,
+            ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT,
+            'the heat-wave version must differ from the earthquake version',
+        );
+    }
+
+    /**
+     * Heat-wave Req 7.4: heatVersion() surfaces the heat constant, which is the
+     * design-mandated dated string. The version column is widened for the
+     * heat-wave versions in the storage task; this only pins that the method
+     * and the constant never diverge and that the version is non-empty.
+     */
+    public function testHeatVersionMethodReturnsTheConstant(): void
+    {
+        $builder = new ReflectionTextBuilder(new SituationTextGenerator());
+
+        $this->assertSame(
+            ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT,
+            $builder->heatVersion(),
+            'heatVersion() must surface REFLECTION_TEXT_VERSION_HEAT',
+        );
+        $this->assertNotSame(
+            '',
+            ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT,
+            'the heat reflection version must not be empty',
+        );
+    }
 }

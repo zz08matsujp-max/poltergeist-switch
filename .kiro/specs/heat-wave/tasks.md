@@ -139,7 +139,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 5.6, 11.4**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 6: The air-conditioner objection line obeys the cooldown`.
 
-- [~] 9. Implement the heat-wave situation text (new version, heat-gated)
+- [x] 9. Implement the heat-wave situation text (new version, heat-gated)
   - [x] 9.1 Add the heat situation-text builders to `SituationTextGenerator`
     - Add `VERSION_HEAT = 'situation-text-heatwave-2026-11-09a'`; leave the earthquake `VERSION = 'situation-text-2026-11-09b'` byte-for-byte unchanged. Gate `generate()` on the disaster so the earthquake path is unchanged.
     - Produce the six sections in the same order as the earthquake: fixed body, fixed house and housemates, memories block, recent events, "Right now:", and the final line.
@@ -159,19 +159,19 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Only AFTER the maintainer approves it, write the committed golden file and the test that matches one heat-wave turn-1 situation text against that maintainer-approved golden text (opening line included). Do not write or commit the golden file before approval.
     - _Requirements: 11.9_
 
-- [ ] 10. Implement the heat-wave reflection text (new version, heat-gated)
-  - [ ] 10.1 Add the heat reflection builder to `ReflectionTextBuilder`
+- [-] 10. Implement the heat-wave reflection text (new version, heat-gated)
+  - [x] 10.1 Add the heat reflection builder to `ReflectionTextBuilder`
     - Add `REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heatwave-2026-11-09a'`; leave the earthquake `REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09d'` unchanged. Gate `build()` on the disaster.
     - Build the heat variant with the same structure as the earthquake reflection text, using minute headings per turn in place of second headings, and end with the exact unchanged question `Is there anything from what happened this time that you want to remember?`.
     - State facts only; show no robot reply, no robot thought, no judgement data, and no resident meter value; satisfy the banned-word rule in every engine-authored part. Bump the heat reflection version whenever the heat reflection text or generator changes.
     - Run `php -l` on every changed PHP file.
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-  - [ ] 10.2 Write example tests for the heat reflection text
+  - [x] 10.2 Write example tests for the heat reflection text
     - Structure with minute headings (7.1), exact unchanged question (7.2), the version constant differs from the earthquake version (7.4).
     - _Requirements: 7.1, 7.2, 7.4_
 
-  - [ ] 10.3 Write the engine-heat-text-leaks-nothing property test
+  - [x] 10.3 Write the engine-heat-text-leaks-nothing property test
     - **Property 9: Engine-authored heat text leaks nothing**
     - **Validates: Requirements 5.9, 6.7, 7.3, 11.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 9: Engine-authored heat text leaks nothing`.

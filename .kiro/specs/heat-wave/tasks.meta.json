@@ -167,6 +167,45 @@
         "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
         "timestamp": 1794226142359
       }
+    ],
+    "9. Implement the heat-wave situation text (new version, heat-gated)": [
+      {
+        "executionId": "61956b93-cfde-4c9c-b8da-08ec3c48eb5c",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794227149411
+      },
+      {
+        "executionId": "61956b93-cfde-4c9c-b8da-08ec3c48eb5c",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794227679827
+      },
+      {
+        "executionId": "6e7936fd-56b7-4a87-9e6b-02232acd2ffd",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794227947682
+      },
+      {
+        "executionId": "6e7936fd-56b7-4a87-9e6b-02232acd2ffd",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794228257355
+      },
+      {
+        "executionId": "1854dd8a-4cda-45ea-9464-9b6a38d83d64",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794228437737
+      },
+      {
+        "executionId": "1854dd8a-4cda-45ea-9464-9b6a38d83d64",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794228619893
+      }
+    ],
+    "10. Implement the heat-wave reflection text (new version, heat-gated)": [
+      {
+        "executionId": "f129b04b-838c-4be4-a777-6646d59dd086",
+        "chatSessionId": "sess_419ee63f-02f2-444a-9c99-4870659cfab9",
+        "timestamp": 1794228795849
+      }
     ]
   }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\Engine;
 
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\Enums\PowerState;
 use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\Values\Outcome;
@@ -53,12 +54,36 @@ final class ReflectionTextBuilder
     public const REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09d';
 
     /**
+     * Heat-wave reflection-text version (heat-wave Requirement 7.4), distinct
+     * from the earthquake REFLECTION_TEXT_VERSION above, which is left
+     * byte-for-byte unchanged. A plain PHP 8.2 class constant (NOT a typed
+     * class constant — those arrived in PHP 8.3) identifying the heat-wave
+     * fixed body/house text, the heat lead-in, the minute count-up headings,
+     * the heat event-block forms, and the (unchanged) question wording.
+     *
+     * BUMP THIS to the next dated string whenever the heat-wave reflection
+     * fixed text, the lead-in, the minute-heading forms, an event-block form,
+     * or the question wording changes (Requirement 7.4); the heat version
+     * golden test on the literal guards against silent drift. Kept at most 32
+     * characters to fit the reflection prompt's version column.
+     */
+    public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heatwave-2026-11-09a';
+
+    /**
      * The single sentence that introduces the turn-by-turn recap (Req 1.2). It
      * makes no claim that the shaking stopped, because an episode can end at the
      * turn limit while the shaking is still described. Engine-authored,
      * fact-only, and banned-word clean.
      */
     private const LEAD_IN = 'Here is what happened after the shaking began:';
+
+    /**
+     * The heat-wave lead-in, mirroring LEAD_IN with the heat wave in place of
+     * the shaking (heat-wave Requirement 7.1). Engine-authored, fact-only, and
+     * banned-word clean — it states the plain fact that the heat was building,
+     * with no danger word, no advice, and no judgement.
+     */
+    private const LEAD_IN_HEAT = 'Here is what happened as the heat went on:';
 
     /** The reflection question, exactly as decided by the maintainer (Req 1.10). */
     private const QUESTION = 'Is there anything from what happened this time that you want to remember?';
@@ -110,6 +135,12 @@ final class ReflectionTextBuilder
         WorldModel $finalWorld,
         MemorySnapshot $snapshot,
     ): string {
+        // Heat-wave reflection runs only for a heat-wave world; the earthquake
+        // path below is byte-for-byte unchanged (heat-wave Requirement 1.7).
+        if ($finalWorld->disaster === Disaster::heat_wave) {
+            return $this->buildHeat($robotId, $records, $earthquakeStartTurn, $finalWorld, $snapshot);
+        }
+
         [$fixedBody, $fixedHouse] = $this->fixedBodyAndHouse($finalWorld);
 
         $sections = [];
@@ -132,10 +163,89 @@ final class ReflectionTextBuilder
         return implode("\n\n", $sections);
     }
 
-    /** The stored Reflection_Text_Version (Req 1.8). */
+    /**
+     * Build the heat-wave Reflection_Text for one robot and one ended episode
+     * (heat-wave Requirement 7). Same section order and structure as the
+     * earthquake reflection (Requirement 7.1): fixed body, fixed house,
+     * [memories block], the heat lead-in, one event block per played turn with
+     * minute count-up headings, the final "Right now:" paragraph, and the
+     * exact unchanged question (Requirement 7.2). Two differences from the
+     * earthquake path:
+     *   - the lead-in is LEAD_IN_HEAT and the event-block headings count up in
+     *     5-minute steps ("{a} to {b} minutes after the heat set in:") in place
+     *     of the 15-second headings (Requirement 7.1);
+     *   - a heat turn has no shaking paragraph, so an event block carries only
+     *     the man's line heard and the acted items (own and the other robot's
+     *     under rule A); a block with no such lines shows the neutral line.
+     *
+     * The fixed body, the fixed house, and the "Right now:" paragraph are
+     * produced by SituationTextGenerator (which takes its own heat path for a
+     * heat-wave world and runs the banned-word check on its engine-authored
+     * parts, Requirement 7.3); the lead-in, the headings, the neutral line, and
+     * the question are the builder's own fixed, banned-word-clean literals. The
+     * memories and the robots' own quoted words are exempt, exactly as on the
+     * earthquake path.
+     *
+     * @param TurnRecord[]    $records    the episode's played turns, oldest first
+     * @param int             $startTurn  the quiet-turn offset (0 in the loop), so
+     *                                     the first played turn heads at k = 0
+     * @param WorldModel      $finalWorld the heat-wave world after the last turn
+     * @param MemorySnapshot  $snapshot   this robot's memories in this episode
+     */
+    private function buildHeat(
+        string $robotId,
+        array $records,
+        int $startTurn,
+        WorldModel $finalWorld,
+        MemorySnapshot $snapshot,
+    ): string {
+        [$fixedBody, $fixedHouse] = $this->fixedBodyAndHouse($finalWorld);
+
+        $sections = [];
+        $sections[] = $fixedBody;
+        $sections[] = $fixedHouse;
+
+        if (!$snapshot->isEmpty()) {
+            $sections[] = $this->memoriesBlock($snapshot);
+        }
+
+        $sections[] = self::LEAD_IN_HEAT;
+
+        // The minutes-per-turn heat clock lives in EpisodeConfig, read off the
+        // final world, so no step literal lives in the builder.
+        $minutesPerTurn = $finalWorld->heatMinutesPerTurn();
+        foreach (array_values($records) as $record) {
+            $sections[] = $this->heatEventBlock($robotId, $record, $startTurn, $minutesPerTurn);
+        }
+
+        $sections[] = $this->rightNowParagraph($robotId, $finalWorld);
+        $sections[] = self::QUESTION;
+
+        return implode("\n\n", $sections);
+    }
+
+    /**
+     * The stored Reflection_Text_Version for the given world (Req 1.8). A
+     * heat-wave world carries the distinct heat version (heat-wave Requirement
+     * 7.4); every other world carries the unchanged earthquake version.
+     */
+    public function versionFor(WorldModel $world): string
+    {
+        return $world->disaster === Disaster::heat_wave
+            ? self::REFLECTION_TEXT_VERSION_HEAT
+            : self::REFLECTION_TEXT_VERSION;
+    }
+
+    /** The stored earthquake Reflection_Text_Version (Req 1.8). */
     public function version(): string
     {
         return self::REFLECTION_TEXT_VERSION;
+    }
+
+    /** The stored heat-wave Reflection_Text_Version (heat-wave Req 7.4). */
+    public function heatVersion(): string
+    {
+        return self::REFLECTION_TEXT_VERSION_HEAT;
     }
 
     /**
@@ -210,6 +320,64 @@ final class ReflectionTextBuilder
         $to   = 15 * ($k + 1);
 
         return "{$from} to {$to} seconds after the shaking began:";
+    }
+
+    /**
+     * Build one heat-wave turn's event block (heat-wave Requirement 7.1): the
+     * minute count-up heading, then the man's line heard this turn (a heat turn
+     * has no shaking paragraph, so there is no house-events line), then the
+     * acted items — the robot's own action result and speech, then the other
+     * robot's under rule A. An otherwise-empty block shows the neutral line so
+     * the count-up stays unbroken. The static room-object list is never
+     * repeated here (the heat "Right now:" owns it), exactly as the earthquake
+     * block.
+     */
+    private function heatEventBlock(
+        string $robotId,
+        TurnRecord $record,
+        int $startTurn,
+        int $minutesPerTurn,
+    ): string {
+        $heading = $this->heatBlockHeading($record->turnNumber, $startTurn, $minutesPerTurn);
+
+        $lines = [];
+
+        // Perceived: the man's line this turn, rendered exactly as the
+        // earthquake reflection renders it (same-room "shouts" vs heard form).
+        $manLine = $this->manLine($robotId, $record);
+        if ($manLine !== null) {
+            $lines[] = $manLine;
+        }
+
+        // Acted: own action/speech then the other robot's under rule A.
+        $lines = array_merge($lines, $this->actedLines($robotId, $record));
+
+        if ($lines === []) {
+            $lines[] = self::NEUTRAL_LINE;
+        }
+
+        return $heading . "\n" . implode("\n", $lines);
+    }
+
+    /**
+     * The heat-wave forward count-up heading (heat-wave Requirement 7.1),
+     * mirroring blockHeading() with minutes at the 5-minute heat clock in place
+     * of 15-second seconds. With startTurn = 0 the first played turn is turn 1
+     * (k = 0), so turn 1 reads "0 to 5 minutes after the heat set in:", turn 2
+     * "5 to 10 …", and so on, in minutesPerTurn steps read from EpisodeConfig
+     * (no step literal here).
+     */
+    private function heatBlockHeading(int $turnNumber, int $startTurn, int $minutesPerTurn): string
+    {
+        $k = $turnNumber - $startTurn - 1;
+        if ($k < 0) {
+            $k = 0;
+        }
+
+        $from = $minutesPerTurn * $k;
+        $to   = $minutesPerTurn * ($k + 1);
+
+        return "{$from} to {$to} minutes after the heat set in:";
     }
 
     /**
