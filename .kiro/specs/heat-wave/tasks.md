@@ -125,16 +125,16 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Resolve the reply in `Engine` after actions, placed on this turn, taking precedence over the scripted line. Run `php -l` on every changed PHP file.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10, 4.10_
 
-  - [ ] 8.2 Write the four air-conditioner example tests
+  - [-] 8.2 Write the four air-conditioner example tests
     - (a) AC turned on before the conditions are met is on and the resident objects with "I hate the air conditioner. Turn it off." (5.3); (b) a spoken suggestion alone draws "I hate the air conditioner." (5.2); (c) conditions met (danger reason + alternative prepared) → "All right. Just for a while." then no more objections (5.1); (d) weakened → accept (5.1). Also assert mutual exclusivity of 5.2 vs 5.3, the immediacy/priority of the reply (5.4), `AC_Danger_Reason` per trigger word (5.7), and `AC_Alternative_Prepared` each branch (5.8).
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.7, 5.8_
 
-  - [ ] 8.3 Write the resident-never-turns-AC-off property test
+  - [x] 8.3 Write the resident-never-turns-AC-off property test
     - **Property 5: The resident never turns the air conditioner off**
     - **Validates: Requirements 5.5, 11.3**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 5: The resident never turns the air conditioner off`.
 
-  - [ ] 8.4 Write the AC-objection-line-cooldown property test
+  - [x] 8.4 Write the AC-objection-line-cooldown property test
     - **Property 6: The air-conditioner objection line obeys the cooldown**
     - **Validates: Requirements 5.6, 11.4**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 6: The air-conditioner objection line obeys the cooldown`.
