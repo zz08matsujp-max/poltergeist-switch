@@ -51,7 +51,7 @@ final class SituationTextGenerator
      * world so the stored prompt carries the right version. Kept at most 32
      * characters to fit the prompts.situation_text_version column.
      */
-    public const VERSION_HEAT = 'situation-text-heatwave-2026-11-09a';
+    public const VERSION_HEAT = 'situation-text-heatwave-2026-11-09b';
 
     /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.
@@ -258,15 +258,11 @@ final class SituationTextGenerator
             $sections[] = $recentEvents;
         }
 
-        // The opening line keys off whether the recent-events section renders a
-        // block, not off the raw record count. The quiet turn-0 TurnRecord the
-        // engine applies before turn 1 produces no body lines, so on the
-        // robot's first played turn $recentEvents is '' and the opening line
-        // fires; once a robot has acted or spoken a block renders and the line
-        // is suppressed. This mirrors the earthquake path (where a no-body
-        // turn-0 record simply omits the recent-events block) and keeps the
-        // "In the last 5 minutes:" heading and the opening line consistent.
-        $rightNow = $this->buildHeatRightNow($robotId, $world, $recentEvents === '');
+        // The opening line fires on the FIRST heat turn only, decided by the
+        // turn number (currentTurn == 1), not by whether the recent-events
+        // section rendered a block. Keying it on the turn number means a later
+        // quiet turn (no recent block) never re-shows the opening line.
+        $rightNow = $this->buildHeatRightNow($robotId, $world);
         $sections[] = $rightNow;
 
         $sections[] = self::FINAL_LINE;
@@ -420,15 +416,17 @@ final class SituationTextGenerator
      * and none of them appears in it (Requirement 6.6). Every sentence is a
      * plain fact with no danger word, advice, or judgement (Requirement 6.7).
      *
-     * @param bool $isFirstPlayedTurn true when the recent-events section
-     *                                rendered no block, i.e. this is the robot's
-     *                                first played turn; the opening line fires
-     *                                only then (see generateHeat()).
+     * The opening line fires on the first heat turn only, decided by the turn
+     * number (currentTurn == 1); a later quiet turn never re-shows it. The
+     * clock advances heatMinutesPerTurn minutes per turn from the afternoon
+     * start, so turn 1 reads the unchanged "2:14 in the afternoon". The man's
+     * spoken line, when he speaks this turn, is appended as the final sentence,
+     * heard in every room with the single "You hear the man say," form, so an
+     * AC reply, the move refusal, or a scripted line all reach both robots.
      */
     private function buildHeatRightNow(
         string $robotId,
-        HeatSituationView $world,
-        bool $isFirstPlayedTurn
+        HeatSituationView $world
     ): string {
         /** @var SituationView $view the same object, for the shared reads */
         $view = $world;
@@ -437,7 +435,7 @@ final class SituationTextGenerator
         $other = $view->robotRoom($this->otherRobotId($robotId));
         $mroom = $view->residentRoom();
 
-        $now = 'Right now: It is ' . self::TIMES[$view->timeOfDay()] . '. '
+        $now = 'Right now: It is ' . $this->heatClockPhrase($world) . '. '
             . 'You are in ' . $this->vThe($you) . '. ';
 
         // Object list, or the darkness replacement when the room is dark. The
@@ -450,12 +448,10 @@ final class SituationTextGenerator
                 . $this->vList($view->visibleObjectPhrases($you)) . '. ';
         }
 
-        // The opening line appears once, on the robot's first played turn (the
-        // recent-events section rendered no block), in place of the earthquake's
-        // shake line (Requirement 6.2). Keying on the rendered block rather than
-        // the raw record count makes this robust to the quiet turn-0 record the
-        // engine applies before turn 1.
-        if ($isFirstPlayedTurn) {
+        // The opening line appears once, on the FIRST heat turn (currentTurn
+        // == 1), in place of the earthquake's shake line (Requirement 6.2).
+        // Keying on the turn number means a later quiet turn never re-shows it.
+        if ($world->currentTurn() === 1) {
             $now .= self::HEAT_OPENING_LINE . ' ';
         }
 
@@ -481,14 +477,62 @@ final class SituationTextGenerator
         }
 
         // The resident: his heat stage when he is here, otherwise where he is.
-        $now .= $this->describeResidentHeat($view, $world, $you, $mroom) . ' ';
+        $now .= $this->describeResidentHeat($view, $world, $you, $mroom);
 
-        // Other robot (no trailing space; ends the paragraph).
-        $now .= $other === $you
+        // Other robot.
+        $now .= ' ' . ($other === $you
             ? 'The other robot is here with you.'
-            : 'The other robot is in ' . $this->vThe($other) . '.';
+            : 'The other robot is in ' . $this->vThe($other) . '.');
+
+        // The man's spoken line, as the final sentence, heard in every room
+        // (heat-wave Requirement 6.5). Unlike the earthquake paragraph, which
+        // varies "shouts"/"hear ... shout" by room, the heat text uses the
+        // single every-room "You hear the man say," form the maintainer chose,
+        // regardless of which room the robot or the man is in. The line itself
+        // is already fixed by the engine via setSituationFlags (the carried-vs-
+        // scripted priority of Requirement 13.8); the generator only renders
+        // what residentLine() returns, so AC replies, the AC repeat, the move
+        // refusal, and the scripted lines all reach both robots.
+        if ($view->residentSpeaksThisTurn()) {
+            $line = $view->residentLine() ?? self::RESIDENT_SHOUT;
+            $now .= ' You hear the man say, "' . $line . '"';
+        }
 
         return $now;
+    }
+
+    /**
+     * The heat-wave "Right now:" clock phrase (heat-wave Requirement 6.4). The
+     * clock advances heatMinutesPerTurn minutes per turn from the afternoon
+     * start, so turn 1 reads the unchanged TIMES['afternoon']
+     * ("2:14 in the afternoon") and each later turn adds the per-turn minutes:
+     * turn 2 → 2:19, turn 3 → 2:24, ..., turn 14 → 3:19. The base hour and
+     * minute are parsed from the afternoon start so there is no second literal,
+     * and the "in the afternoon" suffix is kept for every heat turn within the
+     * 20-turn cap (the latest possible time is 2:14 + 95 min = 3:49, still
+     * afternoon). Formatted as "H:MM in the afternoon" with a 12-hour hour and
+     * two-digit minutes.
+     */
+    private function heatClockPhrase(HeatSituationView $world): string
+    {
+        // The afternoon start, e.g. "2:14 in the afternoon". Parse its hour,
+        // minute and suffix so no second literal lives here.
+        $afternoon = self::TIMES['afternoon'];
+        [$clock, $suffix] = explode(' ', $afternoon, 2);
+        [$startHour, $startMinute] = array_map('intval', explode(':', $clock));
+
+        // Minutes elapsed since the first heat turn (turn 1 → 0 offset).
+        $minutesSinceStart = $world->heatMinutesPerTurn()
+            * ($world->currentTurn() - 1);
+        if ($minutesSinceStart < 0) {
+            $minutesSinceStart = 0;
+        }
+
+        $total  = ($startHour * 60 + $startMinute) + $minutesSinceStart;
+        $hour   = intdiv($total, 60);
+        $minute = $total % 60;
+
+        return $hour . ':' . sprintf('%02d', $minute) . ' ' . $suffix;
     }
 
     /**

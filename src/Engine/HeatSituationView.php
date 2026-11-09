@@ -28,6 +28,21 @@ interface HeatSituationView
     /** The disaster this world runs; the generator gates the heat path on it. */
     public function disaster(): Disaster;
 
+    /**
+     * The 1-based turn number this world is on. The heat generator advances the
+     * clock and keys the opening line off this, so the number lives in the
+     * world and the generator holds no turn literal. The quiet turn 0 precedes
+     * the heat wave; turn 1 is the first heat turn.
+     */
+    public function currentTurn(): int;
+
+    /**
+     * The minutes the heat clock advances per turn, read from EpisodeConfig so
+     * the generator holds no magic number. The heat "Right now:" time is the
+     * afternoon start plus heatMinutesPerTurn * (currentTurn - 1).
+     */
+    public function heatMinutesPerTurn(): int;
+
     /** Whether the window air conditioner is switched on. */
     public function acOn(): bool;
 

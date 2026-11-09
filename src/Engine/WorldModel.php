@@ -639,6 +639,26 @@ class WorldModel implements SituationView, HeatSituationView
     }
 
     /**
+     * The 1-based turn number this world is on (HeatSituationView). The heat
+     * generator reads this to advance the clock and to fire the opening line on
+     * turn 1 only, so no turn literal lives in the generator.
+     */
+    public function currentTurn(): int
+    {
+        return $this->currentTurn;
+    }
+
+    /**
+     * The minutes the heat clock advances per turn (HeatSituationView), read
+     * from EpisodeConfig so the generator holds no heat number (heat-wave
+     * Requirement 6.4).
+     */
+    public function heatMinutesPerTurn(): int
+    {
+        return $this->config->heatMinutesPerTurn;
+    }
+
+    /**
      * The resident's visible heat stage for the "Right now:" paragraph
      * (HeatSituationView, heat-wave Requirement 6.5), resolved here so the
      * generator holds no heat threshold:

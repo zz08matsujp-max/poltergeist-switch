@@ -222,6 +222,11 @@ class HeatSituationTextTest extends TestCase
         $world     = $this->makeHeatWorld();
         $generator = new SituationTextGenerator();
 
+        // The opening line now keys on the turn number (currentTurn == 1), not
+        // on whether the recent-events block is empty, so this first heat turn
+        // is pinned explicitly.
+        $world->currentTurn = 1;
+
         $text = $generator->generate('robot_a', $world, []);
 
         $this->assertStringContainsString(
@@ -241,6 +246,9 @@ class HeatSituationTextTest extends TestCase
     {
         $world     = $this->makeHeatWorld();
         $generator = new SituationTextGenerator();
+
+        // Turn 2: the opening line keys on currentTurn == 1, so it is gone.
+        $world->currentTurn = 2;
 
         $text = $generator->generate('robot_a', $world, [$this->speakingRecord(1)]);
 
@@ -532,6 +540,6 @@ class HeatSituationTextTest extends TestCase
             'the heat-wave version must differ from the earthquake version'
         );
         $this->assertSame('situation-text-2026-11-09b', SituationTextGenerator::VERSION);
-        $this->assertSame('situation-text-heatwave-2026-11-09a', SituationTextGenerator::VERSION_HEAT);
+        $this->assertSame('situation-text-heatwave-2026-11-09b', SituationTextGenerator::VERSION_HEAT);
     }
 }

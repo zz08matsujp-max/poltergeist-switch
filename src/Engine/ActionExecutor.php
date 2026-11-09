@@ -55,6 +55,9 @@ class ActionExecutor
     /** Object id of the electric fan (heat-wave Req 4.3, 4.8). */
     private const ELECTRIC_FAN_ID = 'electric_fan';
 
+    /** Object id of the window air conditioner (heat-wave Req 4.1, 5). */
+    private const AIR_CONDITIONER_ID = 'window_air_conditioner';
+
     /** Object id of the refrigerator; cold water comes from it (heat-wave Req 4.4). */
     private const REFRIGERATOR_ID = 'refrigerator';
 
@@ -397,14 +400,19 @@ class ActionExecutor
      * should handle (so `use window_air_conditioner` in the living room still
      * switches the appliance on through the existing path).
      *
-     * Three heat `use` targets are handled here:
+     * Four heat `use` targets are handled here:
      *   - the `window` pseudo-target (Req 4.7): toggle the robot's current
      *     room's open-window flag; the window is a fixture, never an object;
      *   - the refrigerator in the kitchen (Req 4.4): give the robot the held
      *     barley-tea bottle, so `use` matches `take`;
      *   - the electric fan (Req 4.8): a `use` while holding it puts it down in
      *     the robot's current room and switches it on in one step; a `use`
-     *     while it stands in a room toggles it on/off.
+     *     while it stands in a room toggles it on/off;
+     *   - the window air conditioner in the living room (Req 4.1): a `use`
+     *     toggles it on/off with the "window air conditioner" wording, instead
+     *     of the generic "You used a window air conditioner." So the record
+     *     reads "switched on/off". An AC `use` from another room falls through
+     *     (the evaluator has already judged it impossible, Req 4.2).
      */
     private function applyHeatUse(Action $action, WorldModel $world): ?array
     {
@@ -448,7 +456,43 @@ class ActionExecutor
             return $this->useElectricFan($action, $world);
         }
 
+        // The window air conditioner in the living room: toggle on/off with the
+        // definite-article wording (Req 4.1). The evaluator only lets a `use`
+        // reach here in the living room (Req 4.2), so a real toggle happens;
+        // the text reflects the state AFTER the switch. An AC `use` elsewhere
+        // is not reached as a successful execution, so fall through to null.
+        if ($targetId === self::AIR_CONDITIONER_ID) {
+            return $this->useAirConditioner($action, $world);
+        }
+
         return null;
+    }
+
+    /**
+     * Toggle the window air conditioner on or off (heat-wave Requirement 4.1)
+     * with the definite-article wording the maintainer chose, in place of the
+     * generic "You used a window air conditioner." The outcome text reflects
+     * the AC's state AFTER the switch: switching it on reads "switched on the
+     * window air conditioner." and switching it off reads "switched off the
+     * window air conditioner.". The cooling itself is applied by HeatWavePhase,
+     * not here.
+     */
+    private function useAirConditioner(Action $action, WorldModel $world): array
+    {
+        $ac = $this->object($action, $world);
+        $ac->on = !$ac->on;
+
+        if ($ac->on) {
+            return [
+                'You switched on the window air conditioner.',
+                'The other robot switched on the window air conditioner.',
+            ];
+        }
+
+        return [
+            'You switched off the window air conditioner.',
+            'The other robot switched off the window air conditioner.',
+        ];
     }
 
     /**
