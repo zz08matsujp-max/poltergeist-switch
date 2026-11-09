@@ -538,7 +538,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Already off → unchanged: a `use` on an already-off gas stove changes nothing and returns the "It was already off." texts
     - _Requirements: Req 33.1, 33.2_
 
-- [~] 34. Using the gas main valve when it is already closed, or a light that is already on (added 2026-11-09)
+- [x] 34. Using the gas main valve when it is already closed, or a light that is already on (added 2026-11-09)
   - [x] 34.1 `ActionExecutor::executeUse`: check the gas main and the light's state before mutating (Req 34.1–34.4).
     - Gas main branch: if `houseState->gasMain` is already `GasState::closed`, change nothing and return `"You turned the gas main valve. It was already closed."` / `"The other robot turned the gas main valve. It was already closed."`; if it is `open`, set it to `closed` and return the current texts `"You closed the gas main valve."` / `"The other robot closed the gas main valve."` (unchanged)
     - Light-source branch: if `$object->on` is already `true`, change nothing and do NOT call `EarthquakePhase::recomputeRoomLightLevel()`, returning `"You tried to switch on {displayName}. The light was already on."` / `"The other robot tried to switch on {displayName}. The light was already on."`; if it is `false`, set it to `true`, recompute the holder's room light, and return the current texts `"You switched on {displayName}."` / `"The other robot switched on {displayName}."` (unchanged)
