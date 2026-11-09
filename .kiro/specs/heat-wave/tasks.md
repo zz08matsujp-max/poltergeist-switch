@@ -218,7 +218,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Assert a heat-wave API response carries the HTTP header `Cache-Control: no-store` (example check, not a property).
     - _Requirements: 8.7_
 
-- [-] 13. Add the heat-wave recorder input (earthquake recorder input and prompt unchanged)
+- [x] 13. Add the heat-wave recorder input (earthquake recorder input and prompt unchanged)
   - [x] 13.1 List the barley_tea bottle id in the heat-wave recorder input
     - While the disaster is heat wave, list the `barley_tea` bottle with its own object id in the kitchen in the recorder input so the recorder can name it, and report the held bottle's id as the `held` id on the next turn; leave the earthquake recorder input unchanged so it never lists the bottle.
     - Read a robot's use of the air conditioner, the fan, the window, and the cold water with the existing operations and recorder prompt; if a reading requires a prompt change, use a heat-wave-only recorder prompt variant with its own version stored with every heat-wave reading, and leave the earthquake recorder prompt and version unchanged. Keep the recorder read-only, with every passed-on action and spoken line backed by an exact substring quote of the reply.
@@ -229,14 +229,14 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - The recorder maps the heat targets with the existing vocabulary (9.1), the earthquake recorder prompt/version is unchanged (9.2), and the evidence-quote rule holds for a heat reply (9.3).
     - _Requirements: 9.1, 9.2, 9.3_
 
-- [ ] 14. Implement the heat-wave screens (earthquake drawing unchanged)
-  - [ ] 14.1 Enable the Heat wave lever and add heat drawing
+- [~] 14. Implement the heat-wave screens (earthquake drawing unchanged)
+  - [x] 14.1 Enable the Heat wave lever and add heat drawing
     - In `observe.js`, enable the Heat wave Breaker_Switch and drive the dual-state create-or-convert flow; keep the Heavy rain Breaker_Switch disabled and labelled "coming later".
     - In `house-renderer.js`, draw the heat only when the world's `disaster` is heat wave: an afternoon sky, heat shimmer, the air conditioner and the electric fan drawn on or off, and the fan drawn in the room it is in; draw the earthquake exactly as today and run no heat drawing in an earthquake episode.
     - Show the temperature of the resident's room beside his meters in a heat-wave episode. Show "Heat wave" on the Replay screen, the End_Card, and the episode list. Name the two robots only as Amber and Jade and never name any AI company or model in the robots' text.
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-  - [ ] 14.2 Write the JS screen example tests
+  - [x] 14.2 Write the JS screen example tests
     - Heat wave lever enabled and Heavy rain disabled/"coming later" (10.1); heat fields drive heat drawing only when `disaster` is heat wave (10.2, 10.5); the resident's room temperature shows beside his meters (10.3); Replay/End_Card/list show "Heat wave" (10.4); robot names are only Amber/Jade (10.6).
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 

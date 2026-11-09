@@ -112,6 +112,8 @@ header('Cache-Control: no-store');
           <!-- Live "Turn N of M" position counter (Req 9.1). replay.js updates
                its text in renderTurn; M excludes turn 0 (the calm setup). -->
           <span class="turn-indicator" id="turn-indicator" aria-live="polite"></span>
+          <!-- Heat wave only: names the disaster; hidden for an earthquake. -->
+          <span class="disaster-tag" id="disaster-label" hidden></span>
         </div>
 
         <!-- "What it was told this turn" panel (Req 9.7). Sits under the

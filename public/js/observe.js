@@ -41,7 +41,8 @@
     expectedTurn: 0,       // the next expected turn number
     running: false,        // the loop is advancing turns
     paused: false,         // Pause was pressed
-    ended: false           // apply reported the episode ended
+    ended: false,          // apply reported the episode ended
+    disaster: 'earthquake' // the current episode's disaster (view.disaster)
   };
 
   // ── helpers the run loop (9.3) calls ───────────────────────────────────────
@@ -53,14 +54,46 @@
    * Each meter's fill width is a percentage and the numeric value is shown.
    * Called by 9.3 on each apply; safe to call with a partial object.
    */
-  function updateMeters(man) {
+  function updateMeters(man, world) {
     man = man || {};
+    updateRoomTemp(man, world);
     // Temperature: the man's safe band is ~35–39 °C; map 34–42 onto 0–100% for
     // the bar while showing the raw value. Water/injury/fear are already 0–100.
     setMeter('temp', man.bodyTemp, formatTemp(man.bodyTemp), tempPercent(man.bodyTemp));
     setMeter('water', man.water, numOrDash(man.water), clampPct(man.water));
     setMeter('injury', man.injury, numOrDash(man.injury), clampPct(man.injury));
     setMeter('fear', man.fear, numOrDash(man.fear), clampPct(man.fear));
+  }
+
+  // True when a stored World_State belongs to a heat-wave episode. The heat
+  // fields (disaster, roomTemps, ...) exist only on a heat-wave world.
+  function isHeatWorld(world) {
+    return !!(world && world.disaster === 'heat_wave');
+  }
+
+  /**
+   * updateRoomTemp(man, world) — heat wave only: show the temperature of the
+   * room the man is in beside his meters (heat-wave Req 10.3). In any other
+   * episode the row stays hidden and untouched, so an earthquake screen is
+   * unchanged. Room temperature is shown as whole degrees Celsius.
+   */
+  function updateRoomTemp(man, world) {
+    var meter = el.meter_room;
+    if (!meter) { return; }
+    if (!isHeatWorld(world)) { meter.hidden = true; return; }
+    var temps = world.roomTemps || {};
+    var t = (man && man.room && typeof temps[man.room] === 'number') ? temps[man.room] : null;
+    meter.hidden = false;
+    var fill = meter.querySelector('.fill');
+    var val = meter.querySelector('.val');
+    if (t === null || !isFinite(t)) {
+      if (fill) { fill.style.width = '0%'; }
+      if (val) { val.textContent = '\u2014'; }
+      return;
+    }
+    // Bar maps 18-45 degrees (the engine's room range) onto 0-100%.
+    if (fill) { fill.style.width = clampPct(((t - 18) / (45 - 18)) * 100) + '%'; }
+    if (val) { val.textContent = String(Math.round(t)) + '\u00b0C'; }
   }
 
   /**
@@ -120,6 +153,24 @@
    */
   function setEarthquakeLever(on) {
     var sw = el.swEarthquake;
+    if (!sw) { return; }
+    if (on) {
+      sw.classList.add('on');
+      sw.setAttribute('aria-pressed', 'true');
+    } else {
+      sw.classList.remove('on');
+      sw.setAttribute('aria-pressed', 'false');
+    }
+    var mark = sw.querySelector('.mark');
+    if (mark) { mark.textContent = on ? 'ON' : 'OFF'; }
+  }
+
+  /**
+   * setHeatLever(on) — reflect the Heat wave breaker lever ON/OFF, the same way
+   * setEarthquakeLever does for the Earthquake lever (heat-wave Req 10.1).
+   */
+  function setHeatLever(on) {
+    var sw = el.swHeat;
     if (!sw) { return; }
     if (on) {
       sw.classList.add('on');
@@ -281,6 +332,7 @@
     ['temp', 'water', 'injury', 'fear'].forEach(function (key) {
       setMeter(key, null, '\u2014', 0);
     });
+    updateRoomTemp(null, null);   // hides the heat-only room row
   }
 
   // Clear the log to empty (Req 4.5).
@@ -384,6 +436,7 @@
     state.expectedTurn = (typeof view.currentExpectedTurn === 'number')
       ? view.currentExpectedTurn : 0;
     state.ended = (view.ended === true);
+    state.disaster = (view.disaster === 'heat_wave') ? 'heat_wave' : 'earthquake';
     // Remember this as the device's latest episode so a later load can catch up
     // its reflection if the page closes before the End_Card runs (Req 2.8, 2.9).
     rememberLastEpisode(state.episodeId);
@@ -406,6 +459,8 @@
     if (house && t0 && t0.world) {
       try { house.setWorld(t0.world); } catch (e) { /* ignore */ }
     }
+    // Heat wave only: show the starting room temperature beside his meters.
+    if (t0 && isHeatWorld(t0.world)) { updateRoomTemp(t0.world.man, t0.world); }
   }
 
   // Flip the earthquake and start the turns. Creates the episode first if none
@@ -445,6 +500,52 @@
       runLoop();
     }, function () {
       showNotice('The earthquake switch did not take. Please try again.');
+    });
+  }
+
+  // Raise the Heat wave lever and start the turns (heat-wave Req 8.1, 8.2,
+  // 10.1). Dual-state: with no episode it CREATES one as a heat-wave episode;
+  // with a waiting turn-0 episode (Start already pressed) it CONVERTS that
+  // episode in place through POST /api/episodes/{id}/disaster. It never
+  // creates a second episode and never expects a 409.
+  function flipHeatAndRun() {
+    if (!api) { return; }
+    if (state.running) { return; }
+    clearNotice();
+
+    if (state.episodeId) {
+      doFlipHeat(state.episodeId);
+      return;
+    }
+    api.createEpisode('heat_wave').then(function (res) {
+      if (res && res.status === 409) { handleSlotConflict(res.body); return; }
+      if (!res || res.status !== 200 || !res.body) {
+        showNotice('The lab could not start an episode. Please try again.');
+        return;
+      }
+      adoptEpisode(res.body);
+      drawTurnZero(res.body);
+      // The created episode is already a heat-wave world; the flip fixes the
+      // heat before turn 1 and is idempotent.
+      doFlipHeat(state.episodeId);
+    }, function () {
+      showNotice('The lab could not be reached. Please try again.');
+    });
+  }
+
+  function doFlipHeat(episodeId) {
+    api.flipDisaster(episodeId, 'heat_wave').then(function (res) {
+      if (!res || res.status !== 200 || !res.body) {
+        showNotice('The heat wave switch did not take. Please try again.');
+        return;
+      }
+      adoptEpisode(res.body);
+      // A converted episode's turn 0 is now the heat starting situation: redraw.
+      drawTurnZero(res.body);
+      setHeatLever(true);
+      runLoop();
+    }, function () {
+      showNotice('The heat wave switch did not take. Please try again.');
     });
   }
 
@@ -551,7 +652,7 @@
 
     // Meters + log from the applied turn (Req 5.10). Independent of animation.
     if (applied) {
-      if (applied.world && applied.world.man) { updateMeters(applied.world.man); }
+      if (applied.world && applied.world.man) { updateMeters(applied.world.man, applied.world); }
       appendLog(turnNumber, buildLogEntries(applied));
     }
 
@@ -830,6 +931,15 @@
       (count === 1 ? ' turn taken' : ' turns taken');
     card.appendChild(h);
 
+    // Heat wave only: name the disaster on the card (heat-wave Req 10.4). An
+    // earthquake card gets no extra element, so it is unchanged.
+    if (view && view.disaster === 'heat_wave') {
+      var tag = document.createElement('p');
+      tag.className = 'disaster-tag';
+      tag.textContent = 'Heat wave';
+      card.appendChild(tag);
+    }
+
     // Per-robot summary (Req 6.1 / 6.2).
     var summary = document.createElement('div');
     summary.className = 'endcard-summary';
@@ -1030,8 +1140,12 @@
         onEpisodeEnded(res.body);
         return;
       }
-      setEarthquakeLever(res.body.earthquakeStartTurn !== null &&
-        res.body.earthquakeStartTurn !== undefined);
+      if (res.body.disaster === 'heat_wave') {
+        setHeatLever(true);
+      } else {
+        setEarthquakeLever(res.body.earthquakeStartTurn !== null &&
+          res.body.earthquakeStartTurn !== undefined);
+      }
       runLoop();
     }, function () {
       showResumeFailed();
@@ -1058,7 +1172,7 @@
     }
     if (house && world) {
       try { house.setWorld(world); } catch (e) { /* ignore */ }
-      if (world.man) { updateMeters(world.man); }
+      if (world.man) { updateMeters(world.man, world); }
     }
     // Re-populate the log from every recorded robot turn, in order.
     turns.forEach(function (t) {
@@ -1348,7 +1462,21 @@
         if (state.running || (el.swEarthquake.getAttribute('aria-pressed') === 'true')) {
           return;
         }
+        // A heat-wave episode is already raised: the earthquake lever does nothing.
+        if (el.swHeat && el.swHeat.getAttribute('aria-pressed') === 'true') { return; }
         flipEarthquakeAndRun();
+      });
+    }
+    // Heat wave (heat-wave Req 10.1): create-or-convert, one-way like the
+    // Earthquake lever. Heavy rain has no handler: its `disabled` attribute
+    // rejects activation and it stays labelled "coming later".
+    if (el.swHeat) {
+      el.swHeat.addEventListener('click', function () {
+        if (state.running || (el.swHeat.getAttribute('aria-pressed') === 'true')) {
+          return;
+        }
+        if (el.swEarthquake && el.swEarthquake.getAttribute('aria-pressed') === 'true') { return; }
+        flipHeatAndRun();
       });
     }
   }
@@ -1371,6 +1499,7 @@
     state.paused = false;
     state.ended = false;
     setEarthquakeLever(false);
+    setHeatLever(false);
     clearMeters();
     clearLog();
     clearNotice();
@@ -1388,6 +1517,7 @@
     el.meter_water = document.getElementById('meter-water');
     el.meter_injury = document.getElementById('meter-injury');
     el.meter_fear = document.getElementById('meter-fear');
+    el.meter_room = document.getElementById('meter-room');
     el.log = document.getElementById('log');
     el.btnStart = document.getElementById('btn-start');
     el.btnPause = document.getElementById('btn-pause');

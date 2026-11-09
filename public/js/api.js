@@ -58,6 +58,12 @@
     return API_BASE + '?' + qs;
   }
 
+  // Extra query pairs for a disaster choice: only the heat wave adds one, so an
+  // earthquake request keeps exactly the URL it always had.
+  function disasterQuery(disaster) {
+    return disaster === 'heat_wave' ? { disaster: 'heat_wave' } : null;
+  }
+
   // Perform a fetch and return { status, body }. The body is parsed as JSON
   // when the response carries any text; a non-JSON or empty body yields null so
   // the caller still gets the status. Network failures surface as a rejected
@@ -89,14 +95,22 @@
 
   function createApiClient() {
     return {
-      /** POST episodes — create one episode for this device. */
-      createEpisode: function () {
-        return request('POST', buildUrl('episodes'));
+      /**
+       * POST episodes — create one episode for this device. With no argument
+       * (or anything but 'heat_wave') the request is exactly the earthquake
+       * create; 'heat_wave' adds ?disaster=heat_wave (heat-wave Req 8.1).
+       */
+      createEpisode: function (disaster) {
+        return request('POST', buildUrl('episodes', disasterQuery(disaster)));
       },
 
-      /** POST episodes/{id}/disaster — flip the earthquake for an episode. */
-      flipDisaster: function (id) {
-        return request('POST', buildUrl('episodes/' + String(id) + '/disaster'));
+      /**
+       * POST episodes/{id}/disaster — flip a disaster for an episode. No
+       * argument is the unchanged earthquake flip; 'heat_wave' fixes the heat
+       * (idempotent; converts a waiting turn-0 episode in place, Req 8.2).
+       */
+      flipDisaster: function (id, disaster) {
+        return request('POST', buildUrl('episodes/' + String(id) + '/disaster', disasterQuery(disaster)));
       },
 
       /** POST episodes/{id}/turns/{n}/ask — ask the robots for turn n. */

@@ -115,7 +115,12 @@
       stoveOn: false,
       broken: {},          // objectId -> true
       fallen: {},          // objectId -> true
-      rooms: {}            // roomKey -> { light: 'normal'|'dim'|'dark'|... }
+      rooms: {},           // roomKey -> { light: 'normal'|'dim'|'dark'|... }
+      // Heat-wave scene (heat-wave Req 10.2, 10.5). null in every earthquake
+      // episode, and every heat drawing below is gated on it, so the earthquake
+      // is drawn exactly as before. When set: { ac: bool, fan: { on, room },
+      // windows: { roomKey: bool }, outside: number }.
+      heat: null
     };
 
     // Per-character render state. `id` is amber|jade|man at this boundary.
@@ -334,9 +339,12 @@
       box(b.x0 + 6 + ox, CY + 34, 34, 38, '#e9ddc0', '#4a3322'); R(b.x0 + 23 + ox, CY + 34, 1, 38, '#4a3322');
       disc(b.x0 + 15 + ox, CY + 46, 4, '#7d8db0'); R(b.x0 + 27 + ox, CY + 58, 10, 2, '#7d8db0');
       box(b.x0 + 8 + ox, FY - 4, 34, 4, '#d6c8e6', '#3a2f4a'); R(b.x0 + 8 + ox, FY - 4, 34, 1, '#efe6f6'); box(b.x0 + 9 + ox, FY - 7, 7, 3, '#f2ead6', '#3a2f4a');
-      // electric fan
-      R(b.x1 - 12 + ox, FY - 3, 6, 3, '#4a6a8a'); R(b.x1 - 10 + ox, FY - 12, 2, 9, '#6a8aaa'); disc(b.x1 - 9 + ox, FY - 15, 4, '#9ab8d0');
-      R(b.x1 - 9 + ox, FY - 18, 1, 7, '#4a6a8a');
+      // electric fan (earthquake scene only: in a heat wave the fan is drawn in
+      // the room it is actually in, by heatObjects)
+      if (!S.heat) {
+        R(b.x1 - 12 + ox, FY - 3, 6, 3, '#4a6a8a'); R(b.x1 - 10 + ox, FY - 12, 2, 9, '#6a8aaa'); disc(b.x1 - 9 + ox, FY - 15, 4, '#9ab8d0');
+        R(b.x1 - 9 + ox, FY - 18, 1, 7, '#4a6a8a');
+      }
       web(b.x0 + ox + 1, CY + 3, 1);
 
       // living room: butsudan, chabudai, TV, phone, cooler, window
@@ -410,6 +418,112 @@
         // room keeps its cooler, so skip the extra window there to avoid clutter
         if (HAS_WINDOW[r.key] && r.key !== 'living_room') windowFixture(r.x0 + ox, r.x1 + ox);
       });
+    }
+
+    // ── heat wave drawing (heat-wave Req 10.2, 10.5) ──────────────────────
+    // Every function below runs only when S.heat is set, i.e. only when the
+    // world's disaster is heat wave. An earthquake world never reaches them.
+
+    // Afternoon sky: a hot, hazy wash over the sky and a larger, whiter sun.
+    function heatSky() {
+      alpha('#ff9a3c', 0.14); ctx.fillRect(0, 0, W, GY); ctx.globalAlpha = 1;
+      var sx = 330, sy = 34;
+      alpha('#fff2c8', 0.22); disc(sx, sy, 28, '#fff2c8'); ctx.globalAlpha = 1;
+      disc(sx, sy, 13, '#fffbe8');
+    }
+
+    // Heat shimmer: faint wavering streaks rising off the ground and hills
+    // outside the house. Still (but present) under reduced motion.
+    function heatShimmer() {
+      for (var row = 0; row < 8; row++) {
+        var y = GY - 4 - row * 4;
+        for (var x = 0; x < W; x += 24) {
+          var wob = REDUCE ? 0 : round(Math.sin(frame * 0.12 + row * 0.9 + x * 0.05) * 3);
+          alpha('#fff4d0', 0.10);
+          ctx.fillRect(x + wob + (row % 2) * 8, y, 12, 1);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Open windows (and the living room's window, which has no fixture in the
+    // shared scene) drawn in their open or closed state.
+    function heatWindows(ox) {
+      var windows = S.heat.windows || {};
+      ROOM_ORDER.forEach(function (r) {
+        if (!HAS_WINDOW[r.key]) { return; }
+        var open = !!windows[r.key];
+        var wx = Math.floor((r.x0 + r.x1) / 2) - 8 + ox;
+        if (r.key === 'living_room') {
+          // the cooler occupies the usual window spot; draw the window beside it
+          wx = r.x0 + 47 + ox;
+          box(wx, CY + 12, 16, 10, open ? '#a8d4e8' : '#1d2a3a', '#4a3a2a');
+          R(wx + 7, CY + 12, 1, 10, '#4a3a2a'); R(wx, CY + 17, 16, 1, '#4a3a2a');
+        } else if (open) {
+          box(wx, CY + 12, 16, 10, '#a8d4e8', '#4a3a2a');
+          R(wx + 7, CY + 12, 1, 10, '#4a3a2a'); R(wx, CY + 17, 16, 1, '#4a3a2a');
+        }
+        if (open) {
+          // a hot breeze: a curtain that lifts, and a few drifting streaks
+          var lift = REDUCE ? 1 : (1 + Math.floor((Math.sin(frame * 0.1 + wx) + 1) * 1.5));
+          R(wx + 1, CY + 13, 3, 6 + lift, '#e9ddc0');
+          alpha('#ffcf8a', 0.5);
+          for (var k = 0; k < 2; k++) {
+            var dx = REDUCE ? k * 5 : (frame * 0.4 + k * 6) % 14;
+            ctx.fillRect(round(wx + 16 + dx), CY + 15 + k * 3, 3, 1);
+          }
+          ctx.globalAlpha = 1;
+        }
+      });
+    }
+
+    // The window air conditioner (living room), drawn on or off.
+    function heatAirConditioner(ox) {
+      var l = ROOM.living_room, on = !!S.heat.ac;
+      var ax = l.x1 - 22 + ox;
+      box(ax, CY + 12, 16, 10, '#d8d0bc', '#4a3a2a');
+      for (var vv = 0; vv < 4; vv++) R(ax + 2 + vv * 4, CY + 15, 2, 5, on ? '#6f8fa8' : '#9a907c');
+      // status light: steady green when on, dark when off
+      R(ax + 13, CY + 13, 2, 1, on ? '#7dffb0' : '#4a3a2a');
+      if (on) {
+        // cold air falling from the unit
+        for (var i = 0; i < 4; i++) {
+          var fy = REDUCE ? i * 4 : (frame * 0.5 + i * 4) % 16;
+          alpha('#bfe8ff', 0.55 - fy * 0.025);
+          ctx.fillRect(ax + 2 + i * 4, CY + 23 + round(fy), 2, 3);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // The electric fan, drawn in the room it is in, spinning when on.
+    function heatFan(ox) {
+      var f = S.heat.fan || {};
+      var r = f.room ? ROOM[f.room] : null;
+      if (!r) { return; }
+      var fx = r.x1 - 12 + ox, on = !!f.on;
+      R(fx, FY - 3, 6, 3, '#4a6a8a'); R(fx + 2, FY - 12, 2, 9, '#6a8aaa');
+      var hx = fx + 3, hy = FY - 15;
+      disc(hx, hy, 4, on ? '#bcd8ea' : '#9ab8d0');
+      // blades: a cross that turns between two positions while on
+      var turn = on && !REDUCE ? (Math.floor(frame / 2) % 2) : 0;
+      if (turn === 0) { R(hx - 3, hy, 7, 1, '#4a6a8a'); R(hx, hy - 3, 1, 7, '#4a6a8a'); }
+      else { R(hx - 2, hy - 2, 1, 1, '#4a6a8a'); R(hx + 2, hy - 2, 1, 1, '#4a6a8a'); R(hx - 2, hy + 2, 1, 1, '#4a6a8a'); R(hx + 2, hy + 2, 1, 1, '#4a6a8a'); R(hx - 1, hy - 1, 3, 3, '#4a6a8a'); }
+      if (on) {
+        // air pushed out to the side
+        for (var i = 0; i < 3; i++) {
+          var dx = REDUCE ? i * 4 : (frame * 0.7 + i * 5) % 14;
+          alpha('#e8f6ff', 0.45);
+          ctx.fillRect(round(hx - 6 - dx), hy - 2 + i * 2, 4, 1);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function heatObjects(ox) {
+      heatWindows(ox);
+      heatAirConditioner(ox);
+      heatFan(ox);
     }
 
     // ── characters (ported) ───────────────────────────────────────────────
@@ -715,11 +829,14 @@
       if (S.shaking && !REDUCE) { ox = round((rnd() - 0.5) * 4); oy = round((rnd() - 0.5) * 2); }
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       sky();
+      if (S.heat) { heatSky(); }
       ctx.setTransform(1, 0, 0, 1, 0, oy);
       ground();
+      if (S.heat) { heatShimmer(); }
       roof(ox);
       rooms(ox);
       furniture(ox);
+      if (S.heat) { heatObjects(ox); }
       ctx.setTransform(1, 0, 0, 1, ox, oy);
       drawMan(A.man);
       drawJade(A.jade);
@@ -844,6 +961,20 @@
         var objs = ws.objects || {};
         (objs.broken || []).forEach(function (id) { S.broken[id] = true; });
         (objs.fallen || []).forEach(function (id) { S.fallen[id] = true; });
+        // Heat wave only: the heat fields come from the serializer (disaster,
+        // roomTemps, outside, ac{on}, fan{on,room}, windows). An earthquake
+        // world has none of them, so S.heat stays null and nothing heat is run.
+        if (ws.disaster === 'heat_wave') {
+          S.heat = {
+            ac: !!(ws.ac && ws.ac.on),
+            fan: { on: !!(ws.fan && ws.fan.on), room: (ws.fan && ws.fan.room) || null },
+            windows: ws.windows || {},
+            outside: (typeof ws.outside === 'number') ? ws.outside : null
+          };
+          S.timeOfDay = 'afternoon';   // a heat wave is an afternoon scene
+        } else {
+          S.heat = null;
+        }
         S.rooms = {};
         var rr = ws.rooms || {};
         Object.keys(rr).forEach(function (key) { S.rooms[key] = { light: (rr[key] && rr[key].light) || 'normal' }; });

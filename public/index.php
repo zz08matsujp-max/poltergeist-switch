@@ -85,8 +85,8 @@ header('Cache-Control: no-store');
 
     <div class="board observe">
       <!-- Breaker switches: exactly three; lever-up = ON, lever-down = OFF.
-           Earthquake is live; Heavy rain and Heat wave are disabled and
-           labelled "coming later" (Req 4.3, 4.4). On first load the Earthquake
+           Earthquake and Heat wave are live; Heavy rain stays disabled and
+           labelled "coming later" (Req 4.3, 4.4; heat-wave Req 10.1). On first load the Earthquake
            lever is OFF (no .on class) (Req 4.5). -->
       <section class="panel" aria-label="Disaster switches">
         <h2>Breaker switches</h2>
@@ -101,10 +101,10 @@ header('Cache-Control: no-store');
             <span>Heavy rain</span>
             <span class="later">coming later</span>
           </button>
-          <button type="button" class="sw" id="sw-heat" disabled aria-disabled="true">
+          <button type="button" class="sw" id="sw-heat" aria-pressed="false">
             <span class="lever" aria-hidden="true"></span>
             <span>Heat wave</span>
-            <span class="later">coming later</span>
+            <span class="mark">OFF</span>
           </button>
         </div>
       </section>
@@ -131,6 +131,13 @@ header('Cache-Control: no-store');
           </div>
           <div class="meter fear" id="meter-fear">
             <span class="label">Fear</span>
+            <span class="bar"><span class="fill"></span></span>
+            <span class="val">&mdash;</span>
+          </div>
+          <!-- Heat wave only: the temperature of the room the man is in.
+               Hidden (and never filled) in an earthquake episode. -->
+          <div class="meter room" id="meter-room" hidden>
+            <span class="label">Room</span>
             <span class="bar"><span class="fill"></span></span>
             <span class="val">&mdash;</span>
           </div>

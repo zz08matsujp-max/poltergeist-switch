@@ -325,6 +325,12 @@ canvas {
 }
 .meter .fill { display: block; height: 100%; width: 0; background: var(--jade); transition: width .25s; }
 .meter.injury .fill, .meter.fear .fill { background: var(--alarm); }
+/* Heat wave only: the resident's room temperature, shown beside his meters
+   (heat-wave Req 10.3). Hidden by default so an earthquake screen is unchanged. */
+.meter[hidden] { display: none; }
+.meter.room .fill { background: var(--lantern); }
+/* "Heat wave" tag on the Replay list/screen and the End_Card (Req 10.4). */
+.disaster-tag { font-size: 12px; color: var(--lantern); }
 .meter .val { font-size: 13px; color: var(--bone); min-width: 4ch; text-align: right; }
 
 /* ── "What happened" log (Req 4.10, 12.5) ─────────────────────────────────── */

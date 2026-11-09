@@ -153,6 +153,15 @@
     when.textContent = formatWhen(item.createdDate) + ' \u00b7 ' + formatTurns(item.turns);
     node.appendChild(when);
 
+    // Heat wave only: the list item carries `disaster` for a heat-wave episode
+    // and nothing for an earthquake one (heat-wave Req 10.4).
+    if (item.disaster === 'heat_wave') {
+      var tag = document.createElement('div');
+      tag.className = 'disaster-tag';
+      tag.textContent = 'Heat wave';
+      node.appendChild(tag);
+    }
+
     var situation = document.createElement('div');
     situation.className = 'situation';
     situation.textContent = item.startingSituation || '(no starting situation recorded)';
@@ -277,6 +286,14 @@
     // Reveal the controls (Req 9.1) and hide any stale "told" panel.
     if (el.controls) { el.controls.hidden = false; }
     if (el.toldHost) { el.toldHost.hidden = true; }
+
+    // Heat wave only: label the disaster on the Replay screen (heat-wave
+    // Req 10.4). An earthquake episode leaves the label hidden and empty.
+    if (el.disasterLabel) {
+      var isHeat = !!(view && view.disaster === 'heat_wave');
+      el.disasterLabel.textContent = isHeat ? 'Heat wave' : '';
+      el.disasterLabel.hidden = !isHeat;
+    }
 
     // Show, per robot, how many memories it started this episode with
     // (robot-memory Requirement 7.6): the length of its stored Memory_Snapshot,
@@ -834,6 +851,7 @@
     el.btnTold = document.getElementById('btn-told');
     el.btnChoose = document.getElementById('btn-choose');
     el.turnIndicator = document.getElementById('turn-indicator');
+    el.disasterLabel = document.getElementById('disaster-label');
     el.stageCol = document.getElementById('stage-col');
     el.toldHost = document.getElementById('told-host');
   }
