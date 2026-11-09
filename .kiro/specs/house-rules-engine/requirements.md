@@ -371,6 +371,24 @@ Two live runs showed the engine reporting a change that did not happen. In episo
 2. WHEN a `use` action targets the gas stove AND the stove's `on` flag is `true`, THE Engine SHALL set the stove's `on` flag to `false`, leave `House_State.gas_main` untouched (Requirement 5.3, unchanged), and return `whatHappenedText` = "You turned off the gas stove. The flame went out." and `seenByOtherText` = "The other robot turned off the gas stove. The flame went out." (unchanged).
 3. BECAUSE the gas-stove outcome text is carried into both the next-turn situation text and the reflection text, THE Engine SHALL bump `SituationTextGenerator::VERSION` and `ReflectionTextBuilder::REFLECTION_TEXT_VERSION`.
 
+### Requirement 34: Using the gas main valve when it is already closed, or a light that is already on
+
+**User Story:** As a viewer, I want a robot that closes the gas main when it is already closed, or switches on a light that is already on, to change nothing and to be described as having changed nothing, so that every sentence a robot reads stays true.
+
+(Decided by the maintainer; wording fixed by the maintainer.)
+
+While fixing Requirement 33, two more `use` branches in `ActionExecutor::executeUse` were found to report a change that did not happen: closing the gas main always set `gas_main` to closed and returned "You closed the gas main valve." even when it was already closed; and switching on a light source (flashlight, candles) always set `on` to true and returned "You switched on {displayName}." even when it was already on. No live record shows either yet: in the six ended episodes no robot closed the gas main, and the one "You switched on a flashlight." (episode 36e82c3e, turn 9, robot_b) cannot be checked because the record does not store whether the flashlight was already on. The maintainer decided to fix both now for the same reason as Requirement 33 — every sentence a robot reads must stay true.
+
+#### Acceptance Criteria
+
+1. WHEN a `use` action closes the gas main valve AND `House_State.gas_main` is already `closed`, THE Engine SHALL change nothing in the World_Model and SHALL return `whatHappenedText` = "You turned the gas main valve. It was already closed." and `seenByOtherText` = "The other robot turned the gas main valve. It was already closed."
+2. WHEN a `use` action closes the gas main valve AND `House_State.gas_main` is `open`, THE Engine SHALL set `House_State.gas_main` to `closed` and return `whatHappenedText` = "You closed the gas main valve." and `seenByOtherText` = "The other robot closed the gas main valve." (unchanged).
+3. WHEN a `use` action switches on a light source (flashlight or candles) AND the object's `on` flag is already `true`, THE Engine SHALL change nothing in the World_Model (the light stays on and no room light level is recomputed) and SHALL return `whatHappenedText` = "You tried to switch on {displayName}. The light was already on." and `seenByOtherText` = "The other robot tried to switch on {displayName}. The light was already on."
+4. WHEN a `use` action switches on a light source AND the object's `on` flag is `false`, THE Engine SHALL set the object's `on` flag to `true`, recompute the holder's room light level (Requirement 2.5, unchanged), and return `whatHappenedText` = "You switched on {displayName}." and `seenByOtherText` = "The other robot switched on {displayName}." (unchanged).
+5. BECAUSE these outcome texts are carried into both the next-turn situation text and the reflection text, THE Engine SHALL bump `SituationTextGenerator::VERSION` and `ReflectionTextBuilder::REFLECTION_TEXT_VERSION`, for the same reason as Requirement 33.3.
+
+---
+
 ---
 
 ## Open Questions

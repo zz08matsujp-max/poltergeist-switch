@@ -538,6 +538,23 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - Already off → unchanged: a `use` on an already-off gas stove changes nothing and returns the "It was already off." texts
     - _Requirements: Req 33.1, 33.2_
 
+- [ ] 34. Using the gas main valve when it is already closed, or a light that is already on (added 2026-11-09)
+  - [ ] 34.1 `ActionExecutor::executeUse`: check the gas main and the light's state before mutating (Req 34.1–34.4).
+    - Gas main branch: if `houseState->gasMain` is already `GasState::closed`, change nothing and return `"You turned the gas main valve. It was already closed."` / `"The other robot turned the gas main valve. It was already closed."`; if it is `open`, set it to `closed` and return the current texts `"You closed the gas main valve."` / `"The other robot closed the gas main valve."` (unchanged)
+    - Light-source branch: if `$object->on` is already `true`, change nothing and do NOT call `EarthquakePhase::recomputeRoomLightLevel()`, returning `"You tried to switch on {displayName}. The light was already on."` / `"The other robot tried to switch on {displayName}. The light was already on."`; if it is `false`, set it to `true`, recompute the holder's room light, and return the current texts `"You switched on {displayName}."` / `"The other robot switched on {displayName}."` (unchanged)
+    - Run `php -l` on the changed PHP file
+    - _Requirements: Req 34.1, 34.2, 34.3, 34.4_
+  - [ ] 34.2 Bump the two outcome-text versions (Req 34.5).
+    - Bump `SituationTextGenerator::VERSION` to the next dated string and `ReflectionTextBuilder::REFLECTION_TEXT_VERSION` to the next dated string (add a letter when that date is already used), because the gas-main and light outcome texts are carried into both the situation text and the reflection text
+    - Update the version-assertion tests (`tests/Engine/ActionExecutorTest.php`, `tests/Engine/SituationTextMemoriesBlockTest.php`, `tests/Engine/ReflectionTextVersionTest.php`)
+    - _Requirements: Req 34.5_
+  - [ ] 34.3 Unit tests for all four cases (required).
+    - Valve open → closed: a `use` on `gas_main_valve` with `gasMain` open sets it to `closed` and returns the "You closed the gas main valve." texts
+    - Valve already closed → unchanged: a `use` on `gas_main_valve` with `gasMain` already `closed` changes nothing and returns the "It was already closed." texts
+    - Light off → on: a `use` on an off flashlight/candle sets `on=true`, recomputes the room light, and returns the "You switched on {displayName}." texts
+    - Light already on → unchanged: a `use` on an already-on flashlight/candle changes nothing (no light recompute) and returns the "The light was already on." texts
+    - _Requirements: Req 34.1, 34.2, 34.3, 34.4_
+
 ---
 
 ## Notes
@@ -588,7 +605,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 24, "tasks": ["30.1", "30.2", "30.3"] },
     { "id": 25, "tasks": ["31.1"] },
     { "id": 26, "tasks": ["32.1", "32.2", "32.3"] },
-    { "id": 27, "tasks": ["33.1", "33.2", "33.3"] }
+    { "id": 27, "tasks": ["33.1", "33.2", "33.3"] },
+    { "id": 28, "tasks": ["34.1", "34.2", "34.3"] }
   ]
 }
 ```
