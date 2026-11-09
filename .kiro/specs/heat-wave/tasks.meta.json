@@ -113,6 +113,27 @@
         "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
         "timestamp": 1794224080477
       }
+    ],
+    "8.2 Write the four air-conditioner example tests": [
+      {
+        "executionId": "955ef889-aa6e-4033-bba5-ad05edb711b6",
+        "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
+        "timestamp": 1794224392058
+      }
+    ],
+    "8.3 Write the resident-never-turns-AC-off property test": [
+      {
+        "executionId": "955ef889-aa6e-4033-bba5-ad05edb711b6",
+        "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
+        "timestamp": 1794224392933
+      }
+    ],
+    "8.4 Write the AC-objection-line-cooldown property test": [
+      {
+        "executionId": "955ef889-aa6e-4033-bba5-ad05edb711b6",
+        "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
+        "timestamp": 1794224393933
+      }
     ]
   }
 }
