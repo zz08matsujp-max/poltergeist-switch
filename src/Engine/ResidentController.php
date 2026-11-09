@@ -608,9 +608,10 @@ class ResidentController
      * Requirement 5.1). The line is split into clauses at . , ; ! ? and the
      * word "but"; it is a proposal when SOME clause mentions the air
      * conditioner (same spellings as acMentioned()), contains an on word
-     * ("on", "use", "start", "switch on", "turn on") and contains no off or
-     * negation word ("off", "not", "won't", "don't", "never", "without").
-     * Whole words, case-insensitive; the typographic apostrophe is read as '.
+     * ("on", "use", "run", "runs", "start", "switch on", "turn on") and
+     * contains no off or negation word ("off", "not", "no", "never",
+     * "cannot", "without", or any word ending in n't such as "isn't",
+     * "can't", "won't", "don't"). Whole words, case-insensitive; the typographic apostrophe is read as '.
      *
      * @param list<string> $spokenLines every spoken line of either robot this turn
      */
@@ -626,10 +627,10 @@ class ResidentController
                 if (!$this->acMentioned([$clause])) {
                     continue;
                 }
-                if (preg_match("/(?<![\\w'])(?:off|not|won't|don't|never|without)(?![\\w'])/u", $clause) === 1) {
+                if (preg_match("/(?<![\\w'])(?:off|not|no|never|cannot|without|\\w+n't)(?![\\w'])/u", $clause) === 1) {
                     continue;
                 }
-                if (preg_match("/(?<![\\w'])(?:on|use|start|switch on|turn on)(?![\\w'])/u", $clause) === 1) {
+                if (preg_match("/(?<![\\w'])(?:on|use|run|runs|start|switch on|turn on)(?![\\w'])/u", $clause) === 1) {
                     return true;
                 }
             }

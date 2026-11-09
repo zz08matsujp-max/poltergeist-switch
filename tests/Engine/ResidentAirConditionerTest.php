@@ -821,6 +821,15 @@ class ResidentAirConditionerTest extends TestCase
             'stay off'            => ['I hear you. The air conditioner will stay off.', false],
             'won’t turn on'       => ['I hear you. I won’t turn on the air conditioner.', false],
             'don\'t like'         => ["I know you don't like the air conditioner.", false],
+            'runs'                => ["Do you mind if the air conditioner runs? I'm pointing it at the wall.", true],
+            'run'                 => ["Let's run the air conditioner for a while.", true],
+            'can I run'           => ['Can I run the AC?', true],
+            'isn\'t on yet'       => ["The AC isn't on yet.", false],
+            'can\'t be turned on' => ["The air conditioner can't be turned on.", false],
+            'no need'             => ["There's no need to turn the AC on.", false],
+            'shouldn’t use'       => ['We shouldn’t use the aircon.', false],
+            'is it running'       => ['Is the AC running?', false],
+            'cannot turn on'      => ['I cannot turn on the air conditioner.', false],
         ];
     }
 
