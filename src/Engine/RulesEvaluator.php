@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\Engine;
 
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\Values\Action;
 use PoltergeistSwitch\Engine\Values\Judgement;
@@ -33,6 +34,25 @@ class RulesEvaluator
 
     /** Object id (and spot) of the gas stove (R2a/R2b, Req 4.9, Req 4.10). */
     private const GAS_STOVE_ID = 'gas_stove';
+
+    /**
+     * Object id of the window air conditioner. In a heat-wave episode a `use`
+     * on it is only possible when it is in the living room (heat-wave
+     * Requirement 4.2); every other heat behaviour is handled by the executor
+     * or the heat phase.
+     */
+    private const AC_ID = 'window_air_conditioner';
+
+    /** The only room the window air conditioner works in (heat-wave Req 4.2). */
+    private const LIVING_ROOM = 'living_room';
+
+    /**
+     * Pseudo-target for a room's window. In a heat-wave episode `use window`
+     * toggles the robot's current room's open-window flag (heat-wave
+     * Requirement 4.7); the window is a fixture, never a registered object, so
+     * it is recognised specially here like the gas-main valve pseudo-target.
+     */
+    private const WINDOW_ID = 'window';
 
     /** Target id that names the resident himself (R3, Req 4.11). */
     private const RESIDENT_ID = 'resident';
@@ -237,6 +257,18 @@ class RulesEvaluator
     {
         $robot = $world->robotStates[$action->robotId];
 
+        // Heat-wave-only `use` targets (heat-wave Requirement 1.12, 4.2, 4.7).
+        // These branches run ONLY in a heat-wave episode; an earthquake episode
+        // never enters them, so the window pseudo-target and the air-conditioner
+        // living-room check are invisible to the earthquake path, which falls
+        // through to the existing object-based checks below exactly as today.
+        if ($world->disaster === Disaster::heat_wave) {
+            $heat = $this->evaluateHeatUse($action, $world);
+            if ($heat !== null) {
+                return $heat;
+            }
+        }
+
         $target = $world->objects[$action->targetId] ?? null;
         $inRoom = $target !== null && $target->room === $robot->room;
         $heldByRobot = $target !== null && $robot->heldObjectId === $target->id;
@@ -257,6 +289,51 @@ class RulesEvaluator
             dangerous: $dangerous,
             dangerCode: $dangerCode,
         );
+    }
+
+    /**
+     * Judge the heat-wave-only `use` targets (heat-wave Requirements 4.2, 4.7).
+     * Returns a Judgement when this is a heat-specific `use`, or null when the
+     * target is a normal object that the standard `use` check below should
+     * handle (so an ordinary `use electric_fan` / `use window_air_conditioner`
+     * in the living room falls through unchanged).
+     *
+     * Two heat targets are recognised specially:
+     *   - the `window` pseudo-target (heat-wave Req 4.7): a `use window` toggles
+     *     the robot's current room's open-window flag. Every room has a window
+     *     fixture, so it is always possible; the executor flips the flag.
+     *   - the window air conditioner (heat-wave Req 4.2): a `use` on it in a
+     *     room other than the living room is `possible=false` with a reason and
+     *     leaves the world unchanged. In the living room it falls through to the
+     *     standard `use` (turning the appliance on), so this returns null there.
+     */
+    private function evaluateHeatUse(Action $action, WorldModel $world): ?Judgement
+    {
+        // The window pseudo-target: always usable, the executor toggles the
+        // robot's current room's open-window flag (heat-wave Req 4.7).
+        if ($action->targetId === self::WINDOW_ID) {
+            return new Judgement(
+                robotId: $action->robotId,
+                possible: true,
+            );
+        }
+
+        // The air conditioner works only in the living room (heat-wave Req 4.2).
+        // A `use` on it elsewhere is impossible and changes nothing; a `use` in
+        // the living room is a normal appliance switch-on handled below (return
+        // null to fall through).
+        if ($action->targetId === self::AC_ID) {
+            $target = $world->objects[self::AC_ID] ?? null;
+            if ($target !== null && $target->room !== self::LIVING_ROOM) {
+                return new Judgement(
+                    robotId: $action->robotId,
+                    possible: false,
+                    reason: 'ac_only_in_living_room',
+                );
+            }
+        }
+
+        return null;
     }
 
     /**

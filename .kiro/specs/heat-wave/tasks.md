@@ -65,7 +65,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 2.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 3: Power never fails in a heat wave`.
 
-- [-] 5. Implement the resident body/water heat branch (heat-gated)
+- [x] 5. Implement the resident body/water heat branch (heat-gated)
   - [x] 5.1 Add `ResidentController::applyHeatToResident`
     - When the resident's room temperature (after this turn's drift and AC cooling) is above `bodyHeatThreshold`, increase `body_temp` by `bodyTempRisePerTurn` and decrease `water` by `waterLossPerTurnHot`, evaluating the body rule on the updated room temperature; when the fan is on in the resident's room, reduce the rise by `fanBodyRiseReduction`.
     - When the room is at or below `bodyHeatThreshold`, decrease `body_temp` by `bodyTempRecoveryPerTurn` toward `residentInitBodyTemp` and never below it.
@@ -87,8 +87,8 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 3.5, 3.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 4: Weakened tracks body temperature`.
 
-- [ ] 6. Implement the heat objects in the action layer (all heat-gated)
-  - [ ] 6.1 Add the air conditioner, electric fan, cold water, and window behaviours
+- [-] 6. Implement the heat objects in the action layer (all heat-gated)
+  - [x] 6.1 Add the air conditioner, electric fan, cold water, and window behaviours
     - In `ActionExecutor` / `RulesEvaluator`, gate every heat behaviour on `$world->disaster === Disaster::heat_wave`; in an earthquake episode none of these branches is entered and the existing paths run unchanged.
     - Window air conditioner: a `use` turning it on sets `on=true` (cooling itself is applied by `HeatWavePhase`); a `use` targeting it in a room other than the living room returns `possible=false` with a reason and leaves the world unchanged.
     - Electric fan: `use` while held puts it down in the robot's current room and switches it on in one step; `use` while standing toggles on/off; `take` carries it — no new operation, no recorder-prompt change.
@@ -97,16 +97,16 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Expose the air-conditioner on/off, the fan on/off and its room, and the per-room open-window state through the world for the texts, recorder, serializer, and screens. Run `php -l` on every changed PHP file.
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10_
 
-  - [ ] 6.2 Write example tests for the heat objects
+  - [x] 6.2 Write example tests for the heat objects
     - AC on in the living room (4.1); fan take → carry → use-while-held puts down and switches on (4.3, 4.8); cold barley tea discoverable and both `use`/`take` yield the bottle, `hand_over` raises water and clamps at 100 (4.4, 4.9, 3.3); window `use` toggles open/closed and never lists the window (4.7).
     - _Requirements: 3.3, 4.1, 4.3, 4.4, 4.7, 4.8, 4.9_
 
-  - [ ] 6.3 Write the AC-only-in-living-room property test
+  - [x] 6.3 Write the AC-only-in-living-room property test
     - **Property 10: The air conditioner works only in the living room**
     - **Validates: Requirements 4.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 10: The air conditioner works only in the living room`.
 
-  - [ ] 6.4 Write the fixed-object-order property test
+  - [x] 6.4 Write the fixed-object-order property test
     - **Property 8: Objects keep their fixed listed order in a heat wave**
     - **Validates: Requirements 4.4, 4.5, 6.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 8: Objects keep their fixed listed order in a heat wave`.

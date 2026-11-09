@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PoltergeistSwitch\Engine;
 
 use Throwable;
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\Enums\GasState;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\Values\Action;
@@ -50,6 +51,29 @@ class ActionExecutor
      * resident moves with the robot when it decrements to zero (Req 5.5).
      */
     private const SUPPORT_TURNS = 2;
+
+    /** Object id of the electric fan (heat-wave Req 4.3, 4.8). */
+    private const ELECTRIC_FAN_ID = 'electric_fan';
+
+    /** Object id of the refrigerator; cold water comes from it (heat-wave Req 4.4). */
+    private const REFRIGERATOR_ID = 'refrigerator';
+
+    /** The kitchen, where the refrigerator and the cold water are (heat-wave Req 4.4). */
+    private const KITCHEN = 'kitchen';
+
+    /** Object id of the cold-water bottle (heat-wave Req 4.4, 4.9). */
+    private const BARLEY_TEA_ID = 'barley_tea';
+
+    /** Display name of the cold-water bottle (heat-wave Req 4.4). */
+    private const BARLEY_TEA_NAME = 'a bottle of cold barley tea';
+
+    /**
+     * Pseudo-target for a room's window. In a heat-wave episode `use window`
+     * toggles the robot's current room's open-window flag (heat-wave Req 4.7).
+     * The window is a fixture, never a registered object, so it is recognised
+     * specially here, exactly like the gas-main valve pseudo-target.
+     */
+    private const WINDOW_ID = 'window';
 
     /**
      * Execute one judged action against the world.
@@ -221,6 +245,19 @@ class ActionExecutor
     private function executeTake(Action $action, WorldModel $world): array
     {
         $robot = $this->robot($action, $world);
+
+        // Cold water (heat-wave Req 4.4): in a heat-wave episode, a `take` on
+        // the refrigerator in the kitchen gives the robot the held barley-tea
+        // bottle instead of picking up the refrigerator, so `use` and `take`
+        // both yield the bottle. An earthquake `take refrigerator` is unchanged.
+        if (
+            $world->disaster === Disaster::heat_wave
+            && $action->targetId === self::REFRIGERATOR_ID
+            && $robot->room === self::KITCHEN
+        ) {
+            return $this->giveColdWater($robot, $world);
+        }
+
         $object = $this->object($action, $world);
 
         // Remember where the object stood so a lit light source recomputes the
@@ -256,6 +293,18 @@ class ActionExecutor
     private function executeUse(Action $action, WorldModel $world): array
     {
         $targetId = (string) $action->targetId;
+
+        // Heat-wave-only `use` targets (heat-wave Req 4.4, 4.7, 4.8). These
+        // branches run ONLY in a heat-wave episode; an earthquake episode never
+        // enters them, so the window toggle, the cold-water bottle, and the fan
+        // put-down/toggle are invisible to the earthquake path, which keeps its
+        // existing `use` behaviour below byte-for-byte.
+        if ($world->disaster === Disaster::heat_wave) {
+            $heat = $this->applyHeatUse($action, $world);
+            if ($heat !== null) {
+                return $heat;
+            }
+        }
 
         // Closing the gas main is the only `use` that acts on the house, not on
         // a registered object (Req 5.4). Check its state first (Req 34): when
@@ -338,6 +387,149 @@ class ActionExecutor
         return [
             "You used {$object->displayName}.",
             "The other robot used {$object->displayName}.",
+        ];
+    }
+
+    /**
+     * Apply a heat-wave-only `use` (heat-wave Requirements 4.4, 4.7, 4.8).
+     * Returns a `[whatHappened, seenByOther]` tuple for a heat-specific `use`,
+     * or null when the target is an ordinary object the standard `use` below
+     * should handle (so `use window_air_conditioner` in the living room still
+     * switches the appliance on through the existing path).
+     *
+     * Three heat `use` targets are handled here:
+     *   - the `window` pseudo-target (Req 4.7): toggle the robot's current
+     *     room's open-window flag; the window is a fixture, never an object;
+     *   - the refrigerator in the kitchen (Req 4.4): give the robot the held
+     *     barley-tea bottle, so `use` matches `take`;
+     *   - the electric fan (Req 4.8): a `use` while holding it puts it down in
+     *     the robot's current room and switches it on in one step; a `use`
+     *     while it stands in a room toggles it on/off.
+     */
+    private function applyHeatUse(Action $action, WorldModel $world): ?array
+    {
+        $targetId = (string) $action->targetId;
+
+        // The window: toggle the current room's open-window flag (Req 4.7). The
+        // evaluator has already judged this possible, so the robot's room is
+        // valid; every room carries a window fixture.
+        if ($targetId === self::WINDOW_ID) {
+            $robot = $this->robot($action, $world);
+            $room = $world->getRoom($robot->room);
+            $room->windowOpen = !$room->windowOpen;
+
+            if ($room->windowOpen) {
+                return [
+                    'You opened the window.',
+                    'The other robot opened the window.',
+                ];
+            }
+
+            return [
+                'You closed the window.',
+                'The other robot closed the window.',
+            ];
+        }
+
+        // The refrigerator in the kitchen: hand the robot the cold-water bottle
+        // (Req 4.4), so a `use` yields the same held bottle a `take` does.
+        if ($targetId === self::REFRIGERATOR_ID) {
+            $robot = $this->robot($action, $world);
+            if ($robot->room === self::KITCHEN) {
+                return $this->giveColdWater($robot, $world);
+            }
+            // The refrigerator used from another room is not a cold-water draw;
+            // fall through to the ordinary appliance switch-on below.
+            return null;
+        }
+
+        // The electric fan: carry-then-run in one `use` (Req 4.8).
+        if ($targetId === self::ELECTRIC_FAN_ID) {
+            return $this->useElectricFan($action, $world);
+        }
+
+        return null;
+    }
+
+    /**
+     * Create the cold-water bottle directly onto the robot's held slot
+     * (heat-wave Requirement 4.4, 4.9). The bottle is a water-container object
+     * (`isWaterContainer = true`) so a later `hand_over` raises the resident's
+     * water exactly like any water container (Req 3.3). It is parked on the
+     * robot (its `room` set to the robot id), mirroring how `take` parks a held
+     * object, and is never registered in the kitchen's fixed listed-object
+     * order — it is created only when a robot draws it, like the boiling pot.
+     *
+     * If the robot's hands are full the bottle cannot be taken; this returns a
+     * no-change outcome so the world is left exactly as it was.
+     */
+    private function giveColdWater(RobotState $robot, WorldModel $world): array
+    {
+        if ($robot->heldObjectId !== null) {
+            return [
+                'You reached into the refrigerator, but your hands were full.',
+                'The other robot reached into the refrigerator, but its hands were full.',
+            ];
+        }
+
+        $world->objects[self::BARLEY_TEA_ID] = new ObjectState(
+            id: self::BARLEY_TEA_ID,
+            displayName: self::BARLEY_TEA_NAME,
+            room: $robot->id,
+            spot: null,
+            on: false,
+            open: false,
+            contents: [],
+            broken: false,
+            fallen: false,
+            isWaterContainer: true,
+        );
+        $robot->heldObjectId = self::BARLEY_TEA_ID;
+
+        return [
+            'You took a bottle of cold barley tea from the refrigerator.',
+            'The other robot took a bottle of cold barley tea from the refrigerator.',
+        ];
+    }
+
+    /**
+     * Carry-then-run for the electric fan in a single `use` (heat-wave
+     * Requirement 4.8). When the robot holds the fan, the `use` puts it down in
+     * the robot's current room and switches it on there in one step: the fan
+     * leaves the held slot, its `room` becomes the robot's room, and `on` is
+     * set true. When the fan stands in a room, the `use` toggles it on/off.
+     */
+    private function useElectricFan(Action $action, WorldModel $world): array
+    {
+        $robot = $this->robot($action, $world);
+        $fan = $this->object($action, $world);
+
+        // Held by this robot: put it down in the robot's room and switch on.
+        if ($robot->heldObjectId === self::ELECTRIC_FAN_ID) {
+            $robot->heldObjectId = null;
+            $fan->room = $robot->room;
+            $fan->spot = null;
+            $fan->on = true;
+
+            return [
+                'You set the electric fan down and switched it on.',
+                'The other robot set the electric fan down and switched it on.',
+            ];
+        }
+
+        // Standing in a room: toggle on/off.
+        $fan->on = !$fan->on;
+
+        if ($fan->on) {
+            return [
+                'You switched on the electric fan.',
+                'The other robot switched on the electric fan.',
+            ];
+        }
+
+        return [
+            'You switched off the electric fan.',
+            'The other robot switched off the electric fan.',
         ];
     }
 
