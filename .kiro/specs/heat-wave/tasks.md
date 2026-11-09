@@ -240,13 +240,13 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Heat wave lever enabled and Heavy rain disabled/"coming later" (10.1); heat fields drive heat drawing only when `disaster` is heat wave (10.2, 10.5); the resident's room temperature shows beside his meters (10.3); Replay/End_Card/list show "Heat wave" (10.4); robot names are only Amber/Jade (10.6).
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-- [~] 15. Add the model-solution / calibration test
+- [x] 15. Add the model-solution / calibration test
   - [x] 15.1 Write the model-solution and four calibration runs
     - Hand-written action sequence — hand water early, carry the electric fan into the living room and switch it on, give the `AC_Danger_Reason` by speech, then turn the air conditioner on — keeps `body_temp` below `weakenedThreshold` for all 20 turns, using only triggers present in the situation text the robot reads.
     - Include the four verified calibration runs: no help → weakened at turn 13; AC from turn 5 → never weakened; fan on in his room from turn 3 → never weakened (reaches 37.9 °C at turn 20); AC from turn 14 → weakened from turn 13, recovered by turn 16.
     - _Requirements: 11.7, 4.10_
 
-- [ ] 16. Final checkpoint - Ensure all tests pass
+- [-] 16. Final checkpoint - Ensure all tests pass
   - Ensure the full PHPUnit suite (including the earthquake golden-master and every existing earthquake test) and the JavaScript tests pass, and `php -l` reports no error on every changed PHP file; ask the user if questions arise.
   - _Requirements: 1.10, 11.10, 11.11_
 
