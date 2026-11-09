@@ -23,7 +23,7 @@ use PoltergeistSwitch\Engine\Values\WorldSnapshot;
  *
  * Requirements: Req 1.1–1.12, Req 2.1–2.2, Req 8.5–8.9
  */
-class WorldModel implements SituationView
+class WorldModel implements SituationView, HeatSituationView
 {
     /** Initial temperature for every room on reset, in °C (Req 1.9). */
     private const INITIAL_ROOM_TEMPERATURE = 22.0;
@@ -626,6 +626,39 @@ class WorldModel implements SituationView
     public function disasterIs(Disaster $disaster): bool
     {
         return $this->disaster === $disaster;
+    }
+
+    /**
+     * The disaster this world runs (HeatSituationView). The SituationTextGenerator
+     * reads this to choose the heat-wave text path; an earthquake world returns
+     * Disaster::earthquake and takes the unchanged earthquake path.
+     */
+    public function disaster(): Disaster
+    {
+        return $this->disaster;
+    }
+
+    /**
+     * The resident's visible heat stage for the "Right now:" paragraph
+     * (HeatSituationView, heat-wave Requirement 6.5), resolved here so the
+     * generator holds no heat threshold:
+     *   'weakened' — body_temp >= weakenedThreshold (the strongest stage);
+     *   'hot'      — his room temperature is above bodyHeatThreshold;
+     *   'normal'   — otherwise.
+     * weakened wins over hot wins over normal.
+     */
+    public function residentHeatStage(): string
+    {
+        if ($this->residentState->weakened) {
+            return 'weakened';
+        }
+
+        $roomTemp = $this->getRoom($this->residentState->room)->temperature;
+        if ($roomTemp > $this->config->bodyHeatThreshold) {
+            return 'hot';
+        }
+
+        return 'normal';
     }
 
     /** Whether the window air conditioner is switched on. */

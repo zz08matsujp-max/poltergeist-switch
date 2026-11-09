@@ -288,6 +288,14 @@ class Engine
      */
     public function situationTextVersion(): string
     {
+        // A heat-wave world carries its own situation-text version so the
+        // stored prompt records the heat generator and fixed text (heat-wave
+        // Requirement 6.8); an earthquake world returns the unchanged
+        // earthquake VERSION (heat-wave Requirement 1.7).
+        if ($this->world->disaster === Disaster::heat_wave) {
+            return SituationTextGenerator::VERSION_HEAT;
+        }
+
         return SituationTextGenerator::VERSION;
     }
 

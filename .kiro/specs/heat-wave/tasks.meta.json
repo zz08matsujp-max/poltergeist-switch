@@ -134,6 +134,39 @@
         "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
         "timestamp": 1794224393933
       }
+    ],
+    "8. Implement the resident's air-conditioner will (heat-gated, immediate reply)": [
+      {
+        "executionId": "f642efd5-6974-43c1-9b98-10a7fa2b6d9d",
+        "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
+        "timestamp": 1794225109970
+      },
+      {
+        "executionId": "f642efd5-6974-43c1-9b98-10a7fa2b6d9d",
+        "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
+        "timestamp": 1794225384265
+      }
+    ],
+    "9.1 Add the heat situation-text builders to `SituationTextGenerator`": [
+      {
+        "executionId": "62b87cdb-65fa-458e-b015-01d9964646a6",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794225501631
+      }
+    ],
+    "9.2 Write example tests for the heat situation text": [
+      {
+        "executionId": "62b87cdb-65fa-458e-b015-01d9964646a6",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794225812402
+      }
+    ],
+    "9.3 Write the heat-wave turn-1 golden text test": [
+      {
+        "executionId": "62b87cdb-65fa-458e-b015-01d9964646a6",
+        "chatSessionId": "sess_a5acf55e-1109-4e83-ab2c-eda92d825a6e",
+        "timestamp": 1794226142359
+      }
     ]
   }
 }

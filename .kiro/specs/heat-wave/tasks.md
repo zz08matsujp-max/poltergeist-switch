@@ -114,7 +114,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
 - [x] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, including the earthquake golden-master and every existing earthquake test; ask the user if questions arise.
 
-- [~] 8. Implement the resident's air-conditioner will (heat-gated, immediate reply)
+- [x] 8. Implement the resident's air-conditioner will (heat-gated, immediate reply)
   - [x] 8.1 Add `ResidentController::airConditionerReply` and detection helpers
     - Detect `AC_Danger_Reason` deterministically from this turn's spoken lines by whole-word, case-insensitive matching: a line counts when it contains `heatstroke`, OR `heat stroke`, OR a word starting with `dehydrat`, OR a heat word (`heat`, `hot`, `temperature`) together in the same line with a harm word (`danger`, `dangerous`, `sick`, `ill`, `faint`, `collapse`, `health`, `body`, `risk`, `hurt`, `harm`); a heat word alone is not a reason. Match whole words only so "heater", "shot", "photo" never match.
     - Track `AC_Alternative_Prepared` as a latching boolean that becomes true once, on a turn before the current turn, the fan was on in the resident's room OR the resident was handed water; persist it in the serialized world so a replay reproduces it.
@@ -139,8 +139,8 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 5.6, 11.4**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 6: The air-conditioner objection line obeys the cooldown`.
 
-- [ ] 9. Implement the heat-wave situation text (new version, heat-gated)
-  - [ ] 9.1 Add the heat situation-text builders to `SituationTextGenerator`
+- [~] 9. Implement the heat-wave situation text (new version, heat-gated)
+  - [x] 9.1 Add the heat situation-text builders to `SituationTextGenerator`
     - Add `VERSION_HEAT = 'situation-text-heatwave-2026-11-09a'`; leave the earthquake `VERSION = 'situation-text-2026-11-09b'` byte-for-byte unchanged. Gate `generate()` on the disaster so the earthquake path is unchanged.
     - Produce the six sections in the same order as the earthquake: fixed body, fixed house and housemates, memories block, recent events, "Right now:", and the final line.
     - Open the heat wave with the approved golden line `The afternoon heat has been building for hours, and the house is hot and still.` in place of the earthquake's shake line.
@@ -150,11 +150,11 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 4.10_
 
-  - [ ] 9.2 Write example tests for the heat situation text
+  - [x] 9.2 Write example tests for the heat situation text
     - Six sections in order (6.1), opening line on the first turn (6.2), minute headings from turn 2 (6.3), 5-minute clock (6.4), thermometer/AC/fan/resident facts in "Right now" (6.5), the version constant differs from the earthquake version (6.8).
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.8_
 
-  - [ ] 9.3 Write the heat-wave turn-1 golden text test
+  - [x] 9.3 Write the heat-wave turn-1 golden text test
     - BEFORE writing or committing the golden file: generate the heat-wave turn-1 situation text for one fixed seed, show it to the maintainer IN FULL, and WAIT for the maintainer's explicit approval of the exact text.
     - Only AFTER the maintainer approves it, write the committed golden file and the test that matches one heat-wave turn-1 situation text against that maintainer-approved golden text (opening line included). Do not write or commit the golden file before approval.
     - _Requirements: 11.9_
