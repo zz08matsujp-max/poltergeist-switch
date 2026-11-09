@@ -11,6 +11,10 @@
     "5.4 Write the weakened-biconditional property test": {
       "status": "passed",
       "lastRunTimestamp": 1794222820278
+    },
+    "11.2 Write the heat-world-reproducible property test": {
+      "status": "passed",
+      "lastRunTimestamp": 1794229634763
     }
   },
   "executionHistory": {
@@ -205,6 +209,25 @@
         "executionId": "f129b04b-838c-4be4-a777-6646d59dd086",
         "chatSessionId": "sess_419ee63f-02f2-444a-9c99-4870659cfab9",
         "timestamp": 1794228795849
+      },
+      {
+        "executionId": "f129b04b-838c-4be4-a777-6646d59dd086",
+        "chatSessionId": "sess_419ee63f-02f2-444a-9c99-4870659cfab9",
+        "timestamp": 1794229364117
+      }
+    ],
+    "11.1 Add heat-only fields to `WorldStateSerializer` and the migration": [
+      {
+        "executionId": "f0f29295-f931-4b24-9037-35ba0bbd59c8",
+        "chatSessionId": "sess_17580abb-6d32-4db3-a5aa-5963b64ad61a",
+        "timestamp": 1794229393280
+      }
+    ],
+    "11.2 Write the heat-world-reproducible property test": [
+      {
+        "executionId": "f0f29295-f931-4b24-9037-35ba0bbd59c8",
+        "chatSessionId": "sess_17580abb-6d32-4db3-a5aa-5963b64ad61a",
+        "timestamp": 1794229551520
       }
     ]
   }

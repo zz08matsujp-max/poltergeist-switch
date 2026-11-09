@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PoltergeistSwitch\TurnLoop;
 
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\WorldModel;
 
 /**
@@ -64,7 +65,7 @@ class WorldStateSerializer
         $man = $w->residentState;
         $house = $w->houseState;
 
-        return [
+        $state = [
             'timeOfDay' => $house->timeOfDay,
             'power'     => $house->power->value,
             'shaking'   => $house->shaking,
@@ -89,6 +90,28 @@ class WorldStateSerializer
                 'on' => $w->objects['gas_stove']->on,
             ],
         ];
+
+        // Heat-only additions (heat-wave Requirement 1.8, 4.6). These keys are
+        // appended ONLY for a heat-wave world; for an earthquake world the
+        // array above is returned unchanged, so `GET /api/episodes/{id}` for an
+        // existing earthquake episode is byte-identical to before this change.
+        if ($w->disaster === Disaster::heat_wave) {
+            $roomTemps = [];
+            $windows = [];
+            foreach ($w->rooms as $key => $room) {
+                $roomTemps[$key] = $room->temperature;
+                $windows[$key] = $room->windowOpen;
+            }
+
+            $state['disaster']  = 'heat_wave';
+            $state['roomTemps'] = $roomTemps;
+            $state['outside']   = $house->outsideTemperature;
+            $state['ac']        = ['on' => $w->acOn()];
+            $state['fan']       = ['on' => $w->fanOn(), 'room' => $w->fanRoom()];
+            $state['windows']   = $windows;
+        }
+
+        return $state;
     }
 
     /**

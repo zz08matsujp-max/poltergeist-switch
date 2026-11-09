@@ -159,7 +159,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Only AFTER the maintainer approves it, write the committed golden file and the test that matches one heat-wave turn-1 situation text against that maintainer-approved golden text (opening line included). Do not write or commit the golden file before approval.
     - _Requirements: 11.9_
 
-- [-] 10. Implement the heat-wave reflection text (new version, heat-gated)
+- [x] 10. Implement the heat-wave reflection text (new version, heat-gated)
   - [x] 10.1 Add the heat reflection builder to `ReflectionTextBuilder`
     - Add `REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heatwave-2026-11-09a'`; leave the earthquake `REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09d'` unchanged. Gate `build()` on the disaster.
     - Build the heat variant with the same structure as the earthquake reflection text, using minute headings per turn in place of second headings, and end with the exact unchanged question `Is there anything from what happened this time that you want to remember?`.
@@ -176,15 +176,15 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 5.9, 6.7, 7.3, 11.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 9: Engine-authored heat text leaks nothing`.
 
-- [ ] 11. Add the additive serializer fields and SQL migration (earthquake bytes unchanged)
-  - [ ] 11.1 Add heat-only fields to `WorldStateSerializer` and the migration
+- [~] 11. Add the additive serializer fields and SQL migration (earthquake bytes unchanged)
+  - [x] 11.1 Add heat-only fields to `WorldStateSerializer` and the migration
     - In `WorldStateSerializer`, add the heat keys (`disaster`, `roomTemps`, `outside`, `ac`, `fan`, `windows`) only when `$w->disaster === Disaster::heat_wave`; for an earthquake world return exactly the same array as today so `GET /api/episodes/{id}` for an existing earthquake episode is byte-identical.
     - In the episode list, add a `disaster` field ONLY to heat-wave items so the list shows "Heat wave"; an earthquake list item stays byte-identical to today (the same byte-identical-earthquake-API guarantee already stated for `GET /api/episodes/{id}`). Do not add the field, or any new key, to an earthquake list item.
     - Create `sql/2026-11-09_add_heat_wave.sql` adding only `ALTER TABLE episodes ADD COLUMN heat_wave_start_turn INT NULL;` — no existing row, column, or API field changes meaning; the column is NULL and not emitted for an earthquake episode.
     - Run `php -l` on every changed PHP file.
     - _Requirements: 1.8, 4.6_
 
-  - [ ] 11.2 Write the heat-world-reproducible property test
+  - [x] 11.2 Write the heat-world-reproducible property test
     - **Property 2: Heat-wave world is reproducible**
     - **Validates: Requirements 2.8, 11.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 2: Heat-wave world is reproducible`.

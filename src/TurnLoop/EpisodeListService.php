@@ -75,7 +75,7 @@ final class EpisodeListService
      * thin.
      *
      * @param mixed $rawLimit the raw `limit` query value, or null when absent
-     * @return list<array{id: string, createdDate: string, turns: int, startingSituation: string}>
+     * @return list<array{id: string, createdDate: string, turns: int, startingSituation: string, disaster?: string}>
      *
      * @throws ApiError 'limit_out_of_range' (400) when $rawLimit is present but
      *                  not an integer, is less than 1, or is greater than 100
@@ -96,7 +96,7 @@ final class EpisodeListService
 
             $worldsByTurn = $this->repo->loadTurnWorldJson($episode->id);
 
-            $items[] = [
+            $item = [
                 'id'                => $episode->id,
                 // The stored timestamp is Japan time (UTC+9, no DST); return it
                 // as ISO 8601 WITH the offset so a viewer in any zone can render
@@ -109,9 +109,38 @@ final class EpisodeListService
                 'turns'             => $this->turnsTaken($worldsByTurn),
                 'startingSituation' => $this->startingSituation($worldsByTurn),
             ];
+
+            // Heat-only addition (heat-wave Requirement 1.8, 4.6): a `disaster`
+            // field is surfaced ONLY for a heat-wave episode so the list shows
+            // "Heat wave". An earthquake list item gains no new key and stays
+            // byte-identical to before this change. The value is read from the
+            // stored turn-0 world (the serializer emits `disaster` only for a
+            // heat-wave world), so a heat-wave episode is recognised without a
+            // new column.
+            if ($this->isHeatWave($worldsByTurn)) {
+                $item['disaster'] = 'heat_wave';
+            }
+
+            $items[] = $item;
         }
 
         return $items;
+    }
+
+    /**
+     * Whether this episode is a heat-wave episode, decided solely from the
+     * stored turn-0 world (heat-wave Requirement 1.8). The WorldStateSerializer
+     * writes a `disaster` key only for a heat-wave world, so its presence with
+     * the value 'heat_wave' marks the episode; an earthquake world has no such
+     * key and is never treated as heat wave, keeping its list item unchanged.
+     *
+     * @param array<int, string|null> $worldsByTurn turnNumber => world_json or null
+     */
+    private function isHeatWave(array $worldsByTurn): bool
+    {
+        $world = $this->decodeTurnZeroWorld($worldsByTurn);
+
+        return ($world['disaster'] ?? null) === 'heat_wave';
     }
 
     /**
