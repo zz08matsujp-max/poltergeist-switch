@@ -21,7 +21,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
   - Use the existing `FakeRobotClient` / `FakeRecorderClient` fakes; no real API call. Run `php -l` on every changed PHP file.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 1.10, 11.9, 11.10, 11.11_
 
-- [-] 2. Introduce the Disaster enum and thread the disaster through the world (earthquake unchanged)
+- [x] 2. Introduce the Disaster enum and thread the disaster through the world (earthquake unchanged)
   - [x] 2.1 Add the `Disaster` enum and `WorldModel::$disaster`
     - Create `src/Engine/Enums/Disaster.php` with the string-backed cases `earthquake` and `heat_wave`.
     - Add `WorldModel::$disaster` defaulting to `Disaster::earthquake`, set by `reset()` from the `SituationSpec` or an explicit argument, so a rebuilt world knows its disaster.
@@ -35,8 +35,8 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 12: An earthquake episode is untouched by heat`.
     - Exercise earthquake episodes with action sequences that include `use`/`take` of the window, the air conditioner, the electric fan, and the refrigerator, and hand-overs; assert no room temperature changes, no heat resident rule runs, no heat-wave resident line fires, no heat branch is entered, `maxTurns` stays 40 with the `house-rules-engine` Requirement 10.6 end rule, the earthquake text versions and bytes are unchanged, and no earthquake text contains a thermometer or temperature.
 
-- [ ] 3. Add the heat fields to EpisodeConfig (earthquake construction unaffected)
-  - [ ] 3.1 Add the heat-wave promoted parameters to `EpisodeConfig`
+- [-] 3. Add the heat fields to EpisodeConfig (earthquake construction unaffected)
+  - [x] 3.1 Add the heat-wave promoted parameters to `EpisodeConfig`
     - Add the room-temperature fields (`outsideTemperature` 36.0, `roomTempDriftPerTurn` 0.8, `acCoolPerTurn` 2.0, `acTargetTemp` 27.0, `openWindowDriftBonus` 0.6, `roomTempMin` 18.0, `roomTempMax` 45.0, `heatRoomInitialTemp` 30.0).
     - Add the resident-body fields (`bodyHeatThreshold` 33.0, `bodyTempRisePerTurn` 0.25, `waterLossPerTurnHot` 6, `fanBodyRiseReduction` 0.15, `bodyTempRecoveryPerTurn` 0.25).
     - Add the air-conditioner line-priority field (`acLinePriority` 100) and the episode-length/clock fields (`heatMaxTurns` 20, `heatMinutesPerTurn` 5).
@@ -44,7 +44,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 2.7, 3.8, 5.10, 8.5_
 
-  - [ ] 3.2 Write a config-swap no-literals example test
+  - [x] 3.2 Write a config-swap no-literals example test
     - Assert that changing an `EpisodeConfig` heat number changes the engine output, proving no heat literal is baked into engine logic.
     - _Requirements: 2.7, 3.8, 5.10, 8.5_
 

@@ -23,6 +23,18 @@
         "executionId": "96202c30-c4e5-47b3-b140-8a30301749c6",
         "chatSessionId": "sess_1283e83b-be97-41f2-bb28-6d912cc6d666",
         "timestamp": 1794220891475
+      },
+      {
+        "executionId": "96202c30-c4e5-47b3-b140-8a30301749c6",
+        "chatSessionId": "sess_1283e83b-be97-41f2-bb28-6d912cc6d666",
+        "timestamp": 1794221289378
+      }
+    ],
+    "3. Add the heat fields to EpisodeConfig (earthquake construction unaffected)": [
+      {
+        "executionId": "7237a9a4-756d-4bb0-844b-88bed4a90f5a",
+        "chatSessionId": "sess_3cc9915c-668e-40e2-ac0b-2fc798256bf4",
+        "timestamp": 1794221677446
       }
     ]
   }
