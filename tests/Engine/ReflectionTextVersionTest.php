@@ -88,7 +88,7 @@ class ReflectionTextVersionTest extends TestCase
     public function testHeatVersionConstantIsPinnedAndDiffersFromEarthquake(): void
     {
         $this->assertSame(
-            'reflection-text-heatwave-2026-11-09a',
+            'reflection-text-heat-2026-11-10a',
             ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT,
             'bump REFLECTION_TEXT_VERSION_HEAT whenever the heat fixed text, lead-in, '
             . 'minute headings, event-block forms, or the question changes',

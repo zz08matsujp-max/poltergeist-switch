@@ -220,7 +220,7 @@ class HeatReflectionTextTest extends TestCase
         );
         $this->assertSame('reflection-text-2026-11-09d', ReflectionTextBuilder::REFLECTION_TEXT_VERSION);
         $this->assertSame(
-            'reflection-text-heatwave-2026-11-09a',
+            'reflection-text-heat-2026-11-10a',
             ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT
         );
 

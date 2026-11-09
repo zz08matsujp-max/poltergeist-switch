@@ -238,7 +238,7 @@ The weakened set/clear (Requirement 3.5-3.6) is **already** `ResidentController:
 
 ```php
 // NEW heat-wave situation-text version (distinct from the earthquake VERSION).
-public const VERSION_HEAT = 'situation-text-heatwave-2026-11-09a';
+public const VERSION_HEAT = 'situation-text-heat-2026-11-10a';
 
 // generate() gates on $world->disaster: the earthquake path is unchanged; the
 // heat path produces the six sections with heat content (new private builders
@@ -250,7 +250,7 @@ The earthquake `VERSION = 'situation-text-2026-11-09b'` constant is **not** touc
 ### `ReflectionTextBuilder` additions
 
 ```php
-public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heatwave-2026-11-09a';
+public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10a';
 // build() gates on disaster; heat uses minute headings; the QUESTION is unchanged.
 ```
 

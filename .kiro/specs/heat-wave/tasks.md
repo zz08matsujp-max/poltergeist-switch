@@ -141,7 +141,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
 
 - [x] 9. Implement the heat-wave situation text (new version, heat-gated)
   - [x] 9.1 Add the heat situation-text builders to `SituationTextGenerator`
-    - Add `VERSION_HEAT = 'situation-text-heatwave-2026-11-09a'`; leave the earthquake `VERSION = 'situation-text-2026-11-09b'` byte-for-byte unchanged. Gate `generate()` on the disaster so the earthquake path is unchanged.
+    - Add `VERSION_HEAT = 'situation-text-heat-2026-11-10a'`; leave the earthquake `VERSION = 'situation-text-2026-11-09b'` byte-for-byte unchanged. Gate `generate()` on the disaster so the earthquake path is unchanged.
     - Produce the six sections in the same order as the earthquake: fixed body, fixed house and housemates, memories block, recent events, "Right now:", and the final line.
     - Open the heat wave with the approved golden line `The afternoon heat has been building for hours, and the house is hot and still.` in place of the earthquake's shake line.
     - From the robot's second turn, use minute headings ("In the last 5 minutes:" for the previous turn, "{a} to {b} minutes ago:" for up to four earlier turns, at most the last five turns, oldest first). Advance the clock by 5 minutes per turn.
@@ -161,7 +161,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
 
 - [x] 10. Implement the heat-wave reflection text (new version, heat-gated)
   - [x] 10.1 Add the heat reflection builder to `ReflectionTextBuilder`
-    - Add `REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heatwave-2026-11-09a'`; leave the earthquake `REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09d'` unchanged. Gate `build()` on the disaster.
+    - Add `REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10a'`; leave the earthquake `REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09d'` unchanged. Gate `build()` on the disaster.
     - Build the heat variant with the same structure as the earthquake reflection text, using minute headings per turn in place of second headings, and end with the exact unchanged question `Is there anything from what happened this time that you want to remember?`.
     - State facts only; show no robot reply, no robot thought, no judgement data, and no resident meter value; satisfy the banned-word rule in every engine-authored part. Bump the heat reflection version whenever the heat reflection text or generator changes.
     - Run `php -l` on every changed PHP file.
