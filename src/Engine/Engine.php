@@ -551,22 +551,33 @@ class Engine
         }
 
         // An immediate air-conditioner reply (Req 5.1–5.3) or the cooldown-
-        // governed repeat (Req 5.6) is spoken THIS turn at `acLinePriority`
-        // above every other resident line (Req 5.4, 5.6), so it replaces
-        // whatever line was fixed above — the scripted line, a support refusal,
-        // or the prepared line. It is uncooled for the immediate replies and
-        // governed by the cooldown only for the repeat, both resolved in
-        // resolveAirConditioner() before this point.
+        // governed repeat (Req 5.6) at `acLinePriority` above every other
+        // resident line (Req 5.4, 5.6) claims this turn's TurnResult line,
+        // replacing whatever was fixed above — the scripted line, a support
+        // refusal, or the prepared line. It is uncooled for the immediate
+        // replies and governed by the cooldown only for the repeat, both
+        // resolved in resolveAirConditioner() before this point. Like the
+        // refusal, the line is produced only after the robots have already
+        // read and acted on this turn's text, so it is NOT read this turn; it
+        // is carried forward below so the NEXT prepareTurn surfaces it in turn
+        // n+1's text (Req 13.8).
         if ($acLine !== null) {
             $residentLine = $acLine;
         }
 
-        // Carry any refusal produced this turn into the next turn's text; it is
-        // consumed by the next prepareTurn and takes priority there (Req 13.8).
-        // The air-conditioner reply is immediate (this turn) and is never
-        // carried forward, so it does not touch pendingResidentLine.
-        if ($refusalLine !== null) {
-            $this->pendingResidentLine = $refusalLine;
+        // Carry any line produced while applying this turn into the next turn's
+        // text (heat-wave Req 13.8): it is produced AFTER the robots have
+        // already read and acted on this turn's text, so — like the support
+        // refusal — it is read only on turn n+1, where the next prepareTurn
+        // consumes pendingResidentLine and takes priority over the scripted
+        // line. An air-conditioner line (Req 5.1–5.3, 5.6) is carried the same
+        // way and wins over a same-turn support refusal, matching the
+        // air-conditioner's priority over every other resident line this turn
+        // (acLinePriority, Req 5.4). When both are produced the AC line is
+        // carried; otherwise the refusal is.
+        $carried = $acLine ?? $refusalLine;
+        if ($carried !== null) {
+            $this->pendingResidentLine = $carried;
         }
 
         // Count down each robot's support timer (task 13 set it to 2 on a
