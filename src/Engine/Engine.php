@@ -43,6 +43,9 @@ class Engine
     /** Object id of the gas stove; a `use` on it turns the flame off (Req 3.5). */
     private const GAS_STOVE_ID = 'gas_stove';
 
+    /** Object id of the window air conditioner (heat-wave Requirement 5). */
+    private const AIR_CONDITIONER_ID = 'window_air_conditioner';
+
     /** The two in-room support destinations that keep the resident's room (Req 7.13). */
     private const SPOT_UNDER_TABLE = 'under_table';
     private const SPOT_BESIDE_FUTON = 'beside_futon';
@@ -477,6 +480,21 @@ class Engine
             $this->resident->applyHeatToResident($this->world, $this->config);
         }
 
+        // 5a². Resolve the resident's air-conditioner will in a heat-wave turn
+        //      (heat-wave Requirement 5). The reply is immediate — spoken this
+        //      turn, outside the 5-turn cooldown, at `acLinePriority` above
+        //      every other resident line (Req 5.4) — so it takes precedence
+        //      over both the scripted line and a support refusal below. The
+        //      acceptance test reads the alternative-prepared latch as it stood
+        //      BEFORE this turn (it only counts an earlier turn, Req 5.8); the
+        //      latch is then advanced from this turn's facts so the next turn
+        //      sees it. Gated on the disaster, so an earthquake turn never runs
+        //      it and $acLine stays null. See resolveAirConditioner().
+        $acLine = null;
+        if ($this->world->disaster === Disaster::heat_wave) {
+            $acLine = $this->resolveAirConditioner($turnNumber, $allActions, $outcomes);
+        }
+
         // 5b. Resolve any support proposal made this turn: the resident decides
         //     on the turn of the support action (Req 7.15). A refusal ends the
         //     support; the refusal line is produced here, after the robots have
@@ -524,8 +542,21 @@ class Engine
                 );
         }
 
+        // An immediate air-conditioner reply (Req 5.1–5.3) or the cooldown-
+        // governed repeat (Req 5.6) is spoken THIS turn at `acLinePriority`
+        // above every other resident line (Req 5.4, 5.6), so it replaces
+        // whatever line was fixed above — the scripted line, a support refusal,
+        // or the prepared line. It is uncooled for the immediate replies and
+        // governed by the cooldown only for the repeat, both resolved in
+        // resolveAirConditioner() before this point.
+        if ($acLine !== null) {
+            $residentLine = $acLine;
+        }
+
         // Carry any refusal produced this turn into the next turn's text; it is
         // consumed by the next prepareTurn and takes priority there (Req 13.8).
+        // The air-conditioner reply is immediate (this turn) and is never
+        // carried forward, so it does not touch pendingResidentLine.
         if ($refusalLine !== null) {
             $this->pendingResidentLine = $refusalLine;
         }
@@ -820,6 +851,183 @@ class Engine
         }
 
         return $refusalLine;
+    }
+
+    /**
+     * Resolve the resident's air-conditioner will for this turn and return the
+     * line he speaks about the air conditioner, or null when he says nothing
+     * about it (heat-wave Requirement 5). Called only in a heat-wave turn,
+     * after HeatWavePhase and applyHeatToResident have settled this turn's room
+     * temperature and the weakened flag.
+     *
+     * The method gathers this turn's facts, asks ResidentController for the
+     * immediate reply (Req 5.1–5.4), falls back to the cooldown-governed repeat
+     * (Req 5.6) when no immediate reply fired, latches acceptance so the
+     * resident never objects again once he accepts (Req 5.1), and finally
+     * advances the AC_Alternative_Prepared latch from this turn so a LATER turn
+     * can count it (Req 5.8). It never turns the air conditioner off (Req 5.5).
+     *
+     * The alternative-prepared latch is read for the acceptance test BEFORE it
+     * is advanced, so "on a turn before the current turn" is honoured: this
+     * turn's own fan/water never counts toward this turn's acceptance.
+     *
+     * @param list<Action>          $allActions this turn's actions
+     * @param array<string,Outcome> $outcomes   keyed by robot id
+     * @return string|null the air-conditioner line to speak this turn, or null
+     */
+    private function resolveAirConditioner(
+        int $turnNumber,
+        array $allActions,
+        array $outcomes,
+    ): ?string {
+        $resident = $this->world->residentState;
+
+        // The alternative-prepared latch as it stood at the START of this turn:
+        // only an earlier turn's fan/water counts for this turn's acceptance
+        // (Req 5.8). Advanced from this turn's facts at the end of the method.
+        $alternativePreparedBefore = $resident->acAlternativePrepared;
+        $acceptedBefore = $resident->acAccepted;
+
+        // Every spoken line of either robot this turn, used for the AC mention
+        // and the AC_Danger_Reason detection (Req 5.1, 5.2, 5.7).
+        $spokenLines = $this->spokenLinesThisTurn($allActions);
+
+        $acMentioned = $this->resident->acMentioned($spokenLines);
+        $dangerReason = $this->resident->detectAcDangerReason($spokenLines);
+        $acUseTurnedItOn = $this->acUseTurnedItOnThisTurn($allActions, $outcomes);
+
+        // The immediate reply (accept / object), uncooled and at acLinePriority.
+        $line = $this->resident->airConditionerReply(
+            $this->world,
+            $this->config,
+            $acUseTurnedItOn,
+            $acMentioned,
+            $dangerReason,
+            $alternativePreparedBefore,
+            $acceptedBefore,
+        );
+
+        // Latch acceptance the turn it happens so he never objects again
+        // (Req 5.1). Acceptance is the one line that is the accept text.
+        if ($line === $this->resident->acLineTextAccept()) {
+            $resident->acAccepted = true;
+        }
+
+        // When no immediate reply fired, the air conditioner may still draw the
+        // cooldown-governed repeat while it stays on and he has not accepted
+        // (Req 5.6). The repeat records its own delivery turn for the cooldown.
+        if ($line === null) {
+            $line = $this->resident->airConditionerRepeat(
+                $this->world,
+                $this->config,
+                $turnNumber,
+            );
+        }
+
+        // Advance the AC_Alternative_Prepared latch from THIS turn's facts so a
+        // later turn can count it (Req 5.8): the fan on in the resident's room,
+        // or the resident handed water this turn. The latch never flips back.
+        if ($this->fanOnInResidentRoom() || $this->residentHandedWaterThisTurn($allActions, $outcomes)) {
+            $resident->acAlternativePrepared = true;
+        }
+
+        return $line;
+    }
+
+    /**
+     * Every spoken line of either robot this turn, in robot_a → robot_b order,
+     * for the air-conditioner detection (Req 5.1, 5.2, 5.7). A robot's spoken
+     * lines are the `words` carried on its action.
+     *
+     * @param list<Action> $allActions this turn's actions
+     * @return list<string>
+     */
+    private function spokenLinesThisTurn(array $allActions): array
+    {
+        $lines = [];
+        foreach ($allActions as $action) {
+            foreach ($action->words as $line) {
+                $lines[] = $line;
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Whether a `use` action turned the air conditioner on this turn (Req 5.3):
+     * a successful `use` targeting the air conditioner this turn, with the air
+     * conditioner now on. A `use` that failed (e.g. outside the living room,
+     * Req 4.2) does not count, and neither does a spoken mention.
+     *
+     * @param list<Action>          $allActions this turn's actions
+     * @param array<string,Outcome> $outcomes   keyed by robot id
+     */
+    private function acUseTurnedItOnThisTurn(array $allActions, array $outcomes): bool
+    {
+        foreach ($allActions as $action) {
+            if ($action->operation !== Operation::use->value) {
+                continue;
+            }
+            if ($action->targetId !== self::AIR_CONDITIONER_ID) {
+                continue;
+            }
+
+            $outcome = $outcomes[$action->robotId] ?? null;
+            if ($outcome !== null && $outcome->success && $this->world->acOn()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the electric fan is on in the resident's own room right now, one
+     * half of the AC_Alternative_Prepared condition (Req 5.8).
+     */
+    private function fanOnInResidentRoom(): bool
+    {
+        return $this->world->fanOn()
+            && $this->world->fanRoom() === $this->world->residentState->room;
+    }
+
+    /**
+     * Whether the resident was handed water this turn, the other half of the
+     * AC_Alternative_Prepared condition (Req 5.8): a successful `hand_over`
+     * targeting the resident this turn whose held object was a water container.
+     * The handed object is parked on the resident by executeHandOver (its room
+     * becomes the resident id), so a water container now sitting on the
+     * resident is the mark of a hand-over this turn.
+     *
+     * @param list<Action>          $allActions this turn's actions
+     * @param array<string,Outcome> $outcomes   keyed by robot id
+     */
+    private function residentHandedWaterThisTurn(array $allActions, array $outcomes): bool
+    {
+        foreach ($allActions as $action) {
+            if ($action->operation !== Operation::hand_over->value) {
+                continue;
+            }
+            if ($action->targetId !== self::RESIDENT_ID) {
+                continue;
+            }
+
+            $outcome = $outcomes[$action->robotId] ?? null;
+            if ($outcome === null || !$outcome->success) {
+                continue;
+            }
+
+            // The handed object is now parked on the resident; a water
+            // container there means water was handed over this turn.
+            foreach ($this->world->objects as $object) {
+                if ($object->room === self::RESIDENT_ID && $object->isWaterContainer) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

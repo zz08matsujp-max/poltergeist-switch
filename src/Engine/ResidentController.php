@@ -30,6 +30,38 @@ class ResidentController
     private const SPOT_UNDER_TABLE = 'under_table';
 
     /**
+     * The line key under which the cooldown-governed air-conditioner repeat
+     * records its delivery turn (heat-wave Requirement 5.6). It is distinct
+     * from the scripted line keys so the repeat has its own cooldown window and
+     * never shares a window with a scripted line.
+     */
+    private const AC_LINE_KEY = 'air_conditioner';
+
+    /** The phrase a spoken line must contain to mention the air conditioner (Req 5.1–5.2). */
+    private const AC_MENTION_PHRASE = 'air conditioner';
+
+    /**
+     * The heat words of the AC_Danger_Reason rule (heat-wave Requirement 5.7).
+     * A heat word alone is never a reason; it counts only together with a harm
+     * word in the same line.
+     *
+     * @var list<string>
+     */
+    private const HEAT_WORDS = ['heat', 'hot', 'temperature'];
+
+    /**
+     * The harm words of the AC_Danger_Reason rule (heat-wave Requirement 5.7),
+     * the fixed set approved in the design. A heat word together with any of
+     * these in the same line is a reason.
+     *
+     * @var list<string>
+     */
+    private const HARM_WORDS = [
+        'danger', 'dangerous', 'sick', 'ill', 'faint', 'collapse',
+        'health', 'body', 'risk', 'hurt', 'harm',
+    ];
+
+    /**
      * Apply one turn's deltas to the resident and re-clamp (design §h).
      *
      * Order (applied sequentially before clamping):
@@ -354,6 +386,273 @@ class ResidentController
     public function refusalLine(): string
     {
         return "I don't want to move from here.";
+    }
+
+    /**
+     * Decide the resident's immediate air-conditioner reply for this turn, or
+     * null when he says nothing about the air conditioner (heat-wave
+     * Requirement 5.1–5.4). The reply, when non-null, is spoken THIS turn,
+     * outside the 5-turn line cooldown, at `acLinePriority` above every other
+     * resident line that turn — exactly like the move refusal (Req 5.4); the
+     * caller (Engine) places it in front of any scripted line.
+     *
+     * A proposal is any of: a `use` turned the air conditioner on this turn
+     * ($acUseTurnedItOnThisTurn), or a spoken line of either robot mentioned
+     * the air conditioner this turn ($acMentionedThisTurn). When neither holds
+     * there is no proposal, so this returns null and the scripted line (or the
+     * cooldown-governed repeat, resolved separately by the caller) stands.
+     *
+     * The acceptance test (Req 5.1) is met when EITHER an AC_Danger_Reason was
+     * spoken this turn AND AC_Alternative_Prepared holds from an earlier turn,
+     * OR the resident is weakened. On acceptance the resident says
+     * "All right. Just for a while." The caller latches $resident->acAccepted
+     * so he never objects again (Req 5.1); once accepted, this returns null so
+     * no objection is produced.
+     *
+     * Before acceptance, the objection is one of two mutually exclusive lines
+     * (Req 5.2, 5.3): when a `use` turned the air conditioner on this turn the
+     * resident says "I hate the air conditioner. Turn it off."; otherwise (a
+     * spoken mention only, with no `use` turning it on) he says
+     * "I hate the air conditioner." The on-turn line fires in place of the
+     * spoken-only line, never both.
+     *
+     * The method never turns the air conditioner off and never mutates the
+     * world — it only reads the facts the caller passes in and the latched
+     * acceptance flag. This keeps the resident from ever switching the air
+     * conditioner off himself (Req 5.5). The cooldown-governed repeat of
+     * "I hate the air conditioner. Turn it off." while the air conditioner
+     * stays on (Req 5.6) is the only air-conditioner line on the cooldown and
+     * is resolved by the caller, not here.
+     *
+     * @param bool $acUseTurnedItOnThisTurn a use action turned the AC on this turn
+     * @param bool $acMentionedThisTurn     a spoken line mentioned the AC this turn
+     * @param bool $dangerReasonGivenThisTurn an AC_Danger_Reason was spoken this turn
+     * @param bool $alternativePreparedBefore AC_Alternative_Prepared holds (earlier turn)
+     * @param bool $acAlreadyAccepted         the resident already accepted earlier this episode
+     * @return string|null the immediate line to speak this turn, or null
+     */
+    public function airConditionerReply(
+        WorldModel $world,
+        EpisodeConfig $config,
+        bool $acUseTurnedItOnThisTurn,
+        bool $acMentionedThisTurn,
+        bool $dangerReasonGivenThisTurn,
+        bool $alternativePreparedBefore,
+        bool $acAlreadyAccepted,
+    ): ?string {
+        // No proposal this turn → the resident says nothing about the AC.
+        if (!$acUseTurnedItOnThisTurn && !$acMentionedThisTurn) {
+            return null;
+        }
+
+        // Once he has accepted, he never objects again (Req 5.1); the immediate
+        // reply is silent so the scripted line (if any) stands.
+        if ($acAlreadyAccepted) {
+            return null;
+        }
+
+        // Acceptance (Req 5.1): a danger reason this turn plus a prepared
+        // alternative from an earlier turn, OR a weakened resident.
+        $accepts = ($dangerReasonGivenThisTurn && $alternativePreparedBefore)
+            || $world->residentState->weakened;
+
+        if ($accepts) {
+            return $this->acLineText('accept');
+        }
+
+        // Before acceptance, the two objection lines are mutually exclusive
+        // (Req 5.2, 5.3): a `use` that turned it on this turn draws the
+        // turn-it-off line in place of the spoken-only line.
+        if ($acUseTurnedItOnThisTurn) {
+            return $this->acLineText('object_on');
+        }
+
+        return $this->acLineText('object_spoken');
+    }
+
+    /**
+     * The cooldown-governed repeat of "I hate the air conditioner. Turn it
+     * off." while the air conditioner stays on after the resident objected and
+     * the acceptance conditions are still not met (heat-wave Requirement 5.6).
+     * This is the ONLY air-conditioner line governed by the 5-turn cooldown and
+     * the one-line-per-turn rule; the immediate replies of Req 5.1–5.3 are
+     * uncooled (Req 5.4).
+     *
+     * Returns the repeat line when it should fire this turn, or null when: the
+     * air conditioner is off, the resident has accepted, or the line is still
+     * within its cooldown window. On firing, the delivery turn is recorded in
+     * `lastLineDeliveredOn` under the air-conditioner key so the cooldown
+     * applies on later turns, exactly like the scripted lines.
+     *
+     * The caller only invokes this when no immediate air-conditioner reply
+     * fired this turn, so the two never collide; both carry `acLinePriority`,
+     * above every scripted line (Req 5.6, 5.10).
+     *
+     * @return string|null the repeat line, or null when it does not fire
+     */
+    public function airConditionerRepeat(
+        WorldModel $world,
+        EpisodeConfig $config,
+        int $turnNumber,
+    ): ?string {
+        $resident = $world->residentState;
+
+        // Only while the air conditioner is on and he has not accepted (Req 5.6).
+        if (!$world->acOn() || $resident->acAccepted) {
+            return null;
+        }
+
+        // Subject to the 5-turn cooldown (Req 5.6): suppressed when it was last
+        // delivered within the preceding `lineCooldownTurns` turns.
+        if ($this->lineOnCooldown($resident, $config, self::AC_LINE_KEY, $turnNumber)) {
+            return null;
+        }
+
+        $resident->lastLineDeliveredOn[self::AC_LINE_KEY] = $turnNumber;
+
+        return $this->acLineText('object_on');
+    }
+
+    /**
+     * Whether any spoken line of either robot this turn is an AC_Danger_Reason,
+     * decided deterministically by whole-word, case-insensitive matching
+     * (heat-wave Requirement 5.7). A line counts WHEN it contains the whole
+     * word "heatstroke", OR the phrase "heat stroke", OR a word beginning with
+     * "dehydrat" (so "dehydrate"/"dehydration" match), OR a heat word ("heat",
+     * "hot", "temperature") together in the SAME line with a harm word from the
+     * fixed set; a heat word alone is not a reason. Whole-word matching means
+     * "heater", "shot", "photo" never match.
+     *
+     * @param list<string> $spokenLines every spoken line of either robot this turn
+     */
+    public function detectAcDangerReason(array $spokenLines): bool
+    {
+        foreach ($spokenLines as $line) {
+            if ($this->lineIsDangerReason($line)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether a spoken line mentions the air conditioner, case-insensitively
+     * (heat-wave Requirement 5.1–5.2). Matches the phrase "air conditioner"
+     * anywhere in the line; this is the spoken half of "a proposal is made".
+     *
+     * @param list<string> $spokenLines every spoken line of either robot this turn
+     */
+    public function acMentioned(array $spokenLines): bool
+    {
+        foreach ($spokenLines as $line) {
+            if (str_contains(mb_strtolower($line), self::AC_MENTION_PHRASE)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether a single spoken line is an AC_Danger_Reason (Req 5.7). Pure,
+     * case-insensitive, whole-word. The heat words, harm words, and the fixed
+     * phrases are matched on word boundaries so a substring inside a longer
+     * word never counts.
+     */
+    private function lineIsDangerReason(string $line): bool
+    {
+        $lower = mb_strtolower($line);
+
+        // Direct terms: "heatstroke", "heat stroke", or a word starting with
+        // "dehydrat". Each is a reason on its own.
+        if ($this->containsWord($lower, 'heatstroke')
+            || $this->containsPhrase($lower, 'heat stroke')
+            || $this->containsWordPrefix($lower, 'dehydrat')
+        ) {
+            return true;
+        }
+
+        // A heat word together with a harm word in the same line.
+        $hasHeatWord = false;
+        foreach (self::HEAT_WORDS as $heatWord) {
+            if ($this->containsWord($lower, $heatWord)) {
+                $hasHeatWord = true;
+                break;
+            }
+        }
+
+        if (!$hasHeatWord) {
+            return false;
+        }
+
+        foreach (self::HARM_WORDS as $harmWord) {
+            if ($this->containsWord($lower, $harmWord)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the already-lowercased haystack contains the whole word $word,
+     * delimited by word boundaries so "heater" never matches "heat" and
+     * "shot"/"photo" never match. The word is escaped for the regex.
+     */
+    private function containsWord(string $haystack, string $word): bool
+    {
+        return preg_match('/\b' . preg_quote($word, '/') . '\b/u', $haystack) === 1;
+    }
+
+    /**
+     * Whether the already-lowercased haystack contains a whole word that STARTS
+     * with $prefix (a word boundary before the prefix, letters allowed after),
+     * so "dehydrat" matches "dehydrate" and "dehydration" but not a substring
+     * inside an unrelated word.
+     */
+    private function containsWordPrefix(string $haystack, string $prefix): bool
+    {
+        return preg_match('/\b' . preg_quote($prefix, '/') . '\w*/u', $haystack) === 1;
+    }
+
+    /**
+     * Whether the already-lowercased haystack contains the given two-word
+     * phrase on word boundaries, so "heat stroke" matches as a standalone
+     * phrase. Any run of whitespace between the words is allowed.
+     */
+    private function containsPhrase(string $haystack, string $phrase): bool
+    {
+        $words = preg_split('/\s+/', $phrase) ?: [];
+        $escaped = array_map(static fn (string $w): string => preg_quote($w, '/'), $words);
+        $pattern = '/\b' . implode('\s+', $escaped) . '\b/u';
+
+        return preg_match($pattern, $haystack) === 1;
+    }
+
+    /**
+     * The fixed acceptance line "All right. Just for a while." (Req 5.1),
+     * exposed so the Engine can recognise an acceptance and latch
+     * acAccepted without duplicating the string.
+     */
+    public function acLineTextAccept(): string
+    {
+        return $this->acLineText('accept');
+    }
+
+    /**
+     * The fixed English text for each air-conditioner line (Req 5.1–5.3, 5.6).
+     */
+    private function acLineText(string $key): string
+    {
+        return match ($key) {
+            'accept'        => 'All right. Just for a while.',
+            'object_spoken' => 'I hate the air conditioner.',
+            'object_on'     => 'I hate the air conditioner. Turn it off.',
+            default         => throw new \InvalidArgumentException(
+                "Unknown air-conditioner line key: {$key}"
+            ),
+        };
     }
 
     /**

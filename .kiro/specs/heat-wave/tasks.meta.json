@@ -100,6 +100,18 @@
         "executionId": "26d6bba4-6aa9-44aa-84ff-65c6c294f0ac",
         "chatSessionId": "sess_0b9fee56-e5f4-4dd7-94a6-e038244e9162",
         "timestamp": 1794223857295
+      },
+      {
+        "executionId": "26d6bba4-6aa9-44aa-84ff-65c6c294f0ac",
+        "chatSessionId": "sess_0b9fee56-e5f4-4dd7-94a6-e038244e9162",
+        "timestamp": 1794223993967
+      }
+    ],
+    "8.1 Add `ResidentController::airConditionerReply` and detection helpers": [
+      {
+        "executionId": "955ef889-aa6e-4033-bba5-ad05edb711b6",
+        "chatSessionId": "sess_96a28b2e-7c48-4600-aabe-ac6402f95a9d",
+        "timestamp": 1794224080477
       }
     ]
   }

@@ -111,11 +111,11 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 4.4, 4.5, 6.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 8: Objects keep their fixed listed order in a heat wave`.
 
-- [-] 7. Checkpoint - Ensure all tests pass
+- [x] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, including the earthquake golden-master and every existing earthquake test; ask the user if questions arise.
 
-- [ ] 8. Implement the resident's air-conditioner will (heat-gated, immediate reply)
-  - [ ] 8.1 Add `ResidentController::airConditionerReply` and detection helpers
+- [~] 8. Implement the resident's air-conditioner will (heat-gated, immediate reply)
+  - [x] 8.1 Add `ResidentController::airConditionerReply` and detection helpers
     - Detect `AC_Danger_Reason` deterministically from this turn's spoken lines by whole-word, case-insensitive matching: a line counts when it contains `heatstroke`, OR `heat stroke`, OR a word starting with `dehydrat`, OR a heat word (`heat`, `hot`, `temperature`) together in the same line with a harm word (`danger`, `dangerous`, `sick`, `ill`, `faint`, `collapse`, `health`, `body`, `risk`, `hurt`, `harm`); a heat word alone is not a reason. Match whole words only so "heater", "shot", "photo" never match.
     - Track `AC_Alternative_Prepared` as a latching boolean that becomes true once, on a turn before the current turn, the fan was on in the resident's room OR the resident was handed water; persist it in the serialized world so a replay reproduces it.
     - When a proposal is made (a `use` turned the AC on, or any spoken line of either robot mentions the air conditioner) and both an `AC_Danger_Reason` was spoken this turn and `AC_Alternative_Prepared` holds, OR the resident is weakened, the resident accepts on that same turn with "All right. Just for a while." and does not object again for the rest of the episode.
