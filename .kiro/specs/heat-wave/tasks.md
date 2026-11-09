@@ -189,7 +189,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 2.8, 11.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 2: Heat-wave world is reproducible`.
 
-- [-] 12. Implement the heat-wave turn loop and API (dual-state lever, earthquake flow unchanged)
+- [x] 12. Implement the heat-wave turn loop and API (dual-state lever, earthquake flow unchanged)
   - [x] 12.1 Add heat-wave episode creation, conversion, end rule, and the disaster-aware flip
     - Add an optional `disaster` param (default `earthquake`) to `POST /api/episodes`; when `heat_wave`, store `disaster = 'heat_wave'` and play the quiet turn 0 with the heat starting situation — the resident sitting at the low table in the living room in the early afternoon, with the seed still varying the starting minute and the robots' rooms.
     - Make the Heat wave lever work from both states and never create a second episode or return `409`: with no episode it creates a heat-wave episode and fixes the heat before turn 1; after Start while no turn has been asked, it converts the waiting turn-0 episode to heat wave in place (same seed, early afternoon, resident at the low table) and fixes the heat before turn 1. Keep the Start button and the Earthquake lever exactly as today.
@@ -218,14 +218,14 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Assert a heat-wave API response carries the HTTP header `Cache-Control: no-store` (example check, not a property).
     - _Requirements: 8.7_
 
-- [ ] 13. Add the heat-wave recorder input (earthquake recorder input and prompt unchanged)
-  - [ ] 13.1 List the barley_tea bottle id in the heat-wave recorder input
+- [-] 13. Add the heat-wave recorder input (earthquake recorder input and prompt unchanged)
+  - [x] 13.1 List the barley_tea bottle id in the heat-wave recorder input
     - While the disaster is heat wave, list the `barley_tea` bottle with its own object id in the kitchen in the recorder input so the recorder can name it, and report the held bottle's id as the `held` id on the next turn; leave the earthquake recorder input unchanged so it never lists the bottle.
     - Read a robot's use of the air conditioner, the fan, the window, and the cold water with the existing operations and recorder prompt; if a reading requires a prompt change, use a heat-wave-only recorder prompt variant with its own version stored with every heat-wave reading, and leave the earthquake recorder prompt and version unchanged. Keep the recorder read-only, with every passed-on action and spoken line backed by an exact substring quote of the reply.
     - Run `php -l` on every changed PHP file.
     - _Requirements: 9.1, 9.2, 9.3_
 
-  - [ ] 13.2 Write recorder example tests
+  - [x] 13.2 Write recorder example tests
     - The recorder maps the heat targets with the existing vocabulary (9.1), the earthquake recorder prompt/version is unchanged (9.2), and the evidence-quote rule holds for a heat reply (9.3).
     - _Requirements: 9.1, 9.2, 9.3_
 

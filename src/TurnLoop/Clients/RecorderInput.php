@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PoltergeistSwitch\TurnLoop\Clients;
 
 use InvalidArgumentException;
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\WorldModel;
 
@@ -22,6 +23,21 @@ use PoltergeistSwitch\Engine\WorldModel;
  */
 readonly class RecorderInput
 {
+    /**
+     * The kitchen room key, where the heat-wave cold-water bottle lives
+     * (heat-wave Requirement 9.1). Kept as a method for PHP 8.2 compatibility.
+     */
+    public const KITCHEN_ROOM = 'kitchen';
+
+    /**
+     * The object id of the cold-water bottle the heat-wave recorder input adds
+     * to the kitchen so the recorder can name it (heat-wave Requirement 9.1).
+     * It mirrors ActionExecutor's BARLEY_TEA_ID. The bottle is never registered
+     * in the kitchen's fixed listed order, so the earthquake recorder input
+     * never sees it (heat-wave Requirement 9.2).
+     */
+    public const BARLEY_TEA_ID = 'barley_tea';
+
     /**
      * The fixed spot names the recorder may map to (Requirement 3.4). Kept as a
      * class method rather than a typed constant for PHP 8.2 compatibility.
@@ -62,6 +78,18 @@ readonly class RecorderInput
      * its only job is to map the reply's words to ids (robot-input steering).
      * Nothing from any other room is carried.
      *
+     * Heat-wave only (heat-wave Requirement 9.1): when the disaster is heat wave
+     * and the robot is in the kitchen, the `barley_tea` bottle id is appended to
+     * the kitchen's object list so the recorder can name the cold water. The
+     * bottle is created only onto a robot's held slot when drawn and is never
+     * registered in the kitchen's fixed listed order, so without this it would
+     * never appear in the recorder input. The append leaves the real kitchen
+     * objects' order untouched, and (because the bottle keeps its own id when
+     * held) the held bottle is reported as the `held` id on the next turn, so
+     * the recorder maps the hand-over mechanically. The earthquake recorder
+     * input is byte-identical to today — this branch is skipped entirely for an
+     * earthquake world (heat-wave Requirement 9.2).
+     *
      * @throws InvalidArgumentException when the robot id is unknown
      */
     public static function forRobot(WorldModel $world, string $robotId): self
@@ -79,6 +107,20 @@ readonly class RecorderInput
             if ($object->room === $roomKey) {
                 $roomObjectIds[] = $object->id;
             }
+        }
+
+        // Heat-wave only: list the cold-water bottle in the kitchen so the
+        // recorder can name it (heat-wave Requirement 9.1). The earthquake path
+        // never enters this branch, so its recorder input is unchanged
+        // (heat-wave Requirement 9.2). The id is appended, keeping the real
+        // kitchen objects' fixed order intact, and only when it is not already
+        // present (a held bottle that was put back would be a real object).
+        if (
+            $world->disaster === Disaster::heat_wave
+            && $roomKey === self::KITCHEN_ROOM
+            && !in_array(self::BARLEY_TEA_ID, $roomObjectIds, true)
+        ) {
+            $roomObjectIds[] = self::BARLEY_TEA_ID;
         }
 
         // The eight operation names the robot may take, excluding 'unknown'.
