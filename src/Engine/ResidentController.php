@@ -131,6 +131,97 @@ class ResidentController
     }
 
     /**
+     * Apply one heat-wave turn's body-temperature and water rules to the
+     * resident, then clamp every field and refresh the weakened flag
+     * (heat-wave Requirements 3.1–3.7).
+     *
+     * This runs only in a heat-wave turn, wired in by Engine's heat branch
+     * AFTER HeatWavePhase has moved the room temperatures (drift + AC cooling)
+     * so the body rule is evaluated on this turn's final room temperature
+     * (Req 3.1, 3.4). It touches only body_temp and water; injury and fear are
+     * not heat-driven (they keep whatever updateState left them).
+     *
+     * Rules, read entirely from EpisodeConfig (no literal here, Req 3.8):
+     *   - Hot room (resident's room temperature strictly above
+     *     `bodyHeatThreshold`): body_temp rises by `bodyTempRisePerTurn` and
+     *     water falls by `waterLossPerTurnHot` (Req 3.1). When the electric fan
+     *     is on in the resident's own room, the rise is reduced by
+     *     `fanBodyRiseReduction`; the reduced rise never goes below zero so the
+     *     fan can slow the rise but never cool him by itself (Req 3.2).
+     *   - Cool room (at or below `bodyHeatThreshold`): body_temp recovers toward
+     *     the resident's starting body temperature by `bodyTempRecoveryPerTurn`,
+     *     never dropping below `residentInitBodyTemp` (Req 3.4). Water does not
+     *     change on a cool turn (only the hand-over of Req 3.3, applied
+     *     elsewhere, raises it).
+     *
+     * The clamp (Req 3.7) and the weakened set/clear at `weakenedThreshold`
+     * (Req 3.5–3.6) run here, LAST, so the weakened flag reflects this turn's
+     * heat update exactly as `updateState` step 7 does for the earthquake.
+     *
+     * The cold-water hand-over that raises water (Req 3.3) is handled in the
+     * action layer like any water container, not here.
+     */
+    public function applyHeatToResident(
+        WorldModel $world,
+        EpisodeConfig $config,
+    ): void {
+        $resident = $world->residentState;
+
+        $roomTemp = $world->roomTemperature($resident->room);
+
+        if ($roomTemp > $config->bodyHeatThreshold) {
+            // Hot room: body temperature rises and water is lost (Req 3.1).
+            $rise = $config->bodyTempRisePerTurn;
+
+            // The electric fan, on in the resident's own room, slows the rise
+            // (Req 3.2) but never turns it into cooling.
+            if ($world->fanOn() && $world->fanRoom() === $resident->room) {
+                $rise -= $config->fanBodyRiseReduction;
+                if ($rise < 0.0) {
+                    $rise = 0.0;
+                }
+            }
+
+            $resident->bodyTemp += $rise;
+            $resident->water -= $config->waterLossPerTurnHot;
+        } else {
+            // Cool room: body temperature recovers toward the starting floor
+            // and never drops below it (Req 3.4).
+            $resident->bodyTemp -= $config->bodyTempRecoveryPerTurn;
+            if ($resident->bodyTemp < $config->residentInitBodyTemp) {
+                $resident->bodyTemp = $config->residentInitBodyTemp;
+            }
+        }
+
+        // Clamp every field to its configured range (Req 3.7), matching the
+        // ranges updateState uses.
+        $resident->bodyTemp = $this->clampFloat(
+            $resident->bodyTemp,
+            $config->bodyTempMin,
+            $config->bodyTempMax,
+        );
+        $resident->water = $this->clampInt(
+            $resident->water,
+            $config->waterMin,
+            $config->waterMax,
+        );
+        $resident->injury = $this->clampInt(
+            $resident->injury,
+            $config->injuryMin,
+            $config->injuryMax,
+        );
+        $resident->fear = $this->clampInt(
+            $resident->fear,
+            $config->fearMin,
+            $config->fearMax,
+        );
+
+        // Refresh the weakened flag against the threshold so it reflects this
+        // turn's heat update (Req 3.5–3.6), set at/above and cleared below.
+        $resident->weakened = $resident->bodyTemp >= $config->weakenedThreshold;
+    }
+
+    /**
      * Emit at most one scripted dialogue line for the resident this turn, or
      * null when no line fires (design §h, Req 7.1–7.7).
      *

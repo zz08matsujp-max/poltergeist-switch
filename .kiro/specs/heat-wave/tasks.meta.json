@@ -3,6 +3,14 @@
     "2.2 Write the earthquake-untouched-by-heat property test": {
       "status": "passed",
       "lastRunTimestamp": 1794221235325
+    },
+    "5.3 Write the heat-state-in-range property test": {
+      "status": "passed",
+      "lastRunTimestamp": 1794222776508
+    },
+    "5.4 Write the weakened-biconditional property test": {
+      "status": "passed",
+      "lastRunTimestamp": 1794222820278
     }
   },
   "executionHistory": {
@@ -35,6 +43,39 @@
         "executionId": "7237a9a4-756d-4bb0-844b-88bed4a90f5a",
         "chatSessionId": "sess_3cc9915c-668e-40e2-ac0b-2fc798256bf4",
         "timestamp": 1794221677446
+      },
+      {
+        "executionId": "7237a9a4-756d-4bb0-844b-88bed4a90f5a",
+        "chatSessionId": "sess_3cc9915c-668e-40e2-ac0b-2fc798256bf4",
+        "timestamp": 1794221877848
+      }
+    ],
+    "4.1 Create `HeatWavePhase` and set heat start state in `WorldModel::reset()`": [
+      {
+        "executionId": "e26e39f4-7e17-4148-a3b4-3d4104feb89f",
+        "chatSessionId": "sess_8abfa406-6b14-42c9-b3cc-0555c8fe1d30",
+        "timestamp": 1794222113447
+      }
+    ],
+    "4.2 Write example tests for the room-temperature rules": [
+      {
+        "executionId": "e26e39f4-7e17-4148-a3b4-3d4104feb89f",
+        "chatSessionId": "sess_8abfa406-6b14-42c9-b3cc-0555c8fe1d30",
+        "timestamp": 1794222266441
+      }
+    ],
+    "4.3 Write the power-stays-on property test": [
+      {
+        "executionId": "e26e39f4-7e17-4148-a3b4-3d4104feb89f",
+        "chatSessionId": "sess_8abfa406-6b14-42c9-b3cc-0555c8fe1d30",
+        "timestamp": 1794222267464
+      }
+    ],
+    "5. Implement the resident body/water heat branch (heat-gated)": [
+      {
+        "executionId": "2d17f5c9-0aad-4088-bb65-358fb053f843",
+        "chatSessionId": "sess_724d2652-0331-43e6-8c2d-76a936f3c04f",
+        "timestamp": 1794222503766
       }
     ]
   }

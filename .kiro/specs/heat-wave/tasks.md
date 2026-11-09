@@ -35,7 +35,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 12: An earthquake episode is untouched by heat`.
     - Exercise earthquake episodes with action sequences that include `use`/`take` of the window, the air conditioner, the electric fan, and the refrigerator, and hand-overs; assert no room temperature changes, no heat resident rule runs, no heat-wave resident line fires, no heat branch is entered, `maxTurns` stays 40 with the `house-rules-engine` Requirement 10.6 end rule, the earthquake text versions and bytes are unchanged, and no earthquake text contains a thermometer or temperature.
 
-- [-] 3. Add the heat fields to EpisodeConfig (earthquake construction unaffected)
+- [x] 3. Add the heat fields to EpisodeConfig (earthquake construction unaffected)
   - [x] 3.1 Add the heat-wave promoted parameters to `EpisodeConfig`
     - Add the room-temperature fields (`outsideTemperature` 36.0, `roomTempDriftPerTurn` 0.8, `acCoolPerTurn` 2.0, `acTargetTemp` 27.0, `openWindowDriftBonus` 0.6, `roomTempMin` 18.0, `roomTempMax` 45.0, `heatRoomInitialTemp` 30.0).
     - Add the resident-body fields (`bodyHeatThreshold` 33.0, `bodyTempRisePerTurn` 0.25, `waterLossPerTurnHot` 6, `fanBodyRiseReduction` 0.15, `bodyTempRecoveryPerTurn` 0.25).
@@ -48,41 +48,41 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Assert that changing an `EpisodeConfig` heat number changes the engine output, proving no heat literal is baked into engine logic.
     - _Requirements: 2.7, 3.8, 5.10, 8.5_
 
-- [ ] 4. Implement HeatWavePhase room temperature rules (heat-gated)
-  - [ ] 4.1 Create `HeatWavePhase` and set heat start state in `WorldModel::reset()`
+- [x] 4. Implement HeatWavePhase room temperature rules (heat-gated)
+  - [x] 4.1 Create `HeatWavePhase` and set heat start state in `WorldModel::reset()`
     - Create `src/Engine/HeatWavePhase.php` as a sibling of `EarthquakePhase`, pure and deterministic.
     - In `reset()`, when the disaster is heat wave, set every `Room::temperature` to `heatRoomInitialTemp` and `HouseState::outsideTemperature` to `EpisodeConfig::outsideTemperature`; leave the earthquake `INITIAL_ROOM_TEMPERATURE = 22.0` path exactly as today. Add `HouseState::$outsideTemperature` (default 0.0) and `Room::$windowOpen` (default false), keeping the window out of the fixed listed-object order.
     - Implement `advanceTurn()` with the fixed per-turn order: (1) every room drifts toward the outside temperature by `roomTempDriftPerTurn` plus `openWindowDriftBonus` for an open room; (2) when the air conditioner is on, the living room is lowered by `acCoolPerTurn` but never below `acTargetTemp`; then clamp each room to `[roomTempMin, roomTempMax]`. Keep the power on and apply no outage rule. Read every number from `EpisodeConfig`; no literal in logic. Touch no earthquake field.
     - Run `php -l` on every changed PHP file.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
 
-  - [ ] 4.2 Write example tests for the room-temperature rules
+  - [x] 4.2 Write example tests for the room-temperature rules
     - Heat setup (2.1), directional drift toward outside (2.2), AC cooling one turn floored at `acTargetTemp` (2.3), open-window drift bonus (2.4), clamp to range (2.6).
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6_
 
-  - [ ] 4.3 Write the power-stays-on property test
+  - [x] 4.3 Write the power-stays-on property test
     - **Property 3: Power never fails in a heat wave**
     - **Validates: Requirements 2.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 3: Power never fails in a heat wave`.
 
-- [ ] 5. Implement the resident body/water heat branch (heat-gated)
-  - [ ] 5.1 Add `ResidentController::applyHeatToResident`
+- [-] 5. Implement the resident body/water heat branch (heat-gated)
+  - [x] 5.1 Add `ResidentController::applyHeatToResident`
     - When the resident's room temperature (after this turn's drift and AC cooling) is above `bodyHeatThreshold`, increase `body_temp` by `bodyTempRisePerTurn` and decrease `water` by `waterLossPerTurnHot`, evaluating the body rule on the updated room temperature; when the fan is on in the resident's room, reduce the rise by `fanBodyRiseReduction`.
     - When the room is at or below `bodyHeatThreshold`, decrease `body_temp` by `bodyTempRecoveryPerTurn` toward `residentInitBodyTemp` and never below it.
     - Run the heat branch before the existing clamp + weakened refresh so the weakened flag (set/clear at `weakenedThreshold`) reflects the heat update; keep the existing clamp ranges (`body_temp [35.0, 42.0]`, `water [0, 100]`, `injury [0, 100]`, `fear [0, 100]`). Read every number from `EpisodeConfig`.
     - Wire `HeatWavePhase` / `Engine` to call this branch only in a heat-wave turn. Run `php -l` on every changed PHP file.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
 
-  - [ ] 5.2 Write example tests for the resident body rules
+  - [x] 5.2 Write example tests for the resident body rules
     - Body rise + water loss above threshold (3.1), fan reduces the rise (3.2), recovery toward the start floor at/below threshold (3.4). Cold-water hand-over raising water and clamping at 100 is tested with the heat objects (task 6).
     - _Requirements: 3.1, 3.2, 3.4_
 
-  - [ ] 5.3 Write the heat-state-in-range property test
+  - [x] 5.3 Write the heat-state-in-range property test
     - **Property 1: All heat-wave state stays within range**
     - **Validates: Requirements 2.6, 3.4, 3.7, 11.1**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 1: All heat-wave state stays within range`.
 
-  - [ ] 5.4 Write the weakened-biconditional property test
+  - [x] 5.4 Write the weakened-biconditional property test
     - **Property 4: Weakened tracks body temperature**
     - **Validates: Requirements 3.5, 3.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 4: Weakened tracks body temperature`.

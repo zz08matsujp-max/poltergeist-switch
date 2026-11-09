@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PoltergeistSwitch\Engine;
 
 use Throwable;
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\Enums\ManActivity;
 use PoltergeistSwitch\Engine\Enums\Operation;
 use PoltergeistSwitch\Engine\Enums\PowerState;
@@ -144,6 +145,16 @@ class Engine
      */
     private array $memoriesByRobot = [];
 
+    /**
+     * The heat-wave phase, the sibling of EarthquakePhase. It is optional so
+     * every existing earthquake call site is unchanged: when a caller supplies
+     * none, a fresh HeatWavePhase is created, and it is only ever reached from
+     * the heat branch of processCurrentTurn (gated on the world's disaster), so
+     * an earthquake episode never constructs it into its turn path or touches a
+     * heat field (heat-wave Requirement 1.6).
+     */
+    private HeatWavePhase $heatWave;
+
     public function __construct(
         private WorldModel $world,
         private EpisodeConfig $config,
@@ -152,7 +163,10 @@ class Engine
         private EarthquakePhase $earthquake,
         private ResidentController $resident,
         private SituationTextGenerator $textGen,
-    ) {}
+        ?HeatWavePhase $heatWave = null,
+    ) {
+        $this->heatWave = $heatWave ?? new HeatWavePhase();
+    }
 
     /**
      * Supply each robot's frozen memory bodies for this episode (robot-memory
@@ -426,6 +440,16 @@ class Engine
             }
         }
 
+        // 2b. Advance the heat-wave phase (room temperatures: drift, AC
+        //     cooling, open-window bonus, clamp) in a heat-wave turn, before
+        //     the resident's heat body rule reads this turn's room temperature.
+        //     Gated on the disaster (heat-wave Requirement 1.6): an earthquake
+        //     turn never enters this branch, so no earthquake field is touched
+        //     and the earthquake path runs exactly as today.
+        if ($this->world->disaster === Disaster::heat_wave) {
+            $this->heatWave->advanceTurn($this->world, $this->world->seed, $turnNumber);
+        }
+
         // 3. Evaluate both actions in the fixed robot_a → robot_b order.
         $allActions = $this->orderedActions($actions);
         $judgements = $this->evaluateActions($allActions);
@@ -441,6 +465,17 @@ class Engine
         // 5. Update the resident's mutable state from this turn's actions.
         $turnActions = $this->buildTurnActions($allActions, $outcomes);
         $this->resident->updateState($this->world, $this->config, $turnActions);
+
+        // 5a. In a heat-wave turn, apply the resident's body-temperature and
+        //     water heat rules on this turn's final room temperature, then
+        //     re-clamp and refresh the weakened flag (heat-wave Req 3.1–3.7).
+        //     Run after updateState so the heat body rule, its clamp, and the
+        //     weakened refresh are the last word on body_temp/water this turn.
+        //     Gated on the disaster: an earthquake turn never runs it, so the
+        //     earthquake resident path is unchanged (heat-wave Requirement 1.6).
+        if ($this->world->disaster === Disaster::heat_wave) {
+            $this->resident->applyHeatToResident($this->world, $this->config);
+        }
 
         // 5b. Resolve any support proposal made this turn: the resident decides
         //     on the turn of the support action (Req 7.15). A refusal ends the
