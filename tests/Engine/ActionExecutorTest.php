@@ -8,7 +8,10 @@ use PHPUnit\Framework\TestCase;
 use PoltergeistSwitch\Engine\ActionExecutor;
 use PoltergeistSwitch\Engine\EpisodeConfig;
 use PoltergeistSwitch\Engine\Enums\GasState;
+use PoltergeistSwitch\Engine\Enums\LightLevel;
 use PoltergeistSwitch\Engine\Enums\Operation;
+use PoltergeistSwitch\Engine\Enums\PowerState;
+use PoltergeistSwitch\Engine\Enums\TimeOfDay;
 use PoltergeistSwitch\Engine\Seed;
 use PoltergeistSwitch\Engine\SituationSpec;
 use PoltergeistSwitch\Engine\Values\Action;
@@ -223,7 +226,7 @@ class ActionExecutorTest extends TestCase
     public function testSituationTextVersionIsBumped(): void
     {
         $this->assertSame(
-            'situation-text-2026-11-09a',
+            'situation-text-2026-11-09b',
             \PoltergeistSwitch\Engine\SituationTextGenerator::VERSION,
         );
     }
@@ -334,8 +337,123 @@ class ActionExecutorTest extends TestCase
 
         $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
 
+        // Open -> closed: the gas main is closed and the texts report it
+        // (Req 34.1, Req 34.2).
         $this->assertTrue($outcome->success);
         $this->assertSame(GasState::closed, $world->houseState->gasMain);
+        $this->assertSame(
+            'You closed the gas main valve.',
+            $outcome->whatHappenedText,
+        );
+        $this->assertSame(
+            'The other robot closed the gas main valve.',
+            $outcome->seenByOtherText,
+        );
+    }
+
+    public function testUseGasMainValveAlreadyClosedChangesNothingAndSaysSo(): void
+    {
+        $world = $this->makeWorld();
+
+        // Start from an already-closed gas main.
+        $world->houseState->gasMain = GasState::closed;
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'gas_main_valve',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        // Already closed -> nothing changes: the gas main stays closed and the
+        // texts say it was already closed, not that a valve was just closed
+        // (Req 34.1).
+        $this->assertTrue($outcome->success);
+        $this->assertSame(GasState::closed, $world->houseState->gasMain);
+        $this->assertSame(
+            'You turned the gas main valve. It was already closed.',
+            $outcome->whatHappenedText,
+        );
+        $this->assertSame(
+            'The other robot turned the gas main valve. It was already closed.',
+            $outcome->seenByOtherText,
+        );
+    }
+
+    public function testUseLightSourceOffSwitchesItOnAndRecomputesRoomLight(): void
+    {
+        $world = $this->makeWorld();
+
+        // Put the kitchen (where robot_a and the flashlight are) into the dark:
+        // a night power outage with no lit light makes the room dark. Switching
+        // the flashlight on must recompute the room back to normal (Req 34.4).
+        $world->houseState->timeOfDay = TimeOfDay::night->value;
+        $world->houseState->power = PowerState::outage;
+        $world->getRoom('kitchen')->lightLevel = LightLevel::dark;
+
+        $flashlight = $world->objects['flashlight'];
+        $this->assertFalse($flashlight->on);
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        // Off -> on: the flag is set, the room light is recomputed to normal,
+        // and the texts report the light being switched on (Req 34.4).
+        $this->assertTrue($outcome->success);
+        $this->assertTrue($flashlight->on);
+        $this->assertSame(LightLevel::normal, $world->getRoom('kitchen')->lightLevel);
+        $this->assertSame(
+            'You switched on a flashlight.',
+            $outcome->whatHappenedText,
+        );
+        $this->assertSame(
+            'The other robot switched on a flashlight.',
+            $outcome->seenByOtherText,
+        );
+    }
+
+    public function testUseLightSourceAlreadyOnChangesNothingAndDoesNotRecompute(): void
+    {
+        $world = $this->makeWorld();
+
+        // The flashlight is already on while the kitchen is dark. Switching it
+        // on again must change nothing and must NOT recompute the room light,
+        // so the room stays dark (Req 34.3).
+        $world->houseState->timeOfDay = TimeOfDay::night->value;
+        $world->houseState->power = PowerState::outage;
+        $world->getRoom('kitchen')->lightLevel = LightLevel::dark;
+
+        $flashlight = $world->objects['flashlight'];
+        $flashlight->on = true;
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'flashlight',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        // Already on -> nothing changes: the flag stays set, the room light is
+        // NOT recomputed (so the dark room stays dark), and the texts say the
+        // light was already on (Req 34.3).
+        $this->assertTrue($outcome->success);
+        $this->assertTrue($flashlight->on);
+        $this->assertSame(LightLevel::dark, $world->getRoom('kitchen')->lightLevel);
+        $this->assertSame(
+            'You tried to switch on a flashlight. The light was already on.',
+            $outcome->whatHappenedText,
+        );
+        $this->assertSame(
+            'The other robot tried to switch on a flashlight. The light was already on.',
+            $outcome->seenByOtherText,
+        );
     }
 
     // ------------------------------------------------------------------

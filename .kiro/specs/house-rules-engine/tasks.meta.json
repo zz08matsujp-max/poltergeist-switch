@@ -966,6 +966,27 @@
         "chatSessionId": "sess_ada99d45-710e-4209-8206-3bd24bc024ff",
         "timestamp": 1794135609476
       }
+    ],
+    "34.1 `ActionExecutor::executeUse`: check the gas main and the light's state before mutating (Req 34.1–34.4).": [
+      {
+        "executionId": "68cbaa97-8c0e-4dac-954f-80d9b7338d1c",
+        "chatSessionId": "sess_914d1840-1c3c-4ef0-bd6e-baddabc7562b",
+        "timestamp": 1794189327774
+      }
+    ],
+    "34.2 Bump the two outcome-text versions (Req 34.5).": [
+      {
+        "executionId": "68cbaa97-8c0e-4dac-954f-80d9b7338d1c",
+        "chatSessionId": "sess_914d1840-1c3c-4ef0-bd6e-baddabc7562b",
+        "timestamp": 1794189403564
+      }
+    ],
+    "34.3 Unit tests for all four cases (required).": [
+      {
+        "executionId": "68cbaa97-8c0e-4dac-954f-80d9b7338d1c",
+        "chatSessionId": "sess_914d1840-1c3c-4ef0-bd6e-baddabc7562b",
+        "timestamp": 1794189500529
+      }
     ]
   }
 }

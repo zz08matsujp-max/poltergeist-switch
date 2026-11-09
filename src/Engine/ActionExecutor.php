@@ -258,8 +258,18 @@ class ActionExecutor
         $targetId = (string) $action->targetId;
 
         // Closing the gas main is the only `use` that acts on the house, not on
-        // a registered object (Req 5.4).
+        // a registered object (Req 5.4). Check its state first (Req 34): when
+        // the main is already closed, change nothing and say so, so the record
+        // never claims a valve was closed when it already was (Req 34.1). When
+        // it is open, close it and keep the unchanged wording (Req 34.2).
         if ($targetId === self::GAS_MAIN_VALVE_ID) {
+            if ($world->houseState->gasMain === GasState::closed) {
+                return [
+                    'You turned the gas main valve. It was already closed.',
+                    'The other robot turned the gas main valve. It was already closed.',
+                ];
+            }
+
             $world->houseState->gasMain = GasState::closed;
 
             return [
@@ -296,7 +306,20 @@ class ActionExecutor
         // shared light rule that EarthquakePhase owns (see §g). A held light
         // parks `room` on the holder's id, which is not a real room key, so the
         // room to recompute is the holder's current room, not $object->room.
+        //
+        // Check the light's state first (Req 34): when it is already on, change
+        // nothing — leave the flag set, skip the recompute — and say so, so the
+        // record never claims a light was switched on when it already was
+        // (Req 34.3). When it is off, switch it on and recompute, keeping the
+        // unchanged wording (Req 34.4).
         if ($object->isLightSource) {
+            if ($object->on === true) {
+                return [
+                    "You tried to switch on {$object->displayName}. The light was already on.",
+                    "The other robot tried to switch on {$object->displayName}. The light was already on.",
+                ];
+            }
+
             $object->on = true;
             EarthquakePhase::recomputeRoomLightLevel(
                 $world,

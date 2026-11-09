@@ -36,11 +36,12 @@ use PoltergeistSwitch\Engine\WorldModel;
  * machinery had perturbed any no-memory output, these comparisons would fail.
  *
  * The second check pins the situation-text version to
- * 'situation-text-2026-11-09a': adding the memories block forced a bump to
- * 'situation-text-2026-11-09', and the gas-stove already-off outcome text
- * (Req 33) bumped it again to 'situation-text-2026-11-09a'; this
- * golden keeps any later change to the generator honest (robot-memory
- * Requirement 6.8).
+ * 'situation-text-2026-11-09b': adding the memories block forced a bump to
+ * 'situation-text-2026-11-09', the gas-stove already-off outcome text
+ * (Req 33) bumped it to 'situation-text-2026-11-09a', and the gas-main and
+ * light already-closed/already-on outcome texts (Req 34) bumped it again to
+ * 'situation-text-2026-11-09b'; this golden keeps any later change to the
+ * generator honest (robot-memory Requirement 6.8).
  *
  * The pilot's index.php is deliberately NOT included or parsed: it runs a
  * passphrase check and sends HTTP headers. Only its stored JSON output is read.
@@ -361,7 +362,7 @@ class SituationTextMemoriesBlockTest extends TestCase
     }
 
     /**
-     * Req 6.8: Engine::situationTextVersion() equals 'situation-text-2026-11-09a'.
+     * Req 6.8: Engine::situationTextVersion() equals 'situation-text-2026-11-09b'.
      * Adding the memories block to the generator forced a conscious bump from
      * the previous version; this golden keeps any later change honest.
      */
@@ -391,9 +392,9 @@ class SituationTextMemoriesBlockTest extends TestCase
         );
 
         $this->assertSame(
-            'situation-text-2026-11-09a',
+            'situation-text-2026-11-09b',
             $engine->situationTextVersion(),
-            'the situation-text version must be situation-text-2026-11-09a (gas-stove already-off outcome text, Req 33.3)'
+            'the situation-text version must be situation-text-2026-11-09b (gas-main and light already-closed/already-on outcome text, Req 34.5)'
         );
     }
 }
