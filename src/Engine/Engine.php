@@ -918,7 +918,7 @@ class Engine
         // and the AC_Danger_Reason detection (Req 5.1, 5.2, 5.7).
         $spokenLines = $this->spokenLinesThisTurn($allActions);
 
-        $acMentioned = $this->resident->acMentioned($spokenLines);
+        $acMentioned = $this->resident->acProposed($spokenLines);
         $dangerReason = $this->resident->detectAcDangerReason($spokenLines);
         $acUseTurnedItOn = $this->acUseTurnedItOnThisTurn($allActions, $outcomes);
 

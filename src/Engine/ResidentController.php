@@ -604,6 +604,41 @@ class ResidentController
     }
 
     /**
+     * Whether a spoken line is a proposal of the air conditioner (heat-wave
+     * Requirement 5.1). The line is split into clauses at . , ; ! ? and the
+     * word "but"; it is a proposal when SOME clause mentions the air
+     * conditioner (same spellings as acMentioned()), contains an on word
+     * ("on", "use", "start", "switch on", "turn on") and contains no off or
+     * negation word ("off", "not", "won't", "don't", "never", "without").
+     * Whole words, case-insensitive; the typographic apostrophe is read as '.
+     *
+     * @param list<string> $spokenLines every spoken line of either robot this turn
+     */
+    public function acProposed(array $spokenLines): bool
+    {
+        foreach ($spokenLines as $line) {
+            $lower = str_replace(["\u{2019}", "\u{2018}"], "'", mb_strtolower($line));
+            $clauses = preg_split('/[.,;!?]|(?<![\w\'])but(?![\w\'])/u', $lower);
+            if ($clauses === false) {
+                continue;
+            }
+            foreach ($clauses as $clause) {
+                if (!$this->acMentioned([$clause])) {
+                    continue;
+                }
+                if (preg_match("/(?<![\\w'])(?:off|not|won't|don't|never|without)(?![\\w'])/u", $clause) === 1) {
+                    continue;
+                }
+                if (preg_match("/(?<![\\w'])(?:on|use|start|switch on|turn on)(?![\\w'])/u", $clause) === 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Whether a single spoken line is an AC_Danger_Reason (Req 5.7). Pure,
      * case-insensitive, whole-word. The heat words, harm words, and the fixed
      * phrases are matched on word boundaries so a substring inside a longer

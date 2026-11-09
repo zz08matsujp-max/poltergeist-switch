@@ -218,7 +218,7 @@ public function airConditionerReply(
     WorldModel $world,
     EpisodeConfig $config,
     bool $acUseTurnedItOnThisTurn,     // a use action turned the AC on this turn
-    bool $acMentionedThisTurn,         // a spoken line of either robot mentioned the AC
+    bool $acMentionedThisTurn,         // a spoken line of either robot was an AC_Spoken_Proposal (clause rule, Req 5.1)
     bool $dangerReasonGivenThisTurn,   // AC_Danger_Reason detected this turn
     bool $alternativePreparedBefore,   // AC_Alternative_Prepared holds (earlier turn)
     bool $acAlreadyAccepted            // the resident has already accepted earlier this episode

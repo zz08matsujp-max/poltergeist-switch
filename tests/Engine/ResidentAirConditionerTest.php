@@ -468,7 +468,7 @@ class ResidentAirConditionerTest extends TestCase
         $speak = new Action(
             'robot_a',
             Operation::speak->value,
-            words: ['How about the air conditioner?'],
+            words: ['How about the air conditioner on?'],
         );
 
         // Two consecutive turns well inside lineCooldownTurns both object.
@@ -591,7 +591,7 @@ class ResidentAirConditionerTest extends TestCase
         // the alternative prepared from turn 0 — still not acceptance (needs a
         // danger reason too), so he objects; this confirms the latch alone is
         // not acceptance but persists for a later turn.
-        $speak = new Action('robot_a', Operation::speak->value, words: ['The air conditioner?']);
+        $speak = new Action('robot_a', Operation::speak->value, words: ['The air conditioner on?']);
         $r1 = $engine->applyTurn(1, ['robot_a' => $speak]);
         $this->assertSame('I hate the air conditioner.', $r1->residentLine);
         $this->assertTrue(
@@ -768,7 +768,7 @@ class ResidentAirConditionerTest extends TestCase
             'I will start the air conditioning now.',
             'I will start the air-conditioning now.',
             'Let me turn on the aircon.',
-            'Shall I run the A/C?',
+            'Shall I start the A/C?',
         ];
 
         foreach ($spellings as $spelling) {
@@ -802,5 +802,54 @@ class ResidentAirConditionerTest extends TestCase
 
         $this->assertNotSame('I hate the air conditioner.', $result->residentLine);
         $this->assertNotSame('I hate the air conditioner. Turn it off.', $result->residentLine);
+    }
+
+    // ------------------------------------------------------------------
+    // Clause rule: an AC mention is a proposal only when it suggests turning it on
+    // ------------------------------------------------------------------
+
+    /** @return array<string, array{string, bool}> */
+    public static function proposalLines(): array
+    {
+        return [
+            'would you like on'   => ['Would you like the air conditioner on at the lowest setting, pointed at the wall? Yes or no?', true],
+            'going on, but not'   => ['Sir, the air conditioner is going on, but it will blow at the wall, not at you.', true],
+            'turning on'          => ["I'm turning the air conditioner on, aimed at the wall, away from him.", true],
+            'turn on the AC'      => ['Let me turn on the AC.', true],
+            'switch on hyphen'    => ['Can I switch on the air-conditioner for you?', true],
+            'keep off'            => ['I hear you. We’ll keep the air conditioner off.', false],
+            'stay off'            => ['I hear you. The air conditioner will stay off.', false],
+            'won’t turn on'       => ['I hear you. I won’t turn on the air conditioner.', false],
+            'don\'t like'         => ["I know you don't like the air conditioner.", false],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('proposalLines')]
+    public function testAcProposedClauseRule(string $line, bool $expected): void
+    {
+        $this->assertSame($expected, $this->resident->acProposed([$line]));
+    }
+
+    public function testEngineNonProposalAcMentionGetsNoReply(): void
+    {
+        $world = $this->makeHeatWorld();
+        $engine = $this->makeEngine($world);
+
+        $speak = new Action('robot_a', Operation::speak->value, words: ['I hear you. The air conditioner will stay off.']);
+        $result = $engine->applyTurn(0, ['robot_a' => $speak]);
+
+        $this->assertNotSame('I hate the air conditioner.', $result->residentLine);
+        $this->assertNotSame('I hate the air conditioner. Turn it off.', $result->residentLine);
+    }
+
+    public function testEngineProposalLineStillDrawsObjection(): void
+    {
+        $world = $this->makeHeatWorld();
+        $engine = $this->makeEngine($world);
+
+        $speak = new Action('robot_a', Operation::speak->value, words: ['Let me turn on the AC.']);
+        $result = $engine->applyTurn(0, ['robot_a' => $speak]);
+
+        $this->assertSame('I hate the air conditioner.', $result->residentLine);
     }
 }
