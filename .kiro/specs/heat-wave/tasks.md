@@ -10,7 +10,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
 
 ## Tasks
 
-- [ ] 1. Build the earthquake golden-master fixture and test (REQUIRED, FIRST, before any heat-wave change)
+- [x] 1. Build the earthquake golden-master fixture and test (REQUIRED, FIRST, before any heat-wave change)
   - Create `tests/EarthquakeGoldenMasterTest.php` and the committed fixture `tests/fixtures/earthquake_golden_master.json`.
   - Choose at least 30 fixed integer seeds so the drawn `SituationSpec` covers every starting situation — all three times of day, all four starting activities, and the bathing-bathroom constraint.
   - Run every seed through the full fixed action sequence **twice**: once with no memory snapshot and once with a non-empty memory snapshot set via `Engine::setMemories`, so both memory paths are pinned for every seed.

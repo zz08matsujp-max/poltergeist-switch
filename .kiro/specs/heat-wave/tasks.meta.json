@@ -1,0 +1,17 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Build the earthquake golden-master fixture and test (REQUIRED, FIRST, before any heat-wave change)": [
+      {
+        "executionId": "541c495d-5176-42a1-8a0a-dc80d4e41665",
+        "chatSessionId": "sess_43a81436-794d-47f1-ad3e-d95d7f559c42",
+        "timestamp": 1794213770114
+      },
+      {
+        "executionId": "541c495d-5176-42a1-8a0a-dc80d4e41665",
+        "chatSessionId": "sess_43a81436-794d-47f1-ad3e-d95d7f559c42",
+        "timestamp": 1794214290532
+      }
+    ]
+  }
+}
