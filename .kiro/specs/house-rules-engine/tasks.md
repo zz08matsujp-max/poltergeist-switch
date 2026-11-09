@@ -523,7 +523,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - A man starting `sitting_at_table` is unaffected; the banned-word property test and all golden situation tests (S0–S5) still pass
     - _Requirements: Req 32.1, 32.2, 32.3, 32.6, 32.7_
 
-- [ ] 33. Using the gas stove when it is already off (added 2026-11-09)
+- [x] 33. Using the gas stove when it is already off (added 2026-11-09)
   - [x] 33.1 `ActionExecutor::executeUse`: check the gas stove's `on` flag before mutating (Req 33.1, 33.2).
     - In the gas-stove branch, if `$object->on` is already `false`, change nothing (leave the stove off, do not touch `houseState->gasMain`) and return `"You turned the gas stove's knob. It was already off."` / `"The other robot turned the gas stove's knob. It was already off."`
     - If `$object->on` is `true`, set it to `false` and return the current texts `"You turned off the gas stove. The flame went out."` / `"The other robot turned off the gas stove. The flame went out."` (unchanged)
