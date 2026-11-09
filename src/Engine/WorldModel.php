@@ -166,6 +166,13 @@ class WorldModel implements SituationView
         $this->initObjects();
 
         // 6. fixed initial house state (Req 1.9).
+        // A heat-wave episode starts every room at the hot initial temperature
+        // and records the fixed outside temperature the rooms drift toward
+        // (heat-wave Requirements 2.1, 4.1 of task 4.1); an earthquake episode
+        // keeps the existing INITIAL_ROOM_TEMPERATURE path byte-for-byte, with
+        // outsideTemperature at its 0.0 "not a heat wave" default.
+        $isHeatWave = $this->disaster === Disaster::heat_wave;
+
         $this->houseState = new HouseState(
             power: PowerState::on,
             gasMain: GasState::open,
@@ -173,11 +180,21 @@ class WorldModel implements SituationView
             shaking: false,
             fallingObjects: false,
             timeOfDay: $this->situationSpec->time,
+            outsideTemperature: $isHeatWave ? $this->config->outsideTemperature : 0.0,
         );
+
+        $initialRoomTemp = $isHeatWave
+            ? $this->config->heatRoomInitialTemp
+            : self::INITIAL_ROOM_TEMPERATURE;
+
         foreach ($this->rooms as $room) {
-            $room->temperature = self::INITIAL_ROOM_TEMPERATURE;
+            $room->temperature = $initialRoomTemp;
             $room->lightLevel = LightLevel::normal;
             $room->hotWaterInjuryHazard = false;
+            // The window starts closed every episode; the heat rules open it
+            // only through a `use window` action. It is never listed as an
+            // object, so the earthquake read is unchanged.
+            $room->windowOpen = false;
         }
 
         // 7/8. resident initial state from EpisodeConfig, placed per the spec.
@@ -369,6 +386,17 @@ class WorldModel implements SituationView
                 isPot: $props['isPot'] ?? false,
             );
         }
+    }
+
+    /**
+     * The EpisodeConfig this world was built with. A read-only accessor so the
+     * pure phases (HeatWavePhase) can read the heat numbers that live only in
+     * EpisodeConfig (heat-wave Requirement 2.7) without a literal in logic. It
+     * never mutates anything and does not affect any earthquake path.
+     */
+    public function config(): EpisodeConfig
+    {
+        return $this->config;
     }
 
     /**
