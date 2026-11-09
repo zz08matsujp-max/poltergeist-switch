@@ -229,7 +229,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - The recorder maps the heat targets with the existing vocabulary (9.1), the earthquake recorder prompt/version is unchanged (9.2), and the evidence-quote rule holds for a heat reply (9.3).
     - _Requirements: 9.1, 9.2, 9.3_
 
-- [~] 14. Implement the heat-wave screens (earthquake drawing unchanged)
+- [x] 14. Implement the heat-wave screens (earthquake drawing unchanged)
   - [x] 14.1 Enable the Heat wave lever and add heat drawing
     - In `observe.js`, enable the Heat wave Breaker_Switch and drive the dual-state create-or-convert flow; keep the Heavy rain Breaker_Switch disabled and labelled "coming later".
     - In `house-renderer.js`, draw the heat only when the world's `disaster` is heat wave: an afternoon sky, heat shimmer, the air conditioner and the electric fan drawn on or off, and the fan drawn in the room it is in; draw the earthquake exactly as today and run no heat drawing in an earthquake episode.
@@ -240,8 +240,8 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Heat wave lever enabled and Heavy rain disabled/"coming later" (10.1); heat fields drive heat drawing only when `disaster` is heat wave (10.2, 10.5); the resident's room temperature shows beside his meters (10.3); Replay/End_Card/list show "Heat wave" (10.4); robot names are only Amber/Jade (10.6).
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-- [ ] 15. Add the model-solution / calibration test
-  - [ ] 15.1 Write the model-solution and four calibration runs
+- [~] 15. Add the model-solution / calibration test
+  - [x] 15.1 Write the model-solution and four calibration runs
     - Hand-written action sequence — hand water early, carry the electric fan into the living room and switch it on, give the `AC_Danger_Reason` by speech, then turn the air conditioner on — keeps `body_temp` below `weakenedThreshold` for all 20 turns, using only triggers present in the situation text the robot reads.
     - Include the four verified calibration runs: no help → weakened at turn 13; AC from turn 5 → never weakened; fan on in his room from turn 3 → never weakened (reaches 37.9 °C at turn 20); AC from turn 14 → weakened from turn 13, recovered by turn 16.
     - _Requirements: 11.7, 4.10_
