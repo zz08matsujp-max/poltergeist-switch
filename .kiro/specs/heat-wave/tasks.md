@@ -6,7 +6,7 @@ This plan implements the heat-wave disaster for PoltergeistSwitch strictly in PH
 
 Task 1 is the earthquake golden-master test and MUST be completed before any heat-wave change to the engine, the texts, the database, the API, or the screens (Requirement 1.1). The remaining tasks build incrementally: the `Disaster` enum and `WorldModel` threading, `EpisodeConfig` heat fields, `HeatWavePhase`, the resident heat branch and the air-conditioner will, the heat objects in the action layer, the heat situation and reflection text, the additive serializer and SQL migration, the turn loop and API, the recorder input, and the screens. Every heat method is gated on `$world->disaster === Disaster::heat_wave`, and the earthquake path runs the existing code verbatim.
 
-Steering constraints that apply to every task: PHP 8.2 language features only (no features introduced after 8.2); `php -l` with no error on every changed PHP file; no real provider API calls in tests (use the existing fakes); every API response and page sends `Cache-Control: no-store`; no deploy steps. Committing per task is handled by the maintainer's process.
+Steering constraints that apply to every task: PHP 8.2 language features only (no features introduced after 8.2); `php -l` with no error on every changed PHP file; no real provider API calls in tests (use the existing fakes); every API response and page sends `Cache-Control: no-store`; no deploy steps. Commits follow tech.md: one commit per task, with the message format `task N: <task title>`, made only after the full PHPUnit suite (the earthquake golden master included) and the JavaScript tests pass and `php -l` reports no error on every changed PHP file. Never push, amend, rebase, or reset; the maintainer reviews and pushes. Add no deploy steps and no credentials.
 
 ## Tasks
 
@@ -29,7 +29,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 1.6, 2.1_
 
-  - [ ]* 2.2 Write the earthquake-untouched-by-heat property test
+  - [ ] 2.2 Write the earthquake-untouched-by-heat property test
     - **Property 12: An earthquake episode is untouched by heat**
     - **Validates: Requirements 1.6, 1.7, 1.9, 8.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 12: An earthquake episode is untouched by heat`.
@@ -44,7 +44,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 2.7, 3.8, 5.10, 8.5_
 
-  - [ ]* 3.2 Write a config-swap no-literals example test
+  - [ ] 3.2 Write a config-swap no-literals example test
     - Assert that changing an `EpisodeConfig` heat number changes the engine output, proving no heat literal is baked into engine logic.
     - _Requirements: 2.7, 3.8, 5.10, 8.5_
 
@@ -56,11 +56,11 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
 
-  - [ ]* 4.2 Write example tests for the room-temperature rules
+  - [ ] 4.2 Write example tests for the room-temperature rules
     - Heat setup (2.1), directional drift toward outside (2.2), AC cooling one turn floored at `acTargetTemp` (2.3), open-window drift bonus (2.4), clamp to range (2.6).
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6_
 
-  - [ ]* 4.3 Write the power-stays-on property test
+  - [ ] 4.3 Write the power-stays-on property test
     - **Property 3: Power never fails in a heat wave**
     - **Validates: Requirements 2.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 3: Power never fails in a heat wave`.
@@ -73,16 +73,16 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Wire `HeatWavePhase` / `Engine` to call this branch only in a heat-wave turn. Run `php -l` on every changed PHP file.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
 
-  - [ ]* 5.2 Write example tests for the resident body rules
+  - [ ] 5.2 Write example tests for the resident body rules
     - Body rise + water loss above threshold (3.1), fan reduces the rise (3.2), recovery toward the start floor at/below threshold (3.4). Cold-water hand-over raising water and clamping at 100 is tested with the heat objects (task 6).
     - _Requirements: 3.1, 3.2, 3.4_
 
-  - [ ]* 5.3 Write the heat-state-in-range property test
+  - [ ] 5.3 Write the heat-state-in-range property test
     - **Property 1: All heat-wave state stays within range**
     - **Validates: Requirements 2.6, 3.4, 3.7, 11.1**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 1: All heat-wave state stays within range`.
 
-  - [ ]* 5.4 Write the weakened-biconditional property test
+  - [ ] 5.4 Write the weakened-biconditional property test
     - **Property 4: Weakened tracks body temperature**
     - **Validates: Requirements 3.5, 3.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 4: Weakened tracks body temperature`.
@@ -97,16 +97,16 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Expose the air-conditioner on/off, the fan on/off and its room, and the per-room open-window state through the world for the texts, recorder, serializer, and screens. Run `php -l` on every changed PHP file.
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10_
 
-  - [ ]* 6.2 Write example tests for the heat objects
+  - [ ] 6.2 Write example tests for the heat objects
     - AC on in the living room (4.1); fan take → carry → use-while-held puts down and switches on (4.3, 4.8); cold barley tea discoverable and both `use`/`take` yield the bottle, `hand_over` raises water and clamps at 100 (4.4, 4.9, 3.3); window `use` toggles open/closed and never lists the window (4.7).
     - _Requirements: 3.3, 4.1, 4.3, 4.4, 4.7, 4.8, 4.9_
 
-  - [ ]* 6.3 Write the AC-only-in-living-room property test
+  - [ ] 6.3 Write the AC-only-in-living-room property test
     - **Property 10: The air conditioner works only in the living room**
     - **Validates: Requirements 4.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 10: The air conditioner works only in the living room`.
 
-  - [ ]* 6.4 Write the fixed-object-order property test
+  - [ ] 6.4 Write the fixed-object-order property test
     - **Property 8: Objects keep their fixed listed order in a heat wave**
     - **Validates: Requirements 4.4, 4.5, 6.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 8: Objects keep their fixed listed order in a heat wave`.
@@ -125,16 +125,16 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Resolve the reply in `Engine` after actions, placed on this turn, taking precedence over the scripted line. Run `php -l` on every changed PHP file.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10, 4.10_
 
-  - [ ]* 8.2 Write the four air-conditioner example tests
+  - [ ] 8.2 Write the four air-conditioner example tests
     - (a) AC turned on before the conditions are met is on and the resident objects with "I hate the air conditioner. Turn it off." (5.3); (b) a spoken suggestion alone draws "I hate the air conditioner." (5.2); (c) conditions met (danger reason + alternative prepared) → "All right. Just for a while." then no more objections (5.1); (d) weakened → accept (5.1). Also assert mutual exclusivity of 5.2 vs 5.3, the immediacy/priority of the reply (5.4), `AC_Danger_Reason` per trigger word (5.7), and `AC_Alternative_Prepared` each branch (5.8).
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.7, 5.8_
 
-  - [ ]* 8.3 Write the resident-never-turns-AC-off property test
+  - [ ] 8.3 Write the resident-never-turns-AC-off property test
     - **Property 5: The resident never turns the air conditioner off**
     - **Validates: Requirements 5.5, 11.3**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 5: The resident never turns the air conditioner off`.
 
-  - [ ]* 8.4 Write the AC-objection-line-cooldown property test
+  - [ ] 8.4 Write the AC-objection-line-cooldown property test
     - **Property 6: The air-conditioner objection line obeys the cooldown**
     - **Validates: Requirements 5.6, 11.4**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 6: The air-conditioner objection line obeys the cooldown`.
@@ -150,12 +150,13 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 4.10_
 
-  - [ ]* 9.2 Write example tests for the heat situation text
+  - [ ] 9.2 Write example tests for the heat situation text
     - Six sections in order (6.1), opening line on the first turn (6.2), minute headings from turn 2 (6.3), 5-minute clock (6.4), thermometer/AC/fan/resident facts in "Right now" (6.5), the version constant differs from the earthquake version (6.8).
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.8_
 
-  - [ ]* 9.3 Write the heat-wave turn-1 golden text test
-    - Match one heat-wave turn-1 situation text against the maintainer-approved golden text (opening line included).
+  - [ ] 9.3 Write the heat-wave turn-1 golden text test
+    - BEFORE writing or committing the golden file: generate the heat-wave turn-1 situation text for one fixed seed, show it to the maintainer IN FULL, and WAIT for the maintainer's explicit approval of the exact text.
+    - Only AFTER the maintainer approves it, write the committed golden file and the test that matches one heat-wave turn-1 situation text against that maintainer-approved golden text (opening line included). Do not write or commit the golden file before approval.
     - _Requirements: 11.9_
 
 - [ ] 10. Implement the heat-wave reflection text (new version, heat-gated)
@@ -166,11 +167,11 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-  - [ ]* 10.2 Write example tests for the heat reflection text
+  - [ ] 10.2 Write example tests for the heat reflection text
     - Structure with minute headings (7.1), exact unchanged question (7.2), the version constant differs from the earthquake version (7.4).
     - _Requirements: 7.1, 7.2, 7.4_
 
-  - [ ]* 10.3 Write the engine-heat-text-leaks-nothing property test
+  - [ ] 10.3 Write the engine-heat-text-leaks-nothing property test
     - **Property 9: Engine-authored heat text leaks nothing**
     - **Validates: Requirements 5.9, 6.7, 7.3, 11.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 9: Engine-authored heat text leaks nothing`.
@@ -178,11 +179,12 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
 - [ ] 11. Add the additive serializer fields and SQL migration (earthquake bytes unchanged)
   - [ ] 11.1 Add heat-only fields to `WorldStateSerializer` and the migration
     - In `WorldStateSerializer`, add the heat keys (`disaster`, `roomTemps`, `outside`, `ac`, `fan`, `windows`) only when `$w->disaster === Disaster::heat_wave`; for an earthquake world return exactly the same array as today so `GET /api/episodes/{id}` for an existing earthquake episode is byte-identical.
+    - In the episode list, add a `disaster` field ONLY to heat-wave items so the list shows "Heat wave"; an earthquake list item stays byte-identical to today (the same byte-identical-earthquake-API guarantee already stated for `GET /api/episodes/{id}`). Do not add the field, or any new key, to an earthquake list item.
     - Create `sql/2026-11-09_add_heat_wave.sql` adding only `ALTER TABLE episodes ADD COLUMN heat_wave_start_turn INT NULL;` — no existing row, column, or API field changes meaning; the column is NULL and not emitted for an earthquake episode.
     - Run `php -l` on every changed PHP file.
     - _Requirements: 1.8, 4.6_
 
-  - [ ]* 11.2 Write the heat-world-reproducible property test
+  - [ ] 11.2 Write the heat-world-reproducible property test
     - **Property 2: Heat-wave world is reproducible**
     - **Validates: Requirements 2.8, 11.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 2: Heat-wave world is reproducible`.
@@ -192,25 +194,27 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Add an optional `disaster` param (default `earthquake`) to `POST /api/episodes`; when `heat_wave`, store `disaster = 'heat_wave'` and play the quiet turn 0 with the heat starting situation — the resident sitting at the low table in the living room in the early afternoon, with the seed still varying the starting minute and the robots' rooms.
     - Make the Heat wave lever work from both states and never create a second episode or return `409`: with no episode it creates a heat-wave episode and fixes the heat before turn 1; after Start while no turn has been asked, it converts the waiting turn-0 episode to heat wave in place (same seed, early afternoon, resident at the low table) and fixes the heat before turn 1. Keep the Start button and the Earthquake lever exactly as today.
     - Make `POST /api/episodes/{id}/disaster` disaster-aware and idempotent for heat wave: fix the heat before turn 1, and on a repeated flip leave `heat_wave_start_turn` unchanged and return success, not `409`; permit converting a waiting turn-0, not-yet-asked default episode to heat wave only here; leave the earthquake flip unchanged.
-    - Advance 5 minutes per turn and end a heat-wave episode after at most 20 turns, with the heat not subsiding; read the 20-turn limit and the 5-minutes-per-turn value from `EpisodeConfig`, no literal in orchestration. Thread the disaster through the `EngineFactory` and the replay rebuild. Store the disaster so `GET /api/episodes/{id}` and the episode list show "Heat wave". Send `Cache-Control: no-store` on every heat-wave response. Leave earthquake creation, flip, and end rule unchanged.
+    - Advance 5 minutes per turn and end a heat-wave episode after at most 20 turns, with the heat not subsiding; read the 20-turn limit and the 5-minutes-per-turn value from `EpisodeConfig`, no literal in orchestration. Thread the disaster through the `EngineFactory` and the replay rebuild. Store the disaster so `GET /api/episodes/{id}` and the episode list show "Heat wave".
+    - In the episode list, surface the `disaster` field ONLY on heat-wave items so the list shows "Heat wave"; an earthquake list item stays byte-identical to today (the byte-identical-earthquake-API guarantee of Requirement 1.8, already stated for `GET /api/episodes/{id}`). Do not add the field, or any new key, to an earthquake list item.
+    - Send `Cache-Control: no-store` on every heat-wave response. Leave earthquake creation, flip, and end rule unchanged.
     - Run `php -l` on every changed PHP file.
-    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
+    - _Requirements: 1.8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-  - [ ]* 12.2 Write turn-loop and API example tests
+  - [ ] 12.2 Write turn-loop and API example tests
     - A created heat-wave episode places the resident at the low table in the early afternoon and the seed varies robot rooms (8.1); `GET`/list show "Heat wave" (8.3).
     - _Requirements: 8.1, 8.3_
 
-  - [ ]* 12.3 Write the flip-idempotent property test
+  - [ ] 12.3 Write the flip-idempotent property test
     - **Property 11: Fixing the heat wave is idempotent**
     - **Validates: Requirements 8.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 11: Fixing the heat wave is idempotent`.
 
-  - [ ]* 12.4 Write the never-past-20-turns property test
+  - [ ] 12.4 Write the never-past-20-turns property test
     - **Property 7: A heat-wave episode never runs past 20 turns**
     - **Validates: Requirements 8.4, 11.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 7: A heat-wave episode never runs past 20 turns`.
 
-  - [ ]* 12.5 Write the Cache-Control integration check
+  - [ ] 12.5 Write the Cache-Control integration check
     - Assert a heat-wave API response carries the HTTP header `Cache-Control: no-store` (example check, not a property).
     - _Requirements: 8.7_
 
@@ -221,7 +225,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 9.1, 9.2, 9.3_
 
-  - [ ]* 13.2 Write recorder example tests
+  - [ ] 13.2 Write recorder example tests
     - The recorder maps the heat targets with the existing vocabulary (9.1), the earthquake recorder prompt/version is unchanged (9.2), and the evidence-quote rule holds for a heat reply (9.3).
     - _Requirements: 9.1, 9.2, 9.3_
 
@@ -232,12 +236,12 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Show the temperature of the resident's room beside his meters in a heat-wave episode. Show "Heat wave" on the Replay screen, the End_Card, and the episode list. Name the two robots only as Amber and Jade and never name any AI company or model in the robots' text.
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-  - [ ]* 14.2 Write the JS screen example tests
+  - [ ] 14.2 Write the JS screen example tests
     - Heat wave lever enabled and Heavy rain disabled/"coming later" (10.1); heat fields drive heat drawing only when `disaster` is heat wave (10.2, 10.5); the resident's room temperature shows beside his meters (10.3); Replay/End_Card/list show "Heat wave" (10.4); robot names are only Amber/Jade (10.6).
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
 - [ ] 15. Add the model-solution / calibration test
-  - [ ]* 15.1 Write the model-solution and four calibration runs
+  - [ ] 15.1 Write the model-solution and four calibration runs
     - Hand-written action sequence — hand water early, carry the electric fan into the living room and switch it on, give the `AC_Danger_Reason` by speech, then turn the air conditioner on — keeps `body_temp` below `weakenedThreshold` for all 20 turns, using only triggers present in the situation text the robot reads.
     - Include the four verified calibration runs: no help → weakened at turn 13; AC from turn 5 → never weakened; fan on in his room from turn 3 → never weakened (reaches 37.9 °C at turn 20); AC from turn 14 → weakened from turn 13, recovered by turn 16.
     - _Requirements: 11.7, 4.10_
@@ -249,11 +253,12 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
 ## Notes
 
 - Task 1 (the earthquake golden-master) is REQUIRED and MUST be completed first; it is never marked optional, never regenerated, and never edited by a later task. If an earthquake value differs from the committed fixture, the work stops and reports the difference.
-- Sub-tasks marked with `*` are optional test tasks and can be skipped for a faster path; every other sub-task is implemented.
+- Every sub-task, including every test sub-task, is REQUIRED and must be implemented; none is optional. The tests are mandatory because they protect the finished earthquake (the golden master and the earthquake-untouched property) and record the resident's will (the air-conditioner acceptance/objection example and property tests).
 - Each task references the requirement clauses it implements for traceability.
 - Every heat behaviour is gated on `disaster === heat_wave`; an earthquake episode runs the existing code paths unchanged (Requirements 1.6, 1.12).
 - Property tests use Eris for PHPUnit, at least 100 cases each, one test per correctness property, tagged `Feature: heat-wave, Property {number}: {property_text}`; no test opens a network connection to a real provider.
-- PHP 8.2 language features only; run `php -l` on every changed PHP file; no deploy steps (the maintainer deploys and commits separately).
+- PHP 8.2 language features only; run `php -l` on every changed PHP file; no deploy steps and no credentials.
+- Commits follow tech.md: one commit per task, message `task N: <task title>`, made only after the full PHPUnit suite (the earthquake golden master included) and the JavaScript tests pass. Tick each finished sub-task in this file before the task's commit; the Post Task Execution hook ticks the parent task — never tick a parent yourself. Never push, amend, rebase, or reset; the maintainer reviews and pushes.
 
 ## Task Dependency Graph
 
