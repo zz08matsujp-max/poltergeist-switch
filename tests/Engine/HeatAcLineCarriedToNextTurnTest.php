@@ -54,6 +54,9 @@ final class HeatAcLineCarriedToNextTurnTest extends TestCase
     private const HEARD_LINE =
         'You hear the man say, "I hate the air conditioner. Turn it off."';
 
+    /** The bare resident line (as stored on TurnResult.residentLine). */
+    private const RESIDENT_LINE = 'I hate the air conditioner. Turn it off.';
+
     /** Turns on which BOTH robots must read the objection (produced at 1,7,13). */
     private const EXPECTED_READ_TURNS = [2, 8, 14];
 
@@ -111,6 +114,8 @@ final class HeatAcLineCarriedToNextTurnTest extends TestCase
         $textA = [];
         /** @var array<int,string> $textB */
         $textB = [];
+        /** @var array<int,?string> $residentLine TurnResult.residentLine per turn */
+        $residentLine = [];
 
         for ($n = 1; $n <= 14; $n++) {
             // Prepare the turn, then capture each robot's text BEFORE applying —
@@ -130,7 +135,9 @@ final class HeatAcLineCarriedToNextTurnTest extends TestCase
                 );
             }
 
-            $engine->applyTurn($n, $actions);
+            // Record the TurnResult.residentLine this turn carries so we can
+            // assert each AC line lands in exactly one TurnResult.
+            $residentLine[$n] = $engine->applyTurn($n, $actions)->residentLine;
         }
 
         // The AC must actually be on from turn 2 on (produced at turn 1's apply
@@ -172,6 +179,33 @@ final class HeatAcLineCarriedToNextTurnTest extends TestCase
                 self::HEARD_LINE,
                 $textB[$n],
                 "robot_b must NOT hear the AC objection on turn {$n}",
+            );
+        }
+
+        // Each AC objection must appear in EXACTLY ONE TurnResult — the turn it
+        // is heard (n+1), not the turn it is produced (n). Under the live
+        // cadence the line produced while applying turns 1, 7 and 13 is carried
+        // forward and surfaces as TurnResult.residentLine at turns 2, 8 and 14
+        // only. The override no longer also claims the producing turn's line, so
+        // the man's bubble never shows the sentence twice in a row (Req 13.8).
+        foreach (self::EXPECTED_READ_TURNS as $n) {
+            $this->assertSame(
+                self::RESIDENT_LINE,
+                $residentLine[$n],
+                "the AC line must be TurnResult.residentLine on turn {$n}",
+            );
+        }
+
+        // The producing turns (1, 7, 13) must NOT carry the AC line, and no
+        // other turn may carry it either — exactly one TurnResult per objection.
+        for ($n = 1; $n <= 14; $n++) {
+            if (in_array($n, self::EXPECTED_READ_TURNS, true)) {
+                continue;
+            }
+            $this->assertNotSame(
+                self::RESIDENT_LINE,
+                $residentLine[$n],
+                "the AC line must NOT be TurnResult.residentLine on turn {$n}",
             );
         }
     }

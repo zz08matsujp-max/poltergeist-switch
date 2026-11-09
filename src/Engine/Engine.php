@@ -552,16 +552,23 @@ class Engine
 
         // An immediate air-conditioner reply (Req 5.1–5.3) or the cooldown-
         // governed repeat (Req 5.6) at `acLinePriority` above every other
-        // resident line (Req 5.4, 5.6) claims this turn's TurnResult line,
-        // replacing whatever was fixed above — the scripted line, a support
-        // refusal, or the prepared line. It is uncooled for the immediate
-        // replies and governed by the cooldown only for the repeat, both
-        // resolved in resolveAirConditioner() before this point. Like the
-        // refusal, the line is produced only after the robots have already
-        // read and acted on this turn's text, so it is NOT read this turn; it
-        // is carried forward below so the NEXT prepareTurn surfaces it in turn
-        // n+1's text (Req 13.8).
-        if ($acLine !== null) {
+        // resident line (Req 5.4, 5.6) claims this turn's TurnResult line only
+        // on the UNPREPARED path, mirroring the support refusal in step 6: the
+        // AC line is produced AFTER the robots have already read and acted on
+        // this turn's text, so under the live cadence — where prepareTurn ran
+        // before the robots read — it is read and shown only on turn n+1. On a
+        // prepared turn it must NOT claim turn n's TurnResult line; it is only
+        // carried below so the NEXT prepareTurn surfaces it in turn n+1's text
+        // (Req 13.8), which makes each AC line appear in exactly one TurnResult
+        // (turn n keeps its prepared line; turn n+1 carries the AC line). The
+        // unprepared path (Req 13.7, e.g. tests that call applyTurn without a
+        // preceding prepareTurn) keeps today's behaviour where the AC line
+        // claims turn n's line, uncooled for the immediate replies and governed
+        // by the cooldown only for the repeat, both resolved in
+        // resolveAirConditioner() before this point. The AC line still wins
+        // over a same-turn scripted line or support refusal (acLinePriority,
+        // Req 5.4).
+        if (!$turnWasPrepared && $acLine !== null) {
             $residentLine = $acLine;
         }
 
