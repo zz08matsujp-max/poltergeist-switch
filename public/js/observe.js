@@ -489,8 +489,19 @@
     });
   }
 
+  // A 409 'disaster_already_set' means the episode's disaster is fixed on the
+  // server: show a short notice and leave both levers as they are.
+  function isDisasterAlreadySet(res) {
+    if (res && res.status === 409 && res.body && res.body.error === 'disaster_already_set') {
+      showNotice('This episode already has its disaster.');
+      return true;
+    }
+    return false;
+  }
+
   function doFlip(episodeId) {
     api.flipDisaster(episodeId).then(function (res) {
+      if (isDisasterAlreadySet(res)) { return; }
       if (!res || res.status !== 200 || !res.body) {
         showNotice('The earthquake switch did not take. Please try again.');
         return;
@@ -535,6 +546,7 @@
 
   function doFlipHeat(episodeId) {
     api.flipDisaster(episodeId, 'heat_wave').then(function (res) {
+      if (isDisasterAlreadySet(res)) { return; }
       if (!res || res.status !== 200 || !res.body) {
         showNotice('The heat wave switch did not take. Please try again.');
         return;

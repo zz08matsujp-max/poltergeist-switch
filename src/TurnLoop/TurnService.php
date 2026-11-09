@@ -299,10 +299,22 @@ class TurnService
             );
         }
 
+        // Server-side guard (heat-wave Requirement 8.2, "while no turn has been
+        // asked yet"): a disaster can only be changed while the episode is the
+        // waiting turn-0 state. Anything else is refused with 409 and nothing
+        // is written, so a running earthquake is never turned into a heat wave
+        // and a heat-wave episode never gets an earthquake start turn.
         if ($disaster === 'heat_wave') {
+            if ($episode->disaster !== 'heat_wave' && !$this->isWaitingTurnZero($episode)) {
+                throw $this->disasterAlreadySet($episode);
+            }
             $this->fixHeatWave($episode);
 
             return $this->view($episodeId);
+        }
+
+        if ($episode->disaster === 'heat_wave') {
+            throw $this->disasterAlreadySet($episode);
         }
 
         // Idempotent earthquake flip: a start turn already recorded is left
@@ -318,6 +330,37 @@ class TurnService
         }
 
         return $this->view($episodeId);
+    }
+
+    /**
+     * True while the episode is the waiting turn-0 state: no earthquake start
+     * turn, current expected turn 1, and turn 1 has no attempt, no no-reply
+     * mark and no stored successful reply for either robot.
+     */
+    private function isWaitingTurnZero(EpisodeRow $episode): bool
+    {
+        if ($episode->earthquakeStartTurn !== null || $episode->currentExpectedTurn !== 1) {
+            return false;
+        }
+
+        $turn = $this->repo->findTurn($episode->id, 1);
+        if ($turn !== null
+            && ($turn->attemptsA > 0 || $turn->attemptsB > 0 || $turn->noReplyA || $turn->noReplyB)
+        ) {
+            return false;
+        }
+
+        return $this->repo->findSuccessfulReply($episode->id, 1, self::ROBOT_A) === null
+            && $this->repo->findSuccessfulReply($episode->id, 1, self::ROBOT_B) === null;
+    }
+
+    private function disasterAlreadySet(EpisodeRow $episode): ApiError
+    {
+        return ApiError::conflict(
+            'disaster_already_set',
+            $episode->currentExpectedTurn,
+            $this->currentTurnState($episode->id, $episode->currentExpectedTurn),
+        );
     }
 
     /**

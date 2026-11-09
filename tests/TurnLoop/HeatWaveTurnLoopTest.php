@@ -9,6 +9,7 @@ use PoltergeistSwitch\TurnLoop\Clients\FakeRecorderClient;
 use PoltergeistSwitch\TurnLoop\Clients\FakeRobotClient;
 use PoltergeistSwitch\TurnLoop\Config;
 use PoltergeistSwitch\TurnLoop\EpisodeListService;
+use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\ReplayEngineFactory;
 use PoltergeistSwitch\TurnLoop\TurnService;
 use PoltergeistSwitch\TurnLoop\Values\EpisodeView;
@@ -172,5 +173,88 @@ class HeatWaveTurnLoopTest extends TestCase
         // to today (heat-wave Requirement 1.8).
         $this->assertArrayHasKey($quake->episodeId, $byId);
         $this->assertArrayNotHasKey('disaster', $byId[$quake->episodeId]);
+    }
+
+    private function assertRefused(TurnService $service, string $id, string $disaster, string $code): void
+    {
+        try {
+            $service->flipDisaster($id, $disaster);
+            $this->fail('expected a 409 ' . $code);
+        } catch (ApiError $e) {
+            $this->assertSame(409, $e->status);
+            $this->assertSame($code, $e->errorCode);
+        }
+    }
+
+    public function testRunningEarthquakeIsNotConvertedToHeatWave(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $service = $this->service($repo);
+        $id = $service->createEpisode('dev_guard_run', seed: 77)->episodeId;
+        $service->flipDisaster($id);
+        $service->ask($id, 1);
+
+        $worldBefore = $repo->loadTurnWorldJson($id);
+        $startBefore = $repo->findEpisode($id)->earthquakeStartTurn;
+
+        $this->assertRefused($service, $id, 'heat_wave', 'disaster_already_set');
+
+        $episode = $repo->findEpisode($id);
+        $this->assertSame('earthquake', $episode->disaster);
+        $this->assertNull($episode->heatWaveStartTurn);
+        $this->assertSame($startBefore, $episode->earthquakeStartTurn);
+        $this->assertSame($worldBefore, $repo->loadTurnWorldJson($id));
+    }
+
+    public function testAskedButUnflippedEpisodeIsNotConverted(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $service = $this->service($repo);
+        $id = $service->createEpisode('dev_guard_asked', seed: 78)->episodeId;
+        $service->ask($id, 1);
+
+        $this->assertRefused($service, $id, 'heat_wave', 'disaster_already_set');
+        $this->assertSame('earthquake', $repo->findEpisode($id)->disaster);
+    }
+
+    public function testEndedEarthquakeStillReturnsEpisodeEnded(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $service = $this->service($repo);
+        $id = $service->createEpisode('dev_guard_end', seed: 79)->episodeId;
+        $service->flipDisaster($id);
+        $repo->markEpisodeEnded($id);
+
+        $this->assertRefused($service, $id, 'heat_wave', 'episode_ended');
+    }
+
+    public function testEarthquakeFlipOnHeatWaveEpisodeIsRefused(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $service = $this->service($repo);
+        $id = $service->createEpisode('dev_guard_heat', seed: 80, disaster: 'heat_wave')->episodeId;
+
+        $this->assertRefused($service, $id, 'earthquake', 'disaster_already_set');
+        $this->assertNull($repo->findEpisode($id)->earthquakeStartTurn);
+
+        // Still refused after the heat is fixed.
+        $service->flipDisaster($id, 'heat_wave');
+        $this->assertRefused($service, $id, 'earthquake', 'disaster_already_set');
+        $this->assertNull($repo->findEpisode($id)->earthquakeStartTurn);
+    }
+
+    public function testWaitingTurnZeroConversionStillWorksAndIsIdempotent(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $service = $this->service($repo);
+        $id = $service->createEpisode('dev_guard_conv', seed: 81)->episodeId;
+
+        $view = $service->flipDisaster($id, 'heat_wave');
+        $this->assertSame('heat_wave', $view->disaster);
+        $this->assertSame(0, $repo->findEpisode($id)->heatWaveStartTurn);
+
+        $again = $service->flipDisaster($id, 'heat_wave');
+        $this->assertSame('heat_wave', $again->disaster);
+        $this->assertSame(0, $repo->findEpisode($id)->heatWaveStartTurn);
     }
 }
