@@ -72,12 +72,19 @@ final class PdoEpisodeRepository implements EpisodeRepository
     {
         $id = $episode->id !== '' ? $episode->id : $this->mintEpisodeId();
 
+        // heat_wave_start_turn is the only column the heat migration adds; it
+        // is NULL for an earthquake episode and set only when a heat-wave
+        // episode's heat is fixed (heat-wave Requirement 8.2). Written with the
+        // insert so a heat-wave episode created with the heat already fixed
+        // carries it from the start.
         $sql = 'INSERT INTO episodes '
             . '(id, device_id, disaster, seed, current_expected_turn, '
-            . 'earthquake_start_turn, ended, created_at, last_activity_at) '
+            . 'earthquake_start_turn, ended, created_at, last_activity_at, '
+            . 'heat_wave_start_turn) '
             . 'VALUES '
             . '(:id, :device_id, :disaster, :seed, :current_expected_turn, '
-            . ':earthquake_start_turn, :ended, :created_at, :last_activity_at)';
+            . ':earthquake_start_turn, :ended, :created_at, :last_activity_at, '
+            . ':heat_wave_start_turn)';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':id', $id);
@@ -93,6 +100,11 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $stmt->bindValue(':ended', $episode->ended ? 1 : 0, PDO::PARAM_INT);
         $stmt->bindValue(':created_at', $episode->createdAt);
         $stmt->bindValue(':last_activity_at', $episode->lastActivityAt);
+        if ($episode->heatWaveStartTurn === null) {
+            $stmt->bindValue(':heat_wave_start_turn', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue(':heat_wave_start_turn', $episode->heatWaveStartTurn, PDO::PARAM_INT);
+        }
         $stmt->execute();
 
         return $id;
@@ -151,6 +163,32 @@ final class PdoEpisodeRepository implements EpisodeRepository
             'UPDATE episodes SET earthquake_start_turn = :turn WHERE id = :id'
         );
         $stmt->bindValue(':turn', $turn, PDO::PARAM_INT);
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+    }
+
+    public function setHeatWaveStartTurn(string $id, int $turn): void
+    {
+        // The heat-wave counterpart of setEarthquakeStartTurn: record the turn
+        // the heat was fixed (heat-wave Requirement 8.2). Bound as a parameter,
+        // never interpolated, like every write in this file.
+        $stmt = $this->pdo->prepare(
+            'UPDATE episodes SET heat_wave_start_turn = :turn WHERE id = :id'
+        );
+        $stmt->bindValue(':turn', $turn, PDO::PARAM_INT);
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+    }
+
+    public function setDisaster(string $id, string $disaster): void
+    {
+        // Convert a waiting default episode to a heat-wave episode in place
+        // (heat-wave Requirement 8.2). The disaster value is bound as a
+        // parameter, never interpolated.
+        $stmt = $this->pdo->prepare(
+            'UPDATE episodes SET disaster = :disaster WHERE id = :id'
+        );
+        $stmt->bindValue(':disaster', $disaster);
         $stmt->bindValue(':id', $id);
         $stmt->execute();
     }
@@ -228,6 +266,23 @@ final class PdoEpisodeRepository implements EpisodeRepository
             $stmt->bindValue(':world_json', $worldJson);
         }
         $stmt->bindValue(':created_at', $this->now());
+        $stmt->execute();
+    }
+
+    public function setTurnWorldJson(string $episodeId, int $turnNumber, string $worldJson): void
+    {
+        // Unconditional overwrite (heat-wave Requirement 8.2): unlike the
+        // fill-only backfill, this replaces whatever the turn already holds so
+        // converting a waiting turn-0 episode to heat wave re-stores turn 0's
+        // world as the heat-wave starting situation. A turn that does not exist
+        // matches no row and is left untouched.
+        $stmt = $this->pdo->prepare(
+            'UPDATE turns SET world_json = :world_json '
+            . 'WHERE episode_id = :episode_id AND turn_number = :turn_number'
+        );
+        $stmt->bindValue(':world_json', $worldJson);
+        $stmt->bindValue(':episode_id', $episodeId);
+        $stmt->bindValue(':turn_number', $turnNumber, PDO::PARAM_INT);
         $stmt->execute();
     }
 
@@ -902,6 +957,10 @@ final class PdoEpisodeRepository implements EpisodeRepository
     private function episodeRowFrom(array $row): EpisodeRow
     {
         $earthquakeStartTurn = $row['earthquake_start_turn'];
+        // heat_wave_start_turn may be absent when read against a schema that
+        // predates the heat migration; a missing or NULL value reads back as
+        // null so an earthquake row is unchanged (heat-wave Requirement 8.2).
+        $heatWaveStartTurn = $row['heat_wave_start_turn'] ?? null;
 
         return new EpisodeRow(
             id: (string) $row['id'],
@@ -913,6 +972,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
             ended: (bool) (int) $row['ended'],
             createdAt: (string) $row['created_at'],
             lastActivityAt: (string) $row['last_activity_at'],
+            heatWaveStartTurn: $heatWaveStartTurn === null ? null : (int) $heatWaveStartTurn,
         );
     }
 

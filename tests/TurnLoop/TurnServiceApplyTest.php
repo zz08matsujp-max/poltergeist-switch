@@ -375,6 +375,16 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         $this->inner->setEarthquakeStartTurn($id, $turn);
     }
 
+    public function setHeatWaveStartTurn(string $id, int $turn): void
+    {
+        $this->inner->setHeatWaveStartTurn($id, $turn);
+    }
+
+    public function setDisaster(string $id, string $disaster): void
+    {
+        $this->inner->setDisaster($id, $disaster);
+    }
+
     public function markEpisodeEnded(string $id): void
     {
         $this->inner->markEpisodeEnded($id);
@@ -398,6 +408,11 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
     public function createTurn(string $episodeId, int $turnNumber, ?string $worldJson = null): void
     {
         $this->inner->createTurn($episodeId, $turnNumber, $worldJson);
+    }
+
+    public function setTurnWorldJson(string $episodeId, int $turnNumber, string $worldJson): void
+    {
+        $this->inner->setTurnWorldJson($episodeId, $turnNumber, $worldJson);
     }
 
     public function setTurnState(string $episodeId, int $turnNumber, string $state): void

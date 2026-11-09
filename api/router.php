@@ -95,9 +95,14 @@ function ps_dispatch(
         }
 
         // POST /api/episodes — create (takes the Memory_Snapshot when the
-        // memory service is wired; robot-memory Requirement 6.1).
+        // memory service is wired; robot-memory Requirement 6.1). An optional
+        // `disaster` query value (default 'earthquake') lets the Heat wave lever
+        // create a heat-wave episode (heat-wave Requirement 8.1); anything other
+        // than 'heat_wave' is treated as earthquake by TurnService.
         if ($method === 'POST' && $segments === ['episodes']) {
-            return ps_handle_create($service, $cookies, $memoryService);
+            $disaster = ps_disaster_from_query($query);
+
+            return ps_handle_create($service, $cookies, $memoryService, $disaster);
         }
 
         // GET /api/memory — the current generation and per-robot active-memory
@@ -116,9 +121,15 @@ function ps_dispatch(
         if (count($segments) >= 2 && $segments[0] === 'episodes') {
             $episodeId = $segments[1];
 
-            // POST /api/episodes/{id}/disaster
+            // POST /api/episodes/{id}/disaster — disaster-aware flip. An
+            // optional `disaster` query value (default 'earthquake') selects the
+            // switch: 'heat_wave' fixes the heat (converting a waiting turn-0
+            // default episode in place, heat-wave Requirement 8.2); anything
+            // else is the unchanged earthquake flip (Requirement 1.6).
             if ($method === 'POST' && count($segments) === 3 && $segments[2] === 'disaster') {
-                return ps_handle_disaster($service, $episodeId);
+                $disaster = ps_disaster_from_query($query);
+
+                return ps_handle_disaster($service, $episodeId, $disaster);
             }
 
             // POST /api/episodes/{id}/reflect — ask both robots once after an
@@ -170,6 +181,22 @@ function ps_dispatch(
         // provider name (Requirements 2.6, 10.7).
         return ps_json_response(500, ['error' => 'internal_error']);
     }
+}
+
+/**
+ * Read the optional `disaster` query value, returning 'heat_wave' only when the
+ * request explicitly asked for it and 'earthquake' otherwise (heat-wave
+ * Requirements 8.1, 8.2). Keeping the default 'earthquake' means a request that
+ * names no disaster — every request the earthquake flow makes today — behaves
+ * exactly as before, so the earthquake create and flip are unchanged.
+ *
+ * @param array<string,mixed> $query
+ */
+function ps_disaster_from_query(array $query): string
+{
+    $disaster = $query['disaster'] ?? null;
+
+    return $disaster === 'heat_wave' ? 'heat_wave' : 'earthquake';
 }
 
 /**

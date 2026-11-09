@@ -1237,10 +1237,13 @@ class Engine
      * so `$world->currentTurn` still holds the index of the turn just
      * processed. Two independent end conditions are honoured:
      *
-     *   1. Turn cap. The episode lasts at most `$config->maxTurns` turns. Turn
-     *      numbers are 0-indexed and this runs before the clock increment, so
-     *      the turn whose completion makes the count reach `maxTurns` is index
-     *      `maxTurns - 1`: once `currentTurn + 1 >= maxTurns` the cap is hit.
+     *   1. Turn cap. The episode lasts at most the disaster's turn cap read
+     *      from `EpisodeConfig`: `heatMaxTurns` (20) for a heat-wave episode
+     *      (heat-wave Requirements 8.4, 8.5) and `maxTurns` (40) for an
+     *      earthquake episode, unchanged (Requirement 1.6). Turn numbers are
+     *      0-indexed and this runs before the clock increment, so the turn
+     *      whose completion makes the count reach the cap is index `cap - 1`:
+     *      once `currentTurn + 1 >= cap` the cap is hit.
      *
      *   2. Stability after the disaster subsides. Every turn the resident is
      *      checked against the four stability conditions (Req 10.6):
@@ -1272,7 +1275,17 @@ class Engine
         }
 
         // Condition 1: the turn cap. currentTurn is still this turn's index.
-        if ($this->world->currentTurn + 1 >= $this->config->maxTurns) {
+        // The cap is disaster-aware and read only from EpisodeConfig, no
+        // literal in logic (heat-wave Requirement 8.5): a heat-wave episode
+        // uses heatMaxTurns (20) and ends after at most that many turns with
+        // the heat never subsiding (Requirement 8.4), while an earthquake
+        // episode keeps maxTurns (40) and the Requirement 10.6 end rule exactly
+        // as today (Requirement 1.6).
+        $turnCap = $this->world->disaster === Disaster::heat_wave
+            ? $this->config->heatMaxTurns
+            : $this->config->maxTurns;
+
+        if ($this->world->currentTurn + 1 >= $turnCap) {
             $this->world->episodeEnded = true;
             return;
         }

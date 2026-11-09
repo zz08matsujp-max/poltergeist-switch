@@ -176,7 +176,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 5.9, 6.7, 7.3, 11.5**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 9: Engine-authored heat text leaks nothing`.
 
-- [~] 11. Add the additive serializer fields and SQL migration (earthquake bytes unchanged)
+- [x] 11. Add the additive serializer fields and SQL migration (earthquake bytes unchanged)
   - [x] 11.1 Add heat-only fields to `WorldStateSerializer` and the migration
     - In `WorldStateSerializer`, add the heat keys (`disaster`, `roomTemps`, `outside`, `ac`, `fan`, `windows`) only when `$w->disaster === Disaster::heat_wave`; for an earthquake world return exactly the same array as today so `GET /api/episodes/{id}` for an existing earthquake episode is byte-identical.
     - In the episode list, add a `disaster` field ONLY to heat-wave items so the list shows "Heat wave"; an earthquake list item stays byte-identical to today (the same byte-identical-earthquake-API guarantee already stated for `GET /api/episodes/{id}`). Do not add the field, or any new key, to an earthquake list item.
@@ -189,8 +189,8 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - **Validates: Requirements 2.8, 11.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 2: Heat-wave world is reproducible`.
 
-- [ ] 12. Implement the heat-wave turn loop and API (dual-state lever, earthquake flow unchanged)
-  - [ ] 12.1 Add heat-wave episode creation, conversion, end rule, and the disaster-aware flip
+- [-] 12. Implement the heat-wave turn loop and API (dual-state lever, earthquake flow unchanged)
+  - [x] 12.1 Add heat-wave episode creation, conversion, end rule, and the disaster-aware flip
     - Add an optional `disaster` param (default `earthquake`) to `POST /api/episodes`; when `heat_wave`, store `disaster = 'heat_wave'` and play the quiet turn 0 with the heat starting situation — the resident sitting at the low table in the living room in the early afternoon, with the seed still varying the starting minute and the robots' rooms.
     - Make the Heat wave lever work from both states and never create a second episode or return `409`: with no episode it creates a heat-wave episode and fixes the heat before turn 1; after Start while no turn has been asked, it converts the waiting turn-0 episode to heat wave in place (same seed, early afternoon, resident at the low table) and fixes the heat before turn 1. Keep the Start button and the Earthquake lever exactly as today.
     - Make `POST /api/episodes/{id}/disaster` disaster-aware and idempotent for heat wave: fix the heat before turn 1, and on a repeated flip leave `heat_wave_start_turn` unchanged and return success, not `409`; permit converting a waiting turn-0, not-yet-asked default episode to heat wave only here; leave the earthquake flip unchanged.
@@ -200,21 +200,21 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Run `php -l` on every changed PHP file.
     - _Requirements: 1.8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-  - [ ] 12.2 Write turn-loop and API example tests
+  - [x] 12.2 Write turn-loop and API example tests
     - A created heat-wave episode places the resident at the low table in the early afternoon and the seed varies robot rooms (8.1); `GET`/list show "Heat wave" (8.3).
     - _Requirements: 8.1, 8.3_
 
-  - [ ] 12.3 Write the flip-idempotent property test
+  - [x] 12.3 Write the flip-idempotent property test
     - **Property 11: Fixing the heat wave is idempotent**
     - **Validates: Requirements 8.2**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 11: Fixing the heat wave is idempotent`.
 
-  - [ ] 12.4 Write the never-past-20-turns property test
+  - [x] 12.4 Write the never-past-20-turns property test
     - **Property 7: A heat-wave episode never runs past 20 turns**
     - **Validates: Requirements 8.4, 11.6**
     - Eris, at least 100 cases, tagged `Feature: heat-wave, Property 7: A heat-wave episode never runs past 20 turns`.
 
-  - [ ] 12.5 Write the Cache-Control integration check
+  - [x] 12.5 Write the Cache-Control integration check
     - Assert a heat-wave API response carries the HTTP header `Cache-Control: no-store` (example check, not a property).
     - _Requirements: 8.7_
 

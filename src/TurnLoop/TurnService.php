@@ -122,11 +122,27 @@ class TurnService
      * A device id is assigned when the cookie is absent (an empty $deviceId),
      * so a first-time visitor gets a stable device slot.
      *
+     * A heat-wave episode (heat-wave Requirements 8.1, 8.3) is created by
+     * passing $disaster = 'heat_wave': the episode row records
+     * disaster = 'heat_wave', the quiet turn 0 is played through the engine
+     * rebuilt as a heat-wave world (so turn 0's stored World_State is the heat
+     * starting situation — the resident at the low table in the early
+     * afternoon, with the seed still varying the starting minute and the
+     * robots' rooms), and the heat is fixed before turn 1 by recording the
+     * heat-wave start turn (E − 1 = 0 after the quiet turn 0), exactly mirroring
+     * the earthquake flip's non-negative start-turn mapping. An earthquake
+     * episode (the default) is created exactly as before, with no heat field
+     * touched (Requirement 1.6, 1.8).
+     *
      * @param string   $deviceId the device cookie value; '' when absent
      * @param int|null $seed      an explicit seed for reproducible tests; null draws one
+     * @param string   $disaster  'earthquake' (default) or 'heat_wave'
      */
-    public function createEpisode(string $deviceId, ?int $seed = null): EpisodeView
-    {
+    public function createEpisode(
+        string $deviceId,
+        ?int $seed = null,
+        string $disaster = 'earthquake',
+    ): EpisodeView {
         $deviceId = $deviceId !== '' ? $deviceId : $this->assignDeviceId();
 
         // Device_Episode_Slot rules first (Requirements 9.7–9.9). The lazy
@@ -142,19 +158,29 @@ class TurnService
         $now = $this->now();
         $episodeId = $this->mintEpisodeId();
 
+        // Only the two disasters this spec knows are accepted; anything else
+        // falls back to earthquake so a stray value never creates a malformed
+        // episode. Heavy rain stays out of scope (its lever is disabled).
+        $disaster = $disaster === 'heat_wave' ? 'heat_wave' : 'earthquake';
+
         // Record the episode first so the engine factory can rehydrate it. The
         // current expected turn starts at 0, the engine's first turn; the quiet
-        // turn 0 below advances it to 1.
+        // turn 0 below advances it to 1. A heat-wave episode stores
+        // disaster = 'heat_wave' so the factory rebuilds it as a heat-wave
+        // world (heat-wave Requirement 8.3); heat_wave_start_turn stays null
+        // here and is set after the quiet turn 0, when the heat is fixed before
+        // turn 1 (Requirement 8.1). An earthquake episode is unchanged.
         $this->repo->createEpisode(new EpisodeRow(
             id: $episodeId,
             deviceId: $deviceId,
-            disaster: 'earthquake',
+            disaster: $disaster,
             seed: $seedValue,
             currentExpectedTurn: 0,
             earthquakeStartTurn: null,
             ended: false,
             createdAt: $now,
             lastActivityAt: $now,
+            heatWaveStartTurn: null,
         ));
 
         // Play the quiet turn 0 through the engine — no robot calls, no actions,
@@ -195,6 +221,18 @@ class TurnService
             $this->repo->setCurrentExpectedTurn($episodeId, 1);
         }
 
+        // Fix the heat wave before turn 1 (heat-wave Requirement 8.1): record
+        // the heat-wave start turn as E − 1 = 0, exactly like the earthquake
+        // flip's non-negative start-turn mapping, so the heat is on from the
+        // first played turn. This is skipped for an earthquake episode, which
+        // never touches the heat field. The episode is already a heat-wave
+        // world (the row stored disaster = 'heat_wave'), so the heat rules run
+        // every turn; the start turn only marks the fix so a later flip is
+        // idempotent.
+        if ($disaster === 'heat_wave' && !$result->episodeEnded) {
+            $this->repo->setHeatWaveStartTurn($episodeId, 0);
+        }
+
         return $this->view($episodeId);
     }
 
@@ -216,12 +254,43 @@ class TurnService
      */
     public function flipEarthquake(string $episodeId): EpisodeView
     {
+        return $this->flipDisaster($episodeId, 'earthquake');
+    }
+
+    /**
+     * Flip a disaster switch for an episode, disaster-aware and idempotent
+     * (Requirement 4.4–4.6 for earthquake; heat-wave Requirement 8.2 for heat).
+     *
+     * $disaster selects which switch the observer raised:
+     *   - 'earthquake' (default): the unchanged earthquake flip. When no start
+     *     turn is recorded and the episode has not ended, the start turn is set
+     *     to E − 1 so the next turn played opens the shaking; a repeated flip
+     *     leaves it unchanged; an ended episode is rejected with 409. The
+     *     earthquake path is byte-identical to today (Requirement 1.6).
+     *   - 'heat_wave': the Heat wave flip. It converts a waiting (turn-0,
+     *     not-yet-asked) default episode to a heat-wave episode in place — same
+     *     seed, early afternoon, resident at the low table — then fixes the heat
+     *     before turn 1 by recording the heat-wave start turn (E − 1 = 0). It is
+     *     idempotent: a repeated flip on an already-heat-wave episode leaves the
+     *     heat-wave start turn unchanged and returns success, never a 409
+     *     (Requirement 8.2). An ended episode is still rejected with 409.
+     *
+     * Conversion is permitted ONLY while no turn has been asked, i.e. the
+     * episode is still at the waiting turn 0 (current expected turn 1, nothing
+     * past turn 0 applied); this is always true immediately after create, which
+     * is the only moment the lever fires. An already-heat-wave episode skips
+     * the conversion and only re-fixes the heat idempotently.
+     */
+    public function flipDisaster(string $episodeId, string $disaster = 'earthquake'): EpisodeView
+    {
         $episode = $this->repo->findEpisode($episodeId);
         if ($episode === null) {
             throw ApiError::notFound();
         }
 
-        // Ended episode: reject with 409 and change nothing (Requirement 4.6).
+        // Ended episode: reject with 409 and change nothing (Requirement 4.6;
+        // heat-wave Requirement 8.2 leaves the ended guard as the earthquake
+        // flow has it).
         if ($episode->ended) {
             throw ApiError::conflict(
                 'episode_ended',
@@ -230,8 +299,14 @@ class TurnService
             );
         }
 
-        // Idempotent flip: a start turn already recorded is left unchanged
-        // (Requirement 4.5).
+        if ($disaster === 'heat_wave') {
+            $this->fixHeatWave($episode);
+
+            return $this->view($episodeId);
+        }
+
+        // Idempotent earthquake flip: a start turn already recorded is left
+        // unchanged (Requirement 4.5).
         if ($episode->earthquakeStartTurn === null) {
             // The next turn played (the current expected turn E) must be
             // earthquake offset 1, so startTurn = E − 1. E is ≥ 1 after the
@@ -243,6 +318,61 @@ class TurnService
         }
 
         return $this->view($episodeId);
+    }
+
+    /**
+     * Fix the heat wave for an episode (heat-wave Requirements 8.1, 8.2),
+     * converting a waiting default episode to heat wave in place when needed.
+     *
+     * Idempotency is the load-bearing property: once the heat-wave start turn
+     * is recorded, a repeated flip changes nothing and returns success, never a
+     * 409 (Requirement 8.2). The conversion (setting the disaster and
+     * re-laying the heat-wave turn-0 world) happens at most once, guarded by
+     * the heat-wave start turn being null.
+     */
+    private function fixHeatWave(EpisodeRow $episode): void
+    {
+        // Already fixed: leave the heat-wave start turn unchanged and return
+        // success (Requirement 8.2 idempotency). No second episode, no 409.
+        if ($episode->heatWaveStartTurn !== null) {
+            return;
+        }
+
+        // Convert a waiting default (earthquake) episode to heat wave in place
+        // (Requirement 8.2): set its disaster and re-lay turn 0's World_State as
+        // the heat-wave starting situation, built from the SAME seed so the
+        // draw (the starting minute and the robots' rooms) is unchanged. An
+        // episode already stored as heat wave (created with disaster=heat_wave)
+        // skips this, so the conversion runs at most once.
+        if ($episode->disaster !== 'heat_wave') {
+            $this->repo->setDisaster($episode->id, 'heat_wave');
+
+            // Rebuild turn 0 as a heat-wave world now that the row says heat
+            // wave, and overwrite the stored turn-0 World_State so GET and the
+            // screens read the heat starting situation (resident at the low
+            // table, early afternoon). The engine factory reads the disaster
+            // from the row, so forEpisodeWithWorld builds a heat-wave world.
+            $built = $this->engineFactory->forEpisodeWithWorld($episode->id);
+            $engine = $built['engine'];
+            $world = $built['world'];
+            $engine->prepareTurn(0);
+            $engine->applyTurn(0, []);
+
+            $this->repo->setTurnWorldJson(
+                $episode->id,
+                0,
+                $this->worldSerializer->toJson($world),
+            );
+        }
+
+        // Fix the heat before turn 1 (Requirement 8.1): record the heat-wave
+        // start turn as E − 1, mirroring the earthquake flip's non-negative
+        // mapping. After the quiet turn 0 the current expected turn is 1, so
+        // the start turn is 0.
+        $this->repo->setHeatWaveStartTurn(
+            $episode->id,
+            $episode->currentExpectedTurn - 1,
+        );
     }
 
     /**

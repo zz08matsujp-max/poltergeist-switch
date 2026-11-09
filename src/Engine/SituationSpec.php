@@ -143,4 +143,36 @@ readonly class SituationSpec
 
         return new self($time, $robotARoom, $robotBRoom, $manActivity, false);
     }
+
+    /**
+     * Derive a heat-wave starting SituationSpec from a Seed (heat-wave
+     * Requirement 8.1). The heat wave begins in a fixed starting pose: the
+     * resident sitting at the low table in the living room in the early
+     * afternoon. The seed still varies the robots' rooms (product brief
+     * Principle 8), drawn here from the full six-room list in the same way
+     * fromSeed() draws them, so two heat-wave episodes with the same seed place
+     * the robots identically and a different seed can place them differently.
+     *
+     * Unlike fromSeed(), the time and the resident's activity are NOT drawn:
+     * they are fixed to 'afternoon' and 'sitting_at_table' so every heat-wave
+     * episode opens with the man at the low table in the early afternoon. The
+     * pot never boils in a heat-wave start.
+     *
+     * Requirements: heat-wave 8.1
+     */
+    public static function forHeatWave(Seed $seed): self
+    {
+        $roomKeys = self::ROOM_KEYS;
+
+        $robotARoom = $roomKeys[$seed->next(0, count($roomKeys) - 1)];
+        $robotBRoom = $roomKeys[$seed->next(0, count($roomKeys) - 1)];
+
+        return new self(
+            TimeOfDay::afternoon->value,
+            $robotARoom,
+            $robotBRoom,
+            ManActivity::sitting_at_table->value,
+            false,
+        );
+    }
 }

@@ -34,6 +34,7 @@ function ps_handle_create(
     TurnService $service,
     array $cookies,
     ?MemoryService $memoryService = null,
+    string $disaster = 'earthquake',
 ): PsApiResponse {
     $deviceId = ps_device_id_from_cookies($cookies);
     $setDeviceId = null;
@@ -44,7 +45,10 @@ function ps_handle_create(
         $setDeviceId = $deviceId;
     }
 
-    $view = $service->createEpisode($deviceId);
+    // $disaster is 'earthquake' (default) or 'heat_wave'; TurnService treats
+    // anything other than 'heat_wave' as earthquake, so the earthquake create
+    // is unchanged (heat-wave Requirement 8.1).
+    $view = $service->createEpisode($deviceId, disaster: $disaster);
 
     // Freeze the per-robot Memory_Snapshot and the episode's generation onto the
     // new episode, so every new episode carries a snapshot and a generation

@@ -158,8 +158,19 @@ class WorldModel implements SituationView, HeatSituationView
         // Null means earthquake, keeping every existing caller unchanged.
         $this->disaster = $disaster ?? Disaster::earthquake;
 
-        // 2/3. resolve the start layout.
-        $this->situationSpec = $spec ?? SituationSpec::fromSeed($seed);
+        // 2/3. resolve the start layout. An explicit spec always wins (the
+        // engine tests pass one). Otherwise a heat-wave episode draws the fixed
+        // heat starting pose — the resident at the low table in the early
+        // afternoon, with the seed varying only the robots' rooms (heat-wave
+        // Requirement 8.1) — while an earthquake episode draws the full
+        // fromSeed() spec exactly as today (Requirement 1.6).
+        if ($spec !== null) {
+            $this->situationSpec = $spec;
+        } elseif ($this->disaster === Disaster::heat_wave) {
+            $this->situationSpec = SituationSpec::forHeatWave($seed);
+        } else {
+            $this->situationSpec = SituationSpec::fromSeed($seed);
+        }
 
         // 4/5. rebuild rooms and the object registry to their canonical state.
         $this->initRooms();

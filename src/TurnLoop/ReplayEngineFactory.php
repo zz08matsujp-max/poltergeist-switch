@@ -7,7 +7,9 @@ namespace PoltergeistSwitch\TurnLoop;
 use PoltergeistSwitch\Engine\ActionExecutor;
 use PoltergeistSwitch\Engine\EarthquakePhase;
 use PoltergeistSwitch\Engine\Engine;
+use PoltergeistSwitch\Engine\Enums\Disaster;
 use PoltergeistSwitch\Engine\EpisodeConfig;
+use PoltergeistSwitch\Engine\HeatWavePhase;
 use PoltergeistSwitch\Engine\ResidentController;
 use PoltergeistSwitch\Engine\RulesEvaluator;
 use PoltergeistSwitch\Engine\Seed;
@@ -203,8 +205,16 @@ final class ReplayEngineFactory implements EngineFactory
             throw new RuntimeException('unknown episode');
         }
 
+        // Thread the episode's disaster into the reset so a rebuilt world knows
+        // which rules run (heat-wave Requirement 8.2): a heat-wave episode
+        // resets to the hot starting situation and runs the heat branch every
+        // turn, while an earthquake episode keeps the unchanged earthquake path
+        // (Requirement 1.6). An unrecognised stored value falls back to
+        // earthquake so a malformed row never throws here.
+        $disaster = Disaster::tryFrom($episode->disaster) ?? Disaster::earthquake;
+
         $world = new WorldModel($this->config);
-        $world->reset(Seed::fromInt($episode->seed));
+        $world->reset(Seed::fromInt($episode->seed), null, $disaster);
 
         $engine = new Engine(
             $world,
@@ -214,6 +224,7 @@ final class ReplayEngineFactory implements EngineFactory
             new EarthquakePhase(),
             new ResidentController(),
             new SituationTextGenerator(),
+            new HeatWavePhase(),
         );
 
         // Thread each robot's frozen Memory_Snapshot into the engine before any

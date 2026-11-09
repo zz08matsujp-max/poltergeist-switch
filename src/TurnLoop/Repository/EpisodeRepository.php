@@ -60,6 +60,23 @@ interface EpisodeRepository
     public function setEarthquakeStartTurn(string $id, int $turn): void;
 
     /**
+     * Record the heat-wave start turn for an episode, the turn its heat was
+     * fixed (heat-wave Requirement 8.2). Written once when the heat wave is
+     * fixed before turn 1; a repeated Heat wave flip leaves it unchanged, which
+     * is what makes the flip idempotent. NULL for every earthquake episode, so
+     * this is never called for one.
+     */
+    public function setHeatWaveStartTurn(string $id, int $turn): void;
+
+    /**
+     * Set an episode's disaster (heat-wave Requirement 8.2). Used only to
+     * convert a waiting (turn-0, not-yet-asked) default episode to a heat-wave
+     * episode in place, so the Heat wave lever never creates a second episode.
+     * The earthquake flip never calls this.
+     */
+    public function setDisaster(string $id, string $disaster): void;
+
+    /**
      * Mark an episode ended (Requirement 7.5).
      */
     public function markEpisodeEnded(string $id): void;
@@ -97,6 +114,16 @@ interface EpisodeRepository
      * unchanged, so a repeated create never overwrites a stored world.
      */
     public function createTurn(string $episodeId, int $turnNumber, ?string $worldJson = null): void;
+
+    /**
+     * Overwrite a turn's stored `world_json` unconditionally (heat-wave
+     * Requirement 8.2). Unlike {@see fillMissingWorldJson}, which fills only a
+     * missing world, this replaces whatever a turn already holds, so converting
+     * a waiting turn-0 episode to heat wave in place can re-store turn 0's
+     * world as the heat-wave starting situation. A turn that does not exist is
+     * left untouched.
+     */
+    public function setTurnWorldJson(string $episodeId, int $turnNumber, string $worldJson): void;
 
     /**
      * Set a turn's state. The state only ever advances forward

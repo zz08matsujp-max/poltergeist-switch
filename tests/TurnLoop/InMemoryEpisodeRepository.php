@@ -112,6 +112,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             ended: $episode->ended,
             createdAt: $episode->createdAt,
             lastActivityAt: $episode->lastActivityAt,
+            heatWaveStartTurn: $episode->heatWaveStartTurn,
         );
 
         return $id;
@@ -155,6 +156,26 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         }
 
         $this->episodes[$id] = $this->withEpisodeChanges($episode, earthquakeStartTurn: $turn);
+    }
+
+    public function setHeatWaveStartTurn(string $id, int $turn): void
+    {
+        $episode = $this->episodes[$id] ?? null;
+        if ($episode === null) {
+            return;
+        }
+
+        $this->episodes[$id] = $this->withEpisodeChanges($episode, heatWaveStartTurn: $turn);
+    }
+
+    public function setDisaster(string $id, string $disaster): void
+    {
+        $episode = $this->episodes[$id] ?? null;
+        if ($episode === null) {
+            return;
+        }
+
+        $this->episodes[$id] = $this->withEpisodeChanges($episode, disaster: $disaster);
     }
 
     public function markEpisodeEnded(string $id): void
@@ -221,6 +242,20 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             createdAt: $this->now(),
             worldJson: $worldJson,
         );
+    }
+
+    public function setTurnWorldJson(string $episodeId, int $turnNumber, string $worldJson): void
+    {
+        // Unconditional overwrite (heat-wave Requirement 8.2), mirroring the
+        // PDO store: a turn that exists has its world replaced; a missing turn
+        // is left untouched.
+        $key = $this->turnKey($episodeId, $turnNumber);
+        $turn = $this->turns[$key] ?? null;
+        if ($turn === null) {
+            return;
+        }
+
+        $this->turns[$key] = $this->withTurnChanges($turn, worldJson: $worldJson);
     }
 
     public function setTurnState(string $episodeId, int $turnNumber, string $state): void
@@ -849,17 +884,20 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         ?int $earthquakeStartTurn = null,
         ?bool $ended = null,
         ?string $lastActivityAt = null,
+        ?string $disaster = null,
+        ?int $heatWaveStartTurn = null,
     ): EpisodeRow {
         return new EpisodeRow(
             id: $episode->id,
             deviceId: $episode->deviceId,
-            disaster: $episode->disaster,
+            disaster: $disaster ?? $episode->disaster,
             seed: $episode->seed,
             currentExpectedTurn: $currentExpectedTurn ?? $episode->currentExpectedTurn,
             earthquakeStartTurn: $earthquakeStartTurn ?? $episode->earthquakeStartTurn,
             ended: $ended ?? $episode->ended,
             createdAt: $episode->createdAt,
             lastActivityAt: $lastActivityAt ?? $episode->lastActivityAt,
+            heatWaveStartTurn: $heatWaveStartTurn ?? $episode->heatWaveStartTurn,
         );
     }
 

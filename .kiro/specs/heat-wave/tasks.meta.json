@@ -15,6 +15,14 @@
     "11.2 Write the heat-world-reproducible property test": {
       "status": "passed",
       "lastRunTimestamp": 1794229634763
+    },
+    "12.3 Write the flip-idempotent property test": {
+      "status": "passed",
+      "lastRunTimestamp": 1794231053439
+    },
+    "12.4 Write the never-past-20-turns property test": {
+      "status": "passed",
+      "lastRunTimestamp": 1794231054073
     }
   },
   "executionHistory": {
@@ -228,6 +236,13 @@
         "executionId": "f0f29295-f931-4b24-9037-35ba0bbd59c8",
         "chatSessionId": "sess_17580abb-6d32-4db3-a5aa-5963b64ad61a",
         "timestamp": 1794229551520
+      }
+    ],
+    "12. Implement the heat-wave turn loop and API (dual-state lever, earthquake flow unchanged)": [
+      {
+        "executionId": "c25fec58-63f3-4e75-9519-3d44f756976f",
+        "chatSessionId": "sess_ced99377-53c0-417d-9184-5009f23a7041",
+        "timestamp": 1794229724387
       }
     ]
   }
