@@ -270,9 +270,19 @@ class ActionExecutor
 
         $object = $this->object($action, $world);
 
-        // Turning the gas stove off clears only the flame; the gas main stays
-        // as it is (Req 5.3).
+        // Using the gas stove: check its flame first (Req 33). When it is
+        // already off, change nothing (the stove stays off, the gas main is
+        // untouched) and say so, so the record never claims a flame went out
+        // when there was none (Req 33.1). When it is on, turning it off clears
+        // only the flame; the gas main stays as it is (Req 5.3, Req 33.2).
         if ($object->id === self::GAS_STOVE_ID) {
+            if ($object->on === false) {
+                return [
+                    "You turned the gas stove's knob. It was already off.",
+                    "The other robot turned the gas stove's knob. It was already off.",
+                ];
+            }
+
             $object->on = false;
 
             return [

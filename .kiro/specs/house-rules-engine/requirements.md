@@ -357,6 +357,22 @@ A live run (episode 2a3800d5) showed the contradiction this fixes: the man start
 
 ---
 
+### Requirement 33: Using the gas stove when it is already off
+
+**User Story:** As a viewer, I want a robot that turns the gas stove's knob when the stove is already off to change nothing and to be described as having changed nothing, so that the record never claims a flame went out when there was no flame.
+
+(Decided by the maintainer; wording fixed by the maintainer.)
+
+Two live runs showed the engine reporting a change that did not happen. In episode 450e9249, turn 0 `world.stove.on` is `false` (the stove was already off); at turn 1 `turns[1].robots.robot_a.reading.actionQuote` is "reach for the gas stove's shutoff knob, turning it firmly to closed" and `turns[1].robots.robot_a.outcome.whatHappenedText` is "You turned off the gas stove. The flame went out." In episode bae88cfc, the world after turn 5 has `stove.on` `false`; at turn 6 `turns[6].robots.robot_a.reading.actionQuote` is "I turn it fully off" and `turns[6].robots.robot_a.outcome.whatHappenedText` is "You turned off the gas stove. The flame went out." In both the stove was already off, so the "flame went out" text is false.
+
+#### Acceptance Criteria
+
+1. WHEN a `use` action targets the gas stove AND the stove's `on` flag is already `false`, THE Engine SHALL change nothing in the World_Model (the stove stays off and `House_State.gas_main` is untouched) and SHALL return `whatHappenedText` = "You turned the gas stove's knob. It was already off." and `seenByOtherText` = "The other robot turned the gas stove's knob. It was already off."
+2. WHEN a `use` action targets the gas stove AND the stove's `on` flag is `true`, THE Engine SHALL set the stove's `on` flag to `false`, leave `House_State.gas_main` untouched (Requirement 5.3, unchanged), and return `whatHappenedText` = "You turned off the gas stove. The flame went out." and `seenByOtherText` = "The other robot turned off the gas stove. The flame went out." (unchanged).
+3. BECAUSE the gas-stove outcome text is carried into both the next-turn situation text and the reflection text, THE Engine SHALL bump `SituationTextGenerator::VERSION` and `ReflectionTextBuilder::REFLECTION_TEXT_VERSION`.
+
+---
+
 ## Open Questions
 
 **(a) Speaking as an action** — Decided by the maintainer on 2026-11-01: speaking does not use the robot's one physical action. A robot does at most one physical action per turn, and the words it speaks in the same reply are delivered in parallel (see Requirement 5.12). `EpisodeConfig::speakConsumesAction` stays `false`; the flag is kept only for later comparison.

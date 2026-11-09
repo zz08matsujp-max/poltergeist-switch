@@ -33,7 +33,7 @@ class ReflectionTextVersionTest extends TestCase
     public function testReflectionTextVersionConstantIsPinned(): void
     {
         $this->assertSame(
-            'reflection-text-2026-11-09b',
+            'reflection-text-2026-11-09c',
             ReflectionTextBuilder::REFLECTION_TEXT_VERSION,
             'bump REFLECTION_TEXT_VERSION whenever the fixed text, lead-in, '
             . 'event-block forms, or the question changes',
@@ -49,7 +49,7 @@ class ReflectionTextVersionTest extends TestCase
         $builder = new ReflectionTextBuilder(new SituationTextGenerator());
 
         $this->assertSame(
-            'reflection-text-2026-11-09b',
+            'reflection-text-2026-11-09c',
             $builder->version(),
             'ReflectionTextBuilder::version() must surface REFLECTION_TEXT_VERSION',
         );

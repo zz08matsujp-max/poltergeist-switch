@@ -223,7 +223,7 @@ class ActionExecutorTest extends TestCase
     public function testSituationTextVersionIsBumped(): void
     {
         $this->assertSame(
-            'situation-text-2026-11-09',
+            'situation-text-2026-11-09a',
             \PoltergeistSwitch\Engine\SituationTextGenerator::VERSION,
         );
     }
@@ -276,6 +276,48 @@ class ActionExecutorTest extends TestCase
         $this->assertFalse($world->objects['gas_stove']->on);
         // The gas main is unchanged by turning off the stove flame (Req 5.3).
         $this->assertSame(GasState::open, $world->houseState->gasMain);
+        // On -> off reports the flame going out (Req 33.2).
+        $this->assertSame(
+            'You turned off the gas stove. The flame went out.',
+            $outcome->whatHappenedText,
+        );
+        $this->assertSame(
+            'The other robot turned off the gas stove. The flame went out.',
+            $outcome->seenByOtherText,
+        );
+    }
+
+    public function testUseGasStoveAlreadyOffChangesNothingAndSaysSo(): void
+    {
+        $world = $this->makeWorld();
+
+        // Start from an already-off stove; nothing else is changed first.
+        $world->objects['gas_stove']->on = false;
+        $this->assertSame(GasState::open, $world->houseState->gasMain);
+
+        $action = new Action(
+            robotId: 'robot_a',
+            operation: Operation::use->value,
+            targetId: 'gas_stove',
+        );
+
+        $outcome = $this->executor->execute($action, $this->possible('robot_a'), $world, $this->config);
+
+        // Already off -> nothing changes: the stove stays off and the gas main
+        // is untouched (Req 33.1).
+        $this->assertTrue($outcome->success);
+        $this->assertFalse($world->objects['gas_stove']->on);
+        $this->assertSame(GasState::open, $world->houseState->gasMain);
+        // ...and the texts say it was already off, not that a flame went out
+        // (Req 33.1).
+        $this->assertSame(
+            "You turned the gas stove's knob. It was already off.",
+            $outcome->whatHappenedText,
+        );
+        $this->assertSame(
+            "The other robot turned the gas stove's knob. It was already off.",
+            $outcome->seenByOtherText,
+        );
     }
 
     public function testUseGasMainValveClosesGasMain(): void

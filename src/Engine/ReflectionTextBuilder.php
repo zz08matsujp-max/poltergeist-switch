@@ -50,7 +50,7 @@ final class ReflectionTextBuilder
      * against silent drift. Kept at most 32 characters to fit the reflection
      * prompt's version column.
      */
-    public const REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09b';
+    public const REFLECTION_TEXT_VERSION = 'reflection-text-2026-11-09c';
 
     /**
      * The single sentence that introduces the turn-by-turn recap (Req 1.2). It

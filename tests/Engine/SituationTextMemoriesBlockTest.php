@@ -36,8 +36,9 @@ use PoltergeistSwitch\Engine\WorldModel;
  * machinery had perturbed any no-memory output, these comparisons would fail.
  *
  * The second check pins the situation-text version to
- * 'situation-text-2026-11-09': adding the block to the generator forced a
- * conscious bump from the previous 'situation-text-2026-11-08c', and this
+ * 'situation-text-2026-11-09a': adding the memories block forced a bump to
+ * 'situation-text-2026-11-09', and the gas-stove already-off outcome text
+ * (Req 33) bumped it again to 'situation-text-2026-11-09a'; this
  * golden keeps any later change to the generator honest (robot-memory
  * Requirement 6.8).
  *
@@ -360,7 +361,7 @@ class SituationTextMemoriesBlockTest extends TestCase
     }
 
     /**
-     * Req 6.8: Engine::situationTextVersion() equals 'situation-text-2026-11-09'.
+     * Req 6.8: Engine::situationTextVersion() equals 'situation-text-2026-11-09a'.
      * Adding the memories block to the generator forced a conscious bump from
      * the previous version; this golden keeps any later change honest.
      */
@@ -390,9 +391,9 @@ class SituationTextMemoriesBlockTest extends TestCase
         );
 
         $this->assertSame(
-            'situation-text-2026-11-09',
+            'situation-text-2026-11-09a',
             $engine->situationTextVersion(),
-            'the situation-text version must be bumped to situation-text-2026-11-09 for the memories block'
+            'the situation-text version must be situation-text-2026-11-09a (gas-stove already-off outcome text, Req 33.3)'
         );
     }
 }

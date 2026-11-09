@@ -523,6 +523,21 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - A man starting `sitting_at_table` is unaffected; the banned-word property test and all golden situation tests (S0–S5) still pass
     - _Requirements: Req 32.1, 32.2, 32.3, 32.6, 32.7_
 
+- [ ] 33. Using the gas stove when it is already off (added 2026-11-09)
+  - [x] 33.1 `ActionExecutor::executeUse`: check the gas stove's `on` flag before mutating (Req 33.1, 33.2).
+    - In the gas-stove branch, if `$object->on` is already `false`, change nothing (leave the stove off, do not touch `houseState->gasMain`) and return `"You turned the gas stove's knob. It was already off."` / `"The other robot turned the gas stove's knob. It was already off."`
+    - If `$object->on` is `true`, set it to `false` and return the current texts `"You turned off the gas stove. The flame went out."` / `"The other robot turned off the gas stove. The flame went out."` (unchanged)
+    - Run `php -l` on the changed PHP file
+    - _Requirements: Req 33.1, 33.2_
+  - [x] 33.2 Bump the two outcome-text versions (Req 33.3).
+    - Bump `SituationTextGenerator::VERSION` to the next dated string and `ReflectionTextBuilder::REFLECTION_TEXT_VERSION` to the next dated string (add a letter when that date is already used), because the gas-stove outcome text is carried into both the situation text and the reflection text
+    - Update the version-assertion tests (`tests/Engine/ActionExecutorTest.php`, `tests/Engine/SituationTextMemoriesBlockTest.php`, `tests/Engine/ReflectionTextVersionTest.php`)
+    - _Requirements: Req 33.3_
+  - [x] 33.3 Unit tests for both cases (required).
+    - On → off: a `use` on a lit gas stove sets `on=false`, leaves `gasMain` open, and returns the "The flame went out." texts
+    - Already off → unchanged: a `use` on an already-off gas stove changes nothing and returns the "It was already off." texts
+    - _Requirements: Req 33.1, 33.2_
+
 ---
 
 ## Notes
@@ -572,7 +587,8 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     { "id": 23, "tasks": ["28.3", "29.2"] },
     { "id": 24, "tasks": ["30.1", "30.2", "30.3"] },
     { "id": 25, "tasks": ["31.1"] },
-    { "id": 26, "tasks": ["32.1", "32.2", "32.3"] }
+    { "id": 26, "tasks": ["32.1", "32.2", "32.3"] },
+    { "id": 27, "tasks": ["33.1", "33.2", "33.3"] }
   ]
 }
 ```
