@@ -291,7 +291,13 @@ final class HeatTextFixesTest extends TestCase
 
         // A second `use` toggles it off and reads the off form.
         $engine->applyTurn(1, []);
-        $off = $engine->applyTurn(2, ['robot_a' => $use]);
+        $useOff = new Action(
+            'robot_a',
+            Operation::use->value,
+            targetId: self::AC_ID,
+            actionQuote: 'I turn the air conditioner off.',
+        );
+        $off = $engine->applyTurn(2, ['robot_a' => $useOff]);
         $this->assertFalse($world->acOn());
         $this->assertSame(
             'You switched off the window air conditioner.',

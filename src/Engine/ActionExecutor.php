@@ -58,6 +58,12 @@ class ActionExecutor
     /** Object id of the window air conditioner (heat-wave Req 4.1, 5). */
     private const AIR_CONDITIONER_ID = 'window_air_conditioner';
 
+    /** Outcome text (robot's own view) of adjusting the running air conditioner. */
+    public const AC_ADJUSTED_YOU = 'You adjusted the window air conditioner. It is still running.';
+
+    /** Outcome text (other robot's view) of adjusting the running air conditioner. */
+    public const AC_ADJUSTED_OTHER = 'The other robot adjusted the window air conditioner. It is still running.';
+
     /** Object id of the refrigerator; cold water comes from it (heat-wave Req 4.4). */
     private const REFRIGERATOR_ID = 'refrigerator';
 
@@ -480,6 +486,19 @@ class ActionExecutor
     private function useAirConditioner(Action $action, WorldModel $world): array
     {
         $ac = $this->object($action, $world);
+
+        // A `use` while the AC is running switches it off only when the action
+        // quote says so (a whole word "off", "shut" or "stop"). Otherwise the
+        // robot adjusted the running unit (a gentler setting, the louvers) and
+        // it stays on. An adjustment is not a new activation (the resident does
+        // not object to it; see Engine::acUseTurnedItOnThisTurn).
+        if ($ac->on && !self::quoteSaysOff($action->actionQuote)) {
+            return [
+                self::AC_ADJUSTED_YOU,
+                self::AC_ADJUSTED_OTHER,
+            ];
+        }
+
         $ac->on = !$ac->on;
 
         if ($ac->on) {
@@ -493,6 +512,20 @@ class ActionExecutor
             'You switched off the window air conditioner.',
             'The other robot switched off the window air conditioner.',
         ];
+    }
+
+    /**
+     * Whether an action quote contains an "off" word as a whole word,
+     * case-insensitively: "off", "shut" or "stop". "offer" and "stopper" do not
+     * match. A missing quote has no off word.
+     */
+    public static function quoteSaysOff(?string $quote): bool
+    {
+        if ($quote === null) {
+            return false;
+        }
+
+        return preg_match('/\b(?:off|shut|stop)\b/i', $quote) === 1;
     }
 
     /**

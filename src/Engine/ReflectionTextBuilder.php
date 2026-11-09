@@ -67,7 +67,7 @@ final class ReflectionTextBuilder
      * golden test on the literal guards against silent drift. Kept at most 32
      * characters to fit the reflection prompt's version column.
      */
-    public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10a';
+    public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10b';
 
     /**
      * The single sentence that introduces the turn-by-turn recap (Req 1.2). It

@@ -51,7 +51,7 @@ final class SituationTextGenerator
      * world so the stored prompt carries the right version. Kept at most 32
      * characters to fit the prompts.situation_text_version column.
      */
-    public const VERSION_HEAT = 'situation-text-heat-2026-11-10a';
+    public const VERSION_HEAT = 'situation-text-heat-2026-11-10b';
 
     /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.

@@ -1001,7 +1001,13 @@ class Engine
             }
 
             $outcome = $outcomes[$action->robotId] ?? null;
-            if ($outcome !== null && $outcome->success && $this->world->acOn()) {
+            // Adjusting an AC that was already running is not a new activation.
+            if (
+                $outcome !== null
+                && $outcome->success
+                && $outcome->whatHappenedText !== ActionExecutor::AC_ADJUSTED_YOU
+                && $this->world->acOn()
+            ) {
                 return true;
             }
         }

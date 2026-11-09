@@ -627,29 +627,101 @@
     // unless a single Step was requested (Req 5.8, 5.9).
     if (state.paused && !stepOnce) { stopLoop(); return; }
 
-    var turnNumber = state.expectedTurn;
+    askAndApply(state.expectedTurn, 0);
+  }
 
+  // ── ask/apply recovery (error path only) ────────────────────────────────────
+  //
+  // A long ask can fail at the server's front (a 502 after ~30 s) even though
+  // the replies were stored; repeating the ask is idempotent and returns the
+  // stored result. So a 5xx or a network failure on ask/apply does not pause at
+  // once: wait RECOVERY_WAIT_MS, GET the episode, and continue from the stored
+  // state of that turn. After MAX_TURN_TRIES failed tries for the same turn the
+  // loop pauses with the existing notice. The wait is injectable: set
+  // window.observeWait = function (ms) { return Promise } before use (tests).
+  var RECOVERY_WAIT_MS = 5000;
+  var MAX_TURN_TRIES = 3;
+
+  function recoveryWait(ms) {
+    if (typeof window !== 'undefined' && typeof window.observeWait === 'function') {
+      return Promise.resolve(window.observeWait(ms));
+    }
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  // A server error or a failed request (status 0 stands for a swallowed
+  // network failure from the prefetched ask). 4xx and 409 are not transient.
+  function isTransient(res) {
+    return !!res && (res.status === 0 || res.status >= 500);
+  }
+
+  // Ask the turn, then apply it. `failures` counts the failed tries so far for
+  // this turn (0 on the normal path).
+  function askAndApply(turnNumber, failures) {
     askTurn(turnNumber).then(function (askRes) {
       if (handleTurn409(askRes)) { looping = false; runLoop(); return; }
+      if (isTransient(askRes)) {
+        recoverTurn(turnNumber, failures + 1, 'A turn could not be asked. Paused.');
+        return;
+      }
       if (!askRes || askRes.status !== 200) {
         showNotice('A turn could not be asked. Paused.');
         stopLoop();
         return;
       }
-      // Apply the turn. The stored result is whatever apply returns; the
-      // animation never changes it (Req 5.7).
-      return api.apply(state.episodeId, turnNumber).then(function (applyRes) {
-        if (handleTurn409(applyRes)) { looping = false; runLoop(); return; }
-        if (!applyRes || applyRes.status !== 200 || !applyRes.body) {
-          showNotice('A turn could not be applied. Paused.');
-          stopLoop();
+      applyOnly(turnNumber, failures);
+    }, function () {
+      recoverTurn(turnNumber, failures + 1, 'The lab could not be reached. Paused.');
+    });
+  }
+
+  // Apply the turn. The stored result is whatever apply returns; the animation
+  // never changes it (Req 5.7).
+  function applyOnly(turnNumber, failures) {
+    api.apply(state.episodeId, turnNumber).then(function (applyRes) {
+      if (handleTurn409(applyRes)) { looping = false; runLoop(); return; }
+      if (isTransient(applyRes)) {
+        recoverTurn(turnNumber, failures + 1, 'A turn could not be applied. Paused.');
+        return;
+      }
+      if (!applyRes || applyRes.status !== 200 || !applyRes.body) {
+        showNotice('A turn could not be applied. Paused.');
+        stopLoop();
+        return;
+      }
+      onApplied(applyRes.body, turnNumber);
+    }, function () {
+      recoverTurn(turnNumber, failures + 1, 'The lab could not be reached. Paused.');
+    });
+  }
+
+  // One failed try has happened for this turn. Pause after MAX_TURN_TRIES;
+  // otherwise wait, read the stored state and carry on from it.
+  function recoverTurn(turnNumber, failures, pausedNotice) {
+    pendingAsk = null;
+    if (failures >= MAX_TURN_TRIES) {
+      showNotice(pausedNotice);
+      stopLoop();
+      return;
+    }
+    recoveryWait(RECOVERY_WAIT_MS).then(function () {
+      return api.getEpisode(state.episodeId).then(function (res) {
+        if (!res || res.status !== 200 || !res.body) {
+          recoverTurn(turnNumber, failures + 1, pausedNotice);
           return;
         }
-        onApplied(applyRes.body, turnNumber);
+        var stored = findTurn(res.body, turnNumber);
+        var storedState = stored && stored.state;
+        if (storedState === 'applied') {
+          onApplied(res.body, turnNumber);
+        } else if (storedState === 'replies_complete') {
+          applyOnly(turnNumber, failures);
+        } else {
+          askAndApply(turnNumber, failures);
+        }
+      }, function () {
+        recoverTurn(turnNumber, failures + 1, pausedNotice);
       });
-    }, function () {
-      showNotice('The lab could not be reached. Paused.');
-      stopLoop();
     });
   }
 
