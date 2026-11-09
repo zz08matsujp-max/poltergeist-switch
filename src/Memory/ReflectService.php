@@ -213,7 +213,7 @@ final class ReflectService
                 turnNumber: self::REFLECTION_TURN,
                 robotId: $robotId,
                 attempt: self::REFLECTION_ATTEMPT,
-                situationTextVersion: ReflectionTextBuilder::REFLECTION_TEXT_VERSION,
+                situationTextVersion: $this->builder->versionFor($finalWorld),
                 reply: $record,
                 kind: 'reflection',
             ));

@@ -238,6 +238,33 @@ final class ReflectServiceTest extends TestCase
 
     // ---------- Reasons: empty answer vs failed call vs timeout ----------
 
+    public function testStoredReflectionVersionMatchesTheDisaster(): void
+    {
+        $expected = [
+            'earthquake' => ReflectionTextBuilder::REFLECTION_TEXT_VERSION,
+            'heat_wave' => ReflectionTextBuilder::REFLECTION_TEXT_VERSION_HEAT,
+        ];
+
+        foreach ($expected as $disaster => $version) {
+            $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);
+            $robotA = new FakeRobotClient();
+            $robotB = new FakeRobotClient();
+
+            $episodeId = $this->endedEpisodeWithSnapshot($repo, $robotA, $robotB, $disaster);
+            $this->reflectService($repo, $robotA, $robotB)->reflect($episodeId);
+
+            foreach (['robot_a', 'robot_b'] as $robotId) {
+                $attempts = $repo->storedAttempts($episodeId, -1, $robotId);
+                $this->assertNotEmpty($attempts, "{$disaster}: a reflection prompt is stored for {$robotId}");
+                $this->assertSame(
+                    $version,
+                    $attempts[0]->situationTextVersion,
+                    "{$disaster}: the stored reflection version matches the text built for {$robotId}"
+                );
+            }
+        }
+    }
+
     public function testEmptyAnswerStoresNoMemoryWithEmptyAnswerReason(): void
     {
         $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);
@@ -361,13 +388,14 @@ final class ReflectServiceTest extends TestCase
         InMemoryEpisodeRepository $repo,
         FakeRobotClient $reflectA,
         FakeRobotClient $reflectB,
+        string $disaster = 'earthquake',
     ): string {
         // The reflect fakes return replies configured for the reflection call,
         // which may be unanswered or empty — useless for driving the turn loop.
         // Drive the run with plain run-robots instead; the ended episode then
         // persists in the shared repo for the reflect-under-test fakes.
         $service = $this->turnService($repo);
-        $created = $service->createEpisode('dev_reflect', seed: 4242);
+        $created = $service->createEpisode('dev_reflect', seed: 4242, disaster: $disaster);
 
         return $created->episodeId;
     }
@@ -383,9 +411,10 @@ final class ReflectServiceTest extends TestCase
         InMemoryEpisodeRepository $repo,
         FakeRobotClient $reflectA,
         FakeRobotClient $reflectB,
+        string $disaster = 'earthquake',
     ): string {
-        $episodeId = $this->createEpisode($repo, $reflectA, $reflectB);
-        $this->runToEnd($repo, $episodeId);
+        $episodeId = $this->createEpisode($repo, $reflectA, $reflectB, $disaster);
+        $this->runToEnd($repo, $episodeId, $disaster);
         // Post-feature episodes carry a snapshot (even an empty one) from
         // creation; store one so episodeHasSnapshot is true and reflect is
         // allowed.
@@ -405,10 +434,13 @@ final class ReflectServiceTest extends TestCase
      * the quake starts on turn 1 and subsides on its own. Bounded so a stuck
      * run fails loudly rather than hanging. Uses its own run-robots.
      */
-    private function runToEnd(InMemoryEpisodeRepository $repo, string $episodeId): void
-    {
+    private function runToEnd(
+        InMemoryEpisodeRepository $repo,
+        string $episodeId,
+        string $disaster = 'earthquake',
+    ): void {
         $service = $this->turnService($repo);
-        $service->flipEarthquake($episodeId);
+        $service->flipDisaster($episodeId, $disaster);
 
         $applied = 0;
         while (true) {
