@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "/Users/tahoe/.venvs/mcp-fetch/bin/mcp-server-fetch",
+      "args": [],
+      "disabled": false,
+      "autoApprove": ["fetch"]
+    }
+  }
+}
