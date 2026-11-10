@@ -281,6 +281,7 @@ function endCardFor(view) {
   observe._state().episodeId = null;
   observe._state().running = false;
   observe._state().ended = false;
+  observe._state().phase = 'idle';
   fakeApi.createEpisode = function () {
     return Promise.resolve({ status: 409, body: { error: 'device_already_running', episodeId: view.episodeId } });
   };

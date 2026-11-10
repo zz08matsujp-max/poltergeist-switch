@@ -148,7 +148,7 @@ header('Cache-Control: no-store');
          levers also start one in the run loop. -->
     <div class="controls">
       <button type="button" class="btn primary" id="btn-start">Start</button>
-      <button type="button" class="btn" id="btn-voices" aria-pressed="false">Voices: off</button>
+      <button type="button" class="btn" id="btn-voices" aria-pressed="true">Voices: on</button>
     </div>
 
     <!-- Memory bar (robot-memory spec, Req 7.1, 7.2). observe.js fills the

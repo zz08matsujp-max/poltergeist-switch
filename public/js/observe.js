@@ -42,7 +42,11 @@
     expectedTurn: 0,       // the next expected turn number
     running: false,        // the loop is advancing turns
     ended: false,          // apply reported the episode ended
-    disaster: 'earthquake' // the current episode's disaster (view.disaster)
+    disaster: 'earthquake', // the current episode's disaster (view.disaster)
+    // Explicit page phase: idle | starting | staged | running | unfinished |
+    // ended (design "Observe phases"). Exposed through _state(); the
+    // transitions are wired in by the later sub-tasks of task 12.
+    phase: 'idle'
   };
 
   // ── helpers the run loop (9.3) calls ───────────────────────────────────────
@@ -364,33 +368,136 @@
   var looping = false;
 
   /**
-   * startRun() — the Start button. Create one episode (unless one is already in
-   * progress), then show the calm turn-0 house from the returned view's turn-0
-   * world with NO AI call and NO turns running (Req 4.6, 5.1). Start while an
-   * episode is in progress creates no additional episode and leaves it
-   * unchanged (Req 4.9).
+   * onStart() — the Start button, dispatched on state.phase (design "Observe
+   * phases", Req 9.1-9.5). `starting` is set synchronously here, before any
+   * request, so a second press cannot create a second episode.
+   *   idle      create only, then show the calm turn-0 house (-> staged)
+   *   starting  ignored          staged  ignored          running  ignored
+   *   unfinished  Try-again-style continue, never creates
+   *   ended     clear the client state and start as from idle
    */
-  function startRun() {
-    // Req 4.9: an episode already in progress is left untouched; no new episode.
-    if (state.episodeId || state.running) { return; }
+  function onStart() {
+    primeVoices();
     if (!api) { return; }
+    if (state.phase === 'ended') { startNewRun(); }
+    if (state.phase === 'unfinished') { continueUnfinished(); return; }
+    if (state.phase !== 'idle') { return; }
+    state.phase = 'starting';
     clearNotice();
     api.createEpisode().then(function (res) {
       if (res && res.status === 409) {
-        // Slot/resume/lab-busy conflict — task 9.4 fleshes this out.
+        state.phase = 'idle';
         handleSlotConflict(res.body);
         return;
       }
       if (!res || res.status !== 200 || !res.body) {
+        state.phase = 'idle';
         showNotice('The lab could not start an episode. Please try again.');
         return;
       }
       adoptEpisode(res.body);
       // Draw the calm turn-0 world. No AI call, no turns running yet (Req 5.1).
       drawTurnZero(res.body);
+      state.phase = 'staged';
     }, function () {
+      state.phase = 'idle';
       showNotice('The lab could not be reached. Please try again.');
     });
+  }
+
+  // Kept for callers of the old name.
+  var startRun = onStart;
+
+  /**
+   * onLever(disaster) — a Lever flip ('earthquake' or 'heat_wave').
+   *   idle      create (with the disaster) then flip
+   *   staged    flip the waiting turn-0 episode in place
+   *   starting / running  ignored
+   *   unfinished  Try-again-style continue, never creates
+   *   ended     clear the client state and start as from idle
+   */
+  function onLever(disaster) {
+    primeVoices();
+    if (!api) { return; }
+    disaster = (disaster === 'heat_wave') ? 'heat_wave' : 'earthquake';
+    if (state.phase === 'ended') { startNewRun(); }
+    if (state.phase === 'unfinished') { continueUnfinished(); return; }
+    if (state.phase === 'staged') {
+      state.phase = 'starting';
+      clearNotice();
+      flipFor(disaster, state.episodeId);
+      return;
+    }
+    if (state.phase !== 'idle') { return; }
+    state.phase = 'starting';
+    clearNotice();
+    api.createEpisode(disaster === 'heat_wave' ? 'heat_wave' : undefined).then(function (res) {
+      if (res && res.status === 409) {
+        state.phase = 'idle';
+        handleSlotConflict(res.body);
+        return;
+      }
+      if (!res || res.status !== 200 || !res.body) {
+        state.phase = 'idle';
+        showNotice('The lab could not start an episode. Please try again.');
+        return;
+      }
+      adoptEpisode(res.body);
+      drawTurnZero(res.body);
+      flipFor(disaster, state.episodeId);
+    }, function () {
+      state.phase = 'idle';
+      showNotice('The lab could not be reached. Please try again.');
+    });
+  }
+
+  function flipFor(disaster, episodeId) {
+    if (disaster === 'heat_wave') { doFlipHeat(episodeId); } else { doFlip(episodeId); }
+  }
+
+  /**
+   * startNewRun() — from `ended`: drop everything the finished run left on the
+   * page so the next run starts from an empty client state (Req 9.2).
+   */
+  function startNewRun() {
+    if (actOut && typeof actOut.cancel === 'function') {
+      try { actOut.cancel(); } catch (e) { /* ignore */ }
+    }
+    setThinkingBoth(false);
+    pendingAsk = null;
+    actingOut = null;
+    looping = false;
+    state.episodeId = null;
+    state.expectedTurn = 0;
+    state.running = false;
+    state.ended = false;
+    state.disaster = 'earthquake';
+    setEarthquakeLever(false);
+    setHeatLever(false);
+    clearMeters();
+    clearLog();
+    clearNotice();
+    dismissEndCard();     // also drops el.reflectHost
+    state.phase = 'idle';
+  }
+
+  // Try again style continue from `unfinished`: re-read the stored episode and
+  // carry on from its expected turn. Never creates an episode.
+  function continueUnfinished() {
+    if (!api || !state.episodeId) { state.phase = 'idle'; return; }
+    state.phase = 'starting';
+    clearNotice();
+    pendingAsk = null;
+    var failed = function () {
+      state.phase = 'unfinished';
+      showNotice('That episode could not be resumed.');
+    };
+    api.getEpisode(state.episodeId).then(function (res) {
+      if (!res || res.status !== 200 || !res.body || !res.body.episodeId) { failed(); return; }
+      adoptEpisode(res.body);
+      if (state.ended) { onEpisodeEnded(res.body); return; }
+      runLoop();
+    }, failed);
   }
 
   // ── run-loop internals ──────────────────────────────────────────────────────
@@ -429,32 +536,6 @@
     if (t0 && isHeatWorld(t0.world)) { updateRoomTemp(t0.world.man, t0.world); }
   }
 
-  // Flip the earthquake and start the turns. Creates the episode first if none
-  // is present (Req 4.7, 4.8, 5.2, 5.3). Raises the lever on a successful flip.
-  function flipEarthquakeAndRun() {
-    if (!api) { return; }
-    if (state.running) { return; }   // already running the turns
-    clearNotice();
-
-    if (state.episodeId) {
-      doFlip(state.episodeId);
-      return;
-    }
-    // No episode yet: create one first, then flip (Req 4.8, 5.3).
-    api.createEpisode().then(function (res) {
-      if (res && res.status === 409) { handleSlotConflict(res.body); return; }
-      if (!res || res.status !== 200 || !res.body) {
-        showNotice('The lab could not start an episode. Please try again.');
-        return;
-      }
-      adoptEpisode(res.body);
-      drawTurnZero(res.body);
-      doFlip(state.episodeId);
-    }, function () {
-      showNotice('The lab could not be reached. Please try again.');
-    });
-  }
-
   // A 409 'disaster_already_set' means the episode's disaster is fixed on the
   // server: show a short notice and leave both levers as they are.
   function isDisasterAlreadySet(res) {
@@ -467,8 +548,9 @@
 
   function doFlip(episodeId) {
     api.flipDisaster(episodeId).then(function (res) {
-      if (isDisasterAlreadySet(res)) { return; }
+      if (isDisasterAlreadySet(res)) { state.phase = 'staged'; return; }
       if (!res || res.status !== 200 || !res.body) {
+        state.phase = 'staged';
         showNotice('The earthquake switch did not take. Please try again.');
         return;
       }
@@ -476,44 +558,16 @@
       setEarthquakeLever(true);
       runLoop();
     }, function () {
+      state.phase = 'staged';
       showNotice('The earthquake switch did not take. Please try again.');
-    });
-  }
-
-  // Raise the Heat wave lever and start the turns (heat-wave Req 8.1, 8.2,
-  // 10.1). Dual-state: with no episode it CREATES one as a heat-wave episode;
-  // with a waiting turn-0 episode (Start already pressed) it CONVERTS that
-  // episode in place through POST /api/episodes/{id}/disaster. It never
-  // creates a second episode and never expects a 409.
-  function flipHeatAndRun() {
-    if (!api) { return; }
-    if (state.running) { return; }
-    clearNotice();
-
-    if (state.episodeId) {
-      doFlipHeat(state.episodeId);
-      return;
-    }
-    api.createEpisode('heat_wave').then(function (res) {
-      if (res && res.status === 409) { handleSlotConflict(res.body); return; }
-      if (!res || res.status !== 200 || !res.body) {
-        showNotice('The lab could not start an episode. Please try again.');
-        return;
-      }
-      adoptEpisode(res.body);
-      drawTurnZero(res.body);
-      // The created episode is already a heat-wave world; the flip fixes the
-      // heat before turn 1 and is idempotent.
-      doFlipHeat(state.episodeId);
-    }, function () {
-      showNotice('The lab could not be reached. Please try again.');
     });
   }
 
   function doFlipHeat(episodeId) {
     api.flipDisaster(episodeId, 'heat_wave').then(function (res) {
-      if (isDisasterAlreadySet(res)) { return; }
+      if (isDisasterAlreadySet(res)) { state.phase = 'staged'; return; }
       if (!res || res.status !== 200 || !res.body) {
+        state.phase = 'staged';
         showNotice('The heat wave switch did not take. Please try again.');
         return;
       }
@@ -523,6 +577,7 @@
       setHeatLever(true);
       runLoop();
     }, function () {
+      state.phase = 'staged';
       showNotice('The heat wave switch did not take. Please try again.');
     });
   }
@@ -574,16 +629,26 @@
   // guards against a second concurrent run (Req: cancelable / no double-run).
   function runLoop() {
     if (looping) { return; }
-    if (!state.episodeId || state.ended) { return; }
+    if (!state.episodeId) { return; }
+    if (state.ended) {
+      // An ended episode has nothing to run; Try again / a Lever fetches it
+      // and shows the End_Card.
+      state.phase = 'unfinished';
+      return;
+    }
 
     looping = true;
     state.running = true;
+    state.phase = 'running';
     runOneTurn();
   }
 
-  function stopLoop() {
+  // Stop the loop. By default the run is `unfinished` (failed tries used up or
+  // not recoverable); the ended paths pass 'ended'.
+  function stopLoop(toPhase) {
     looping = false;
     state.running = false;
+    state.phase = (toPhase === 'ended') ? 'ended' : 'unfinished';
   }
 
   function runOneTurn() {
@@ -723,7 +788,7 @@
         // Stop advancing; send no further ask/apply (Req 5.11). Hand off to the
         // End_Card seam (task 9.4).
         pendingAsk = null;
-        stopLoop();
+        stopLoop('ended');
         onEpisodeEnded(view);
         return;
       }
@@ -784,7 +849,7 @@
       if (typeof body.currentExpectedTurn === 'number') {
         state.expectedTurn = body.currentExpectedTurn;
       }
-      stopLoop();
+      stopLoop('ended');
       finishFromServer();
       return true;
     }
@@ -833,6 +898,7 @@
    */
   function onEpisodeEnded(view) {
     state.ended = true;
+    state.phase = 'ended';
     renderEndCard(view);
     // Robot memory (task 12.1): now that the episode has ended, ask both robots
     // what they want to remember and show the result in the End_Card (Req 7.3,
@@ -1162,9 +1228,13 @@
   // continue from the returned currentExpectedTurn; on failure show a
   // could-not-resume error and offer Replay (Req 7.3).
   function resumeEpisode(resumeId) {
+    primeVoices();
     if (!resumeId || !api) { showResumeFailed(); return; }
+    if (state.phase !== 'idle') { return; }
+    state.phase = 'starting';
     api.getEpisode(resumeId).then(function (res) {
       if (!res || res.status !== 200 || !res.body || !res.body.episodeId) {
+        state.phase = 'idle';
         showResumeFailed();
         return;
       }
@@ -1187,6 +1257,7 @@
       }
       runLoop();
     }, function () {
+      state.phase = 'idle';
       showResumeFailed();
     });
   }
@@ -1416,10 +1487,12 @@
   // status line is refreshed afterwards so the counts reflect any new memory.
   function runEndCardReflection() {
     var host = el.reflectHost;
-    if (!host) { return; }
-    if (!api || typeof api.reflect !== 'function' || !state.episodeId) {
+    var episodeId = state.episodeId;
+    if (!host) { finishClosing(episodeId); return Promise.resolve(); }
+    if (!api || typeof api.reflect !== 'function' || !episodeId) {
       host.textContent = '';
-      return;
+      finishClosing(episodeId);
+      return Promise.resolve();
     }
 
     // Awaiting state (Req 7.3): the exact wording while the reflection runs.
@@ -1429,8 +1502,7 @@
     waiting.textContent = 'Writing down what to remember\u2026';
     host.appendChild(waiting);
 
-    var episodeId = state.episodeId;
-    api.reflect(episodeId).then(function (res) {
+    return api.reflect(episodeId).then(function (res) {
       // Only render if the card is still showing this episode's reflect host
       // (the viewer may have closed the card or started another episode).
       if (el.reflectHost !== host) { return; }
@@ -1449,7 +1521,19 @@
       // The reflect call could not be reached: clear the awaiting text so the
       // card is not left mid-sentence. No memory is shown.
       host.textContent = '';
+    }).then(function () {
+      finishClosing(episodeId);
     });
+  }
+
+  // The last turn and its reflection (or "not stored") are done: switch both
+  // Levers OFF. Guarded by the episode id so a late reflection never switches
+  // off a newer run's Lever (Req 9.1, 9.2). The phase stays `ended`: the
+  // End_Card is still shown and the next Lever or Start clears it.
+  function finishClosing(episodeId) {
+    if (!episodeId || state.episodeId !== episodeId || state.phase !== 'ended') { return; }
+    setEarthquakeLever(false);
+    setHeatLever(false);
   }
 
   // Render the reflect result for both robots into the End_Card host (Req 7.4,
@@ -1472,53 +1556,35 @@
 
   // ── UI setup wiring (task 9.2) ──────────────────────────────────────────────
 
+  // First_Gesture (Req 11.3, design C10): called synchronously, first thing, in
+  // the Lever, Start, Notice_Resume and Try again handlers. Speech stays
+  // silent until one of these has run. Safe to call repeatedly.
+  function primeVoices() {
+    if (voices && typeof voices.gesture === 'function') {
+      try { voices.gesture(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // The button label, aria-pressed and toggle come from bindVoicesButton
+  // (speech-sequencer.js). The page starts as "Voices: on" (Req 11.1).
   function wireVoicesToggle() {
-    if (!el.btnVoices) { return; }
-    el.btnVoices.addEventListener('click', function () {
-      var nowOn = voices ? !voices.isEnabled() : false;
-      if (voices) {
-        voices.setEnabled(nowOn);
-        // Unlock playback on this user gesture (browser autoplay rule).
-        if (typeof voices.unlock === 'function') { voices.unlock(); }
-      }
-      el.btnVoices.setAttribute('aria-pressed', nowOn ? 'true' : 'false');
-      el.btnVoices.textContent = 'Voices: ' + (nowOn ? 'on' : 'off');
-    });
+    if (!el.btnVoices || typeof window.bindVoicesButton !== 'function') { return; }
+    window.bindVoicesButton(el.btnVoices, voices, sequencer);
   }
 
   function wireSwitches() {
-    // Earthquake: in 9.2 this only reflects the lever; 9.3 replaces/extends the
-    // handler to flip the earthquake and run the turns.
+    // Both Levers dispatch on state.phase (onLever); a flip while a run is in
+    // progress is ignored there.
     if (el.swEarthquake) {
-      el.swEarthquake.addEventListener('click', function () {
-        // Raise the Earthquake lever: flip the earthquake and run the turns,
-        // creating the episode first if none exists (Req 4.7, 4.8, 5.2, 5.3).
-        // The lever is raised by doFlip() only on a successful flip, so a failed
-        // flip leaves the lever down. Ignore clicks once the earthquake is
-        // already raised / running so the switch is a one-way lever.
-        if (state.running || (el.swEarthquake.getAttribute('aria-pressed') === 'true')) {
-          return;
-        }
-        // A heat-wave episode is already raised: the earthquake lever does nothing.
-        if (el.swHeat && el.swHeat.getAttribute('aria-pressed') === 'true') { return; }
-        flipEarthquakeAndRun();
-      });
+      el.swEarthquake.addEventListener('click', function () { onLever('earthquake'); });
     }
-    // Heat wave (heat-wave Req 10.1): create-or-convert, one-way like the
-    // Earthquake lever.
     if (el.swHeat) {
-      el.swHeat.addEventListener('click', function () {
-        if (state.running || (el.swHeat.getAttribute('aria-pressed') === 'true')) {
-          return;
-        }
-        if (el.swEarthquake && el.swEarthquake.getAttribute('aria-pressed') === 'true') { return; }
-        flipHeatAndRun();
-      });
+      el.swHeat.addEventListener('click', function () { onLever('heat_wave'); });
     }
   }
 
   function wireControls() {
-    if (el.btnStart) { el.btnStart.addEventListener('click', startRun); }
+    if (el.btnStart) { el.btnStart.addEventListener('click', onStart); }
   }
 
   // Put the screen in its first-load state: no episode in progress, Earthquake
@@ -1530,6 +1596,7 @@
     state.expectedTurn = 0;
     state.running = false;
     state.ended = false;
+    state.phase = 'idle';
     setEarthquakeLever(false);
     setHeatLever(false);
     clearMeters();
@@ -1566,8 +1633,10 @@
     // Construct the modules the run loop (9.3) and End_Card (9.4) will use.
     api = (typeof window.createApiClient === 'function') ? window.createApiClient() : null;
     house = (typeof window.createHouseRenderer === 'function') ? window.createHouseRenderer() : null;
-    // Voices default OFF; the toggle turns them on and unlocks on the gesture.
-    voices = (typeof window.createVoices === 'function') ? window.createVoices({ enabled: false }) : null;
+    // Voices default ON (Req 11.1) but stay silent until the First_Gesture.
+    voices = (typeof window.createVoices === 'function')
+      ? window.createVoices({ enabled: true, autoUnlock: false })
+      : null;
     sequencer = (typeof window.createSpeechSequencer === 'function' && house)
       ? window.createSpeechSequencer({ house: house, voices: voices })
       : null;
@@ -1611,6 +1680,11 @@
     appendLog: appendLog,
     setEarthquakeLever: setEarthquakeLever,
     startRun: startRun,
+    onStart: onStart,
+    onLever: onLever,
+    startNewRun: startNewRun,
+    finishClosing: finishClosing,
+    runEndCardReflection: runEndCardReflection,
     // Robot memory (task 11.1): the status-line refresh, the in-page All-reset
     // confirm flow, and the missed-reflection catch-up, exposed so task 12.1
     // (the End_Card reflect-and-show) and a headless check can drive them.

@@ -291,7 +291,7 @@ Steering constraints that apply to every task:
     - Create `tests/js/act-out-speech.test.js`: `playTurn` resolves only after animation and speech are both done; a turn with no Spoken_Line waits 0 ms for speech; `cancel()` closes the bubble and resolves the pending turn; reduced motion jumps within 100 ms; no speech before the First_Gesture.
     - _Requirements: 11.3, 11.10, 11.12, 11.16, 14.11_
 
-- [~] 11. Remove Pause, Step, Resume and Heavy rain from Observe
+- [x] 11. Remove Pause, Step, Resume and Heavy rain from Observe
   - [x] 11.1 Remove the controls and the lever
     - In `public/index.php` delete `#btn-pause`, `#btn-step`, `#btn-resume`, `#sw-rain` and the "coming later" text, and fix the stale comments. In `public/js/observe.js` remove `pause/step/resume`, `state.paused`, `stepOnce`, the three `el.btn*` lookups, their `wireControls` handlers, `el.swRain` and their exports. Remove the `.later` and any Pause/Step/Resume-only CSS from `public/css/screens.css`. Keep Start, Voices, Notice_Resume and "Watch a past episode".
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.7_
@@ -302,17 +302,17 @@ Steering constraints that apply to every task:
     - Update `tests/js/heat-wave-screens.test.js` (remove the Heavy rain disabled and "coming later" assertions; everything else stays) and any of `end-card-reflection.test.js`, `memory-ui.test.js`, `disaster-already-set.test.js`, `ask-apply-recovery.test.js` that reference removed exports or elements.
     - _Requirements: 10.1, 10.5, 14.13_
 
-- [ ] 12. Add the Observe phase machine and levers after an episode ends
-  - [ ] 12.1 Add the fake API helper and expose the phase
+- [~] 12. Add the Observe phase machine and levers after an episode ends
+  - [x] 12.1 Add the fake API helper and expose the phase
     - Create `tests/js/helpers/fake-api.js` (scripted `{status, body}` per call, records calls). In `observe.js` add `state.phase` (`idle`, `starting`, `staged`, `running`, `unfinished`, `ended`) to `_state()`.
     - _Requirements: 9.5, 14.9_
-  - [ ] 12.2 Implement the phases and the run guards
+  - [x] 12.2 Implement the phases and the run guards
     - `onLever(disaster)` and `onStart()` dispatch on `state.phase` per the design table; `starting` is set synchronously at click time; a second Lever flip or Start press while `starting` or `running` is ignored. `startNewRun()` from `ended` cancels act-out, clears `pendingAsk`, the episode id, expected turn, meters, log, notice and End_Card (`dismissEndCard`), and drops the reflection host. `runEndCardReflection()` returns a Promise; `finishClosing(episodeId)` switches both Levers OFF only if `state.episodeId === episodeId && phase === 'ended'`. The existing ask/apply 5xx recovery stays unchanged here.
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
-  - [ ] 12.3 Wire Voices into Observe
+  - [x] 12.3 Wire Voices into Observe
     - `public/index.php`: the Voices button starts as "Voices: on" with `aria-pressed="true"`; load `js/speech-sequencer.js` before `act-out.js`. `observe.js`: `createVoices({enabled:true, autoUnlock:false})`, `createSpeechSequencer({house, voices})`, `createActOut(house, voices, sequencer)`, `bindVoicesButton(...)`; `voices.gesture()` is called synchronously first in the Lever and Start handlers.
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
-  - [ ] 12.4 Write the Observe flow examples
+  - [x] 12.4 Write the Observe flow examples
     - Create `tests/js/observe-flow.test.js` with fixed examples: both Levers are OFF after the last turn and the reflection (or "not stored"); a later Lever or Start creates a new episode with empty client state and no End_Card; a second Lever flip or Start press while a run is in progress is ignored; the Voices label starts "Voices: on" and no speech happens before the First_Gesture.
     - _Requirements: 9.1, 9.2, 9.3, 9.5, 11.1, 11.3, 14.9, 14.16_
 
