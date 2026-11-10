@@ -51,7 +51,7 @@ final class SituationTextGenerator
      * world so the stored prompt carries the right version. Kept at most 32
      * characters to fit the prompts.situation_text_version column.
      */
-    public const VERSION_HEAT = 'situation-text-heat-2026-11-10b';
+    public const VERSION_HEAT = 'situation-text-heat-2026-11-10c';
 
     /**
      * Clock phrases per time of day. Mirrors V_TIMES in pilot/index.php.
@@ -283,6 +283,15 @@ final class SituationTextGenerator
         'Your memories (what you wrote down after an earlier disaster in this house):';
 
     /**
+     * The heat-wave Memories_Block heading. The memories a heat-wave robot
+     * holds come from an earlier day, so the heading says so; otherwise
+     * "earlier" can be read as "earlier today". Earthquake episodes keep
+     * MEMORIES_HEADING byte-for-byte.
+     */
+    private const MEMORIES_HEADING_HEAT =
+        'Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):';
+
+    /**
      * Build the section-3 Memories_Block from a robot's ordered verbatim memory
      * bodies, in the Appendix A form (robot-memory Requirements 6.3, 6.4):
      *
@@ -307,8 +316,9 @@ final class SituationTextGenerator
      * 6.5).
      *
      * @param string[] $bodies verbatim memory bodies, oldest first
+     * @param bool     $heat   true for a heat-wave episode (earlier-day heading)
      */
-    public function buildMemoriesBlock(array $bodies): ?string
+    public function buildMemoriesBlock(array $bodies, bool $heat = false): ?string
     {
         $bodies = array_values($bodies);
         if ($bodies === []) {
@@ -320,7 +330,9 @@ final class SituationTextGenerator
             $blocks[] = '"""' . "\n" . $body . "\n" . '"""';
         }
 
-        return self::MEMORIES_HEADING . "\n\n" . implode("\n\n", $blocks);
+        $heading = $heat ? self::MEMORIES_HEADING_HEAT : self::MEMORIES_HEADING;
+
+        return $heading . "\n\n" . implode("\n\n", $blocks);
     }
 
     /**

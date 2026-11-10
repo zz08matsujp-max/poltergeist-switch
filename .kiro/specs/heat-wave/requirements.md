@@ -151,6 +151,7 @@ The following are explicitly out of scope for this spec:
 6. THE Situation_Text_Generator SHALL treat the Thermometer as a fixture and SHALL NOT list it among any room's objects, so that no earthquake object text changes.
 7. THE heat-wave situation text SHALL state facts only, with no danger word, no advice, and no judgement, and SHALL satisfy the Banned_Word_Rule in every engine-authored part.
 8. THE Situation_Text_Generator SHALL carry a heat-wave situation text version string distinct from the earthquake version `situation-text-2026-11-09b`, and SHALL bump that version whenever the heat-wave fixed text or generator changes.
+9. IN a heat-wave episode, THE heat-wave memories block heading SHALL read exactly `Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):`, so that a robot does not read its earthquake memories as something that happened today. The earthquake heading `Your memories (what you wrote down after an earlier disaster in this house):` is unchanged. The heat-wave situation text version is `situation-text-heat-2026-11-10c`.
 
 ---
 
@@ -164,6 +165,7 @@ The following are explicitly out of scope for this spec:
 2. THE heat-wave Reflection_Text SHALL end with the reflection question word for word: `Is there anything from what happened this time that you want to remember?`, unchanged.
 3. THE heat-wave Reflection_Text SHALL state facts only, SHALL show no robot reply, no robot thought, no judgement data, and no resident meter value, and SHALL satisfy the Banned_Word_Rule in every engine-authored part.
 4. THE Reflection_Text builder SHALL carry a heat-wave reflection text version string distinct from the earthquake version `reflection-text-2026-11-09d`, and SHALL bump that version whenever the heat-wave reflection text or generator changes.
+5. IN a heat-wave episode, THE heat-wave Reflection_Text memories block heading SHALL read exactly `Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):` (the same line as Requirement 6.9); the earthquake reflection heading is unchanged. The heat-wave reflection text version is `reflection-text-heat-2026-11-10c`.
 
 ---
 

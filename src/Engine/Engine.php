@@ -252,7 +252,8 @@ class Engine
         $recent = array_slice($this->turnRecords, -5);
 
         $memoriesBlock = $this->textGen->buildMemoriesBlock(
-            $this->memoriesByRobot[$robotId] ?? []
+            $this->memoriesByRobot[$robotId] ?? [],
+            $this->world->disaster === Disaster::heat_wave
         );
 
         return $this->textGen->generate($robotId, $this->world, $recent, $memoriesBlock);

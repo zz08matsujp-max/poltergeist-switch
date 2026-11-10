@@ -67,7 +67,7 @@ final class ReflectionTextBuilder
      * golden test on the literal guards against silent drift. Kept at most 32
      * characters to fit the reflection prompt's version column.
      */
-    public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10b';
+    public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10c';
 
     /**
      * The single sentence that introduces the turn-by-turn recap (Req 1.2). It
@@ -101,6 +101,10 @@ final class ReflectionTextBuilder
      */
     private const MEMORIES_HEADING =
         'Your memories (what you wrote down after an earlier disaster in this house):';
+
+    /** Heat-wave heading: the memories are from an earlier day. */
+    private const MEMORIES_HEADING_HEAT =
+        'Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):';
 
     /** Earthquake turn offsets on which the house is shaking (house-rules §4). */
     private const SHAKING_OFFSETS = [1, 2, 3, 4, 12];
@@ -148,7 +152,7 @@ final class ReflectionTextBuilder
         $sections[] = $fixedHouse;
 
         if (!$snapshot->isEmpty()) {
-            $sections[] = $this->memoriesBlock($snapshot);
+            $sections[] = $this->memoriesBlock($snapshot, false);
         }
 
         $sections[] = self::LEAD_IN;
@@ -206,7 +210,7 @@ final class ReflectionTextBuilder
         $sections[] = $fixedHouse;
 
         if (!$snapshot->isEmpty()) {
-            $sections[] = $this->memoriesBlock($snapshot);
+            $sections[] = $this->memoriesBlock($snapshot, true);
         }
 
         $sections[] = self::LEAD_IN_HEAT;
@@ -270,9 +274,9 @@ final class ReflectionTextBuilder
      * oldest first, verbatim. The bodies are the robot's own words and are
      * exempt from the banned-word rule (Req 1.6).
      */
-    private function memoriesBlock(MemorySnapshot $snapshot): string
+    private function memoriesBlock(MemorySnapshot $snapshot, bool $heat): string
     {
-        $parts = [self::MEMORIES_HEADING];
+        $parts = [$heat ? self::MEMORIES_HEADING_HEAT : self::MEMORIES_HEADING];
         foreach ($snapshot->bodies as $body) {
             $parts[] = '"""' . "\n" . $body . "\n" . '"""';
         }

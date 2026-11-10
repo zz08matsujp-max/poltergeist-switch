@@ -540,6 +540,6 @@ class HeatSituationTextTest extends TestCase
             'the heat-wave version must differ from the earthquake version'
         );
         $this->assertSame('situation-text-2026-11-09b', SituationTextGenerator::VERSION);
-        $this->assertSame('situation-text-heat-2026-11-10b', SituationTextGenerator::VERSION_HEAT);
+        $this->assertSame('situation-text-heat-2026-11-10c', SituationTextGenerator::VERSION_HEAT);
     }
 }

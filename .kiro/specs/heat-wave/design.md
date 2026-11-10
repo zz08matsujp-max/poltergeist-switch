@@ -238,19 +238,20 @@ The weakened set/clear (Requirement 3.5-3.6) is **already** `ResidentController:
 
 ```php
 // NEW heat-wave situation-text version (distinct from the earthquake VERSION).
-public const VERSION_HEAT = 'situation-text-heat-2026-11-10a';
+public const VERSION_HEAT = 'situation-text-heat-2026-11-10c';
 
 // generate() gates on $world->disaster: the earthquake path is unchanged; the
 // heat path produces the six sections with heat content (new private builders
 // buildHeatRightNow(), buildHeatEnvironmentParagraph(), buildHeatRecentEvents()).
 ```
 
+In a heat-wave episode the memories block heading (situation text via `buildMemoriesBlock($bodies, heat: true)`, chosen by `Engine` from `world->disaster`; reflection text via `ReflectionTextBuilder`'s heat path) is `Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):`, so the memories read as from an earlier day. The earthquake heading is unchanged, and `REFLECTION_TEXT_VERSION_HEAT` is `reflection-text-heat-2026-11-10c`.
 The earthquake `VERSION = 'situation-text-2026-11-09b'` constant is **not** touched. `situationTextVersion()` on the engine returns `VERSION_HEAT` for a heat-wave world.
 
 ### `ReflectionTextBuilder` additions
 
 ```php
-public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10a';
+public const REFLECTION_TEXT_VERSION_HEAT = 'reflection-text-heat-2026-11-10c';
 // build() gates on disaster; heat uses minute headings; the QUESTION is unchanged.
 ```
 
