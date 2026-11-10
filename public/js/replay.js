@@ -194,7 +194,7 @@
     // Selecting an item enters playback via the direct-load path (Req 8.7):
     // navigate to the relative replay.php?episode=<id> so there is a single
     // playback entry point. No AI call (Req 8.6).
-    node.addEventListener('click', function () { selectEpisode(item.id); });
+    node.addEventListener('click', function () { primeVoices(); selectEpisode(item.id); });
     return node;
   }
 
@@ -668,6 +668,7 @@
    * Pause cleared `playing` or the last turn has been reached.
    */
   function play() {
+    cancelActOut();
     if (playing) { return; }
     if (!sortedTurns.length) { return; }
     playing = true;
@@ -690,13 +691,29 @@
   }
 
   /**
-   * pausePlayback() — stop advancing after the current turn's acting-out
-   * finishes (Req 9.1). Clearing `playing` makes the Play loop's `.then`
-   * not advance; the in-flight turn is allowed to finish acting out and end in
-   * its recorded world, mirroring Observe's loop discipline (no mid-turn cut).
+   * pausePlayback() — stop playback now (Req 9.1, 11.16). Act_Out is
+   * cancelled first: any reading and bubble timer stop, the open bubble
+   * closes, and the in-flight turn is cut to its recorded world. Clearing
+   * `playing` then keeps the Play loop from advancing to the next turn.
    */
   function pausePlayback() {
+    cancelActOut();
     playing = false;
+  }
+
+  // Cancel any acting-out and speech in flight (Req 11.3, 11.4). Safe when
+  // there is no Act_Out or it has no cancel().
+  function cancelActOut() {
+    if (actOut && typeof actOut.cancel === 'function') {
+      try { actOut.cancel(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // Prime speech from a user gesture (Req 11.2). Safe to call repeatedly.
+  function primeVoices() {
+    if (voices && typeof voices.gesture === 'function') {
+      try { voices.gesture(); } catch (e) { /* ignore */ }
+    }
   }
 
   /**
@@ -705,6 +722,7 @@
    * out exactly that one turn.
    */
   function stepBack() {
+    cancelActOut();
     playing = false;
     if (el.toldHost) { el.toldHost.hidden = true; }
     if (currentTurnIndex > 0) {
@@ -720,6 +738,7 @@
    * out exactly that one turn.
    */
   function stepForward() {
+    cancelActOut();
     playing = false;
     if (el.toldHost) { el.toldHost.hidden = true; }
     if (currentTurnIndex < sortedTurns.length - 1) {
@@ -793,6 +812,7 @@
    * history is unavailable.
    */
   function chooseAnother() {
+    cancelActOut();
     playing = false;
     // Drop the ?episode=<id> query so a refresh shows the list (optional, Req
     // 8.2). Guarded: when history is unavailable we still return to the list.
@@ -847,15 +867,17 @@
   // ── control wiring (stubs now; task 10.2 implements the bodies) ─────────────
 
   function wireControls() {
-    if (el.btnPlay) { el.btnPlay.addEventListener('click', play); }
-    if (el.btnPause) { el.btnPause.addEventListener('click', pausePlayback); }
-    if (el.btnStepBack) { el.btnStepBack.addEventListener('click', stepBack); }
-    if (el.btnStepForward) { el.btnStepForward.addEventListener('click', stepForward); }
+    // Each of these is a user gesture: prime speech first (Req 11.2).
+    if (el.btnPlay) { el.btnPlay.addEventListener('click', function () { primeVoices(); play(); }); }
+    if (el.btnPause) { el.btnPause.addEventListener('click', function () { primeVoices(); pausePlayback(); }); }
+    if (el.btnStepBack) { el.btnStepBack.addEventListener('click', function () { primeVoices(); stepBack(); }); }
+    if (el.btnStepForward) { el.btnStepForward.addEventListener('click', function () { primeVoices(); stepForward(); }); }
     if (el.btnTold) { el.btnTold.addEventListener('click', showWhatTold); }
     if (el.btnChoose) { el.btnChoose.addEventListener('click', chooseAnother); }
   }
 
   function lookupDom() {
+    el.btnVoices = document.getElementById('btn-voices');
     el.notice = document.getElementById('notice');
     el.list = document.getElementById('episode-list');
     el.replayMain = document.getElementById('replay-main');
@@ -886,8 +908,10 @@
     // Construct the modules. The Replay screen reads only; it never calls AI.
     api = (typeof window.createApiClient === 'function') ? window.createApiClient() : null;
     house = (typeof window.createHouseRenderer === 'function') ? window.createHouseRenderer() : null;
-    // Voices default OFF; task 10.2 adds a toggle if it needs one.
-    voices = (typeof window.createVoices === 'function') ? window.createVoices({ enabled: false }) : null;
+    // Voices default ON (Req 11.1) but stay silent until the First_Gesture.
+    voices = (typeof window.createVoices === 'function')
+      ? window.createVoices({ enabled: true, autoUnlock: false })
+      : null;
     sequencer = (typeof window.createSpeechSequencer === 'function' && house)
       ? window.createSpeechSequencer({ house: house, voices: voices })
       : null;
@@ -902,6 +926,9 @@
       if (typeof house.start === 'function') { house.start(); }
     }
 
+    if (el.btnVoices && typeof window.bindVoicesButton === 'function') {
+      window.bindVoicesButton(el.btnVoices, voices, sequencer);
+    }
     wireControls();
 
     // Decide the mode: ?episode=<id> direct-loads that episode (Req 8.7);

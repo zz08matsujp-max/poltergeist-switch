@@ -316,7 +316,7 @@ Steering constraints that apply to every task:
     - Create `tests/js/observe-flow.test.js` with fixed examples: both Levers are OFF after the last turn and the reflection (or "not stored"); a later Lever or Start creates a new episode with empty client state and no End_Card; a second Lever flip or Start press while a run is in progress is ignored; the Voices label starts "Voices: on" and no speech happens before the First_Gesture.
     - _Requirements: 9.1, 9.2, 9.3, 9.5, 11.1, 11.3, 14.9, 14.16_
 
-- [~] 13. Add All reset, Try again and the limit notices to Observe
+- [x] 13. Add All reset, Try again and the limit notices to Observe
   - [x] 13.1 Add `house.reset()` to the renderer
     - In `public/js/house-renderer.js` add `reset()` restoring the mount-time state and clearing bubbles, caption and thinking flags. Earthquake drawing stays byte-identical: `renderer-earthquake-calls.test.js` must still pass unchanged.
     - _Requirements: 8.1, 12.5_
@@ -340,11 +340,11 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11**
     - Create `tests/js/observe-phases-property.test.js` (seeded `mulberry32`, at least 100 random event sequences against `fake-api.js`): at most one `createEpisode` in flight and none while `starting`, `running`, `unfinished` or `staged` (for Start); Lever and Start act as Try again while `unfinished`; Levers OFF after an episode ends and its reflection settles; empty client state on a later run; first-load state after an accepted All reset; the All reset button disabled in `starting` and `running`; no notice contains "Paused"; a 429 leaves the Levers OFF and the stage unchanged.
 
-- [ ] 14. Add Voices and the sequencer to Replay
-  - [ ] 14.1 Wire Voices, the sequencer and cancel-on-control into Replay
+- [~] 14. Add Voices and the sequencer to Replay
+  - [x] 14.1 Wire Voices, the sequencer and cancel-on-control into Replay
     - `public/replay.php`: add `<button type="button" class="btn" id="btn-voices" aria-pressed="true">Voices: on</button>` in the header outside the hidden controls, and load `js/speech-sequencer.js` before `act-out.js`. `public/js/replay.js`: construct voices (`enabled:true`, `autoUnlock:false`), the sequencer and act-out as on Observe, `bindVoicesButton`; call `voices.gesture()` in the Play, Pause, Step back and Step forward handlers; `play`, `pausePlayback`, `stepBack`, `stepForward` and `chooseAnother` each call `actOut.cancel()` first. The Replay control set itself is unchanged.
     - _Requirements: 10.6, 11.1, 11.2, 11.3, 11.4, 11.16_
-  - [ ] 14.2 Write `replay-voices.test.js`
+  - [x] 14.2 Write `replay-voices.test.js`
     - Create `tests/js/replay-voices.test.js`: the label starts "Voices: on" and the button exists in list and playback modes; no speech before the First_Gesture; Pause, Step back, Step forward and Play cancel any reading and bubble timer, close the open bubble and start no further line until the new position's Line_Sequence begins; the picture still ends in the recorded world.
     - _Requirements: 11.1, 11.3, 11.16, 14.11_
 

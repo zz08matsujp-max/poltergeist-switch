@@ -67,6 +67,10 @@ header('Cache-Control: no-store');
       <p class="models">
         <a href="index.php">&larr; Back to the live lab</a>
       </p>
+      <!-- Voices toggle (public-lab Req 11.1): in the header, outside the
+           hidden controls, so it is available in list and playback modes.
+           Label and aria-pressed are kept by bindVoicesButton. -->
+      <button type="button" class="btn" id="btn-voices" aria-pressed="true">Voices: on</button>
     </header>
 
     <!-- A message area for the list/load errors and the empty-list state
