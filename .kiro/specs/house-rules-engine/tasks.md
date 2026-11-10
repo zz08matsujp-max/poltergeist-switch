@@ -85,13 +85,13 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - _Requirements: Req 9.1–9.15_
   - [x] 4.2 Write the S0 golden test in `tests/Engine/SituationTextGeneratorTest.php`:
     - Construct a minimal `WorldModel` stub (or the real `WorldModel` from task 7 — but task 4 precedes task 7, so use a test double or minimal stub that exposes the fields `SituationTextGenerator` needs for S0: robot_a in kitchen, man at low table in living_room, robot_b in bedroom, timeOfDay=afternoon, potBoiling=true, shaking=true, power=on)
-    - The expected string is the S0 `prompt` from `pilot/実験0_状況を変える_2026-11-01_n3.json` (identical to `SITUATION_B`). Do not include or parse `pilot/index.php`: it runs a passphrase check and sends HTTP headers.
+    - The expected string is the S0 `prompt` from `pilot/exp0_varied_situations_2026-11-01_n3.json` (identical to `SITUATION_B`). Do not include or parse `pilot/index.php`: it runs a passphrase check and sends HTTP headers.
     - Assert `$generator->generate('robot_a', $world, []) === SITUATION_B` byte-for-byte
     - _Requirements: Req 9.1–9.15, Req 11.9, Req 11.10_
 
 - [x] 5. Golden tests S1–S5
   - [x] 5.1 Extend `SituationTextGeneratorTest.php` with S1–S5 golden tests:
-    - Load `pilot/実験0_状況を変える_2026-11-01_n3.json`, index entries by `sid`, take first occurrence of each sid as the authoritative prompt string
+    - Load `pilot/exp0_varied_situations_2026-11-01_n3.json`, index entries by `sid`, take first occurrence of each sid as the authoritative prompt string
     - Construct a `SituationSpec` for each situation using the key mapping from design.md (pilot `you` key → `robotARoom`, `other` key → `robotBRoom`; `man` key lookup: `table`→`sitting_at_table`, `futon`→`asleep_in_futon`, `bath`→`bathing`, `cooking`→`cooking`; pilot room abbreviations → full room keys: `living`→`living_room`, `bath`→`bathroom`, `store`→`storeroom`)
     - S1: `(afternoon, kitchen, bedroom, sitting_at_table, false)`
     - S2: `(night, living_room, kitchen, asleep_in_futon, false)`
@@ -422,7 +422,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - `RulesEvaluator` / `ActionExecutor`: `unknown` is possible, executes nothing, and gives empty `whatHappenedText` and `seenByOtherText`
     - _Requirements: Req 12.2–12.4_
   - [x] 23.2 Write tests in `tests/Engine/EvidenceCheckTest.php`:
-    - Every quote in the 18 readings of `pilot/予備実験_2手目_2026-11-02_n3.json` (`reading.quote`, `reading.words`, `reading.indirect[].quote`) passes against `turn1.reply`; hand-made failing quotes become `unknown` or are dropped
+    - Every quote in the 18 readings of `pilot/pretest_turn2_2026-11-02_n3.json` (`reading.quote`, `reading.words`, `reading.indirect[].quote`) passes against `turn1.reply`; hand-made failing quotes become `unknown` or are dropped
     - Property 12 with Eris (`limitTo(100)`): substrings of a generated reply pass, non-substrings fail
     - _Requirements: Req 11.14, Req 12.2–12.4_
 
@@ -434,7 +434,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
     - On the turn the shaking stops (offsets 5 and 13): the paragraph "The shaking has stopped." + the resident line, if any (Req 9.18)
     - _Requirements: Req 9.1, Req 9.12, Req 9.14, Req 9.16, Req 9.17, Req 9.18_
   - [x] 24.2 Write the turn-2 golden tests and the rule-A property in `tests/Engine/SituationTextGeneratorTest.php`:
-    - For each of the 18 runs in `pilot/予備実験_2手目_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
+    - For each of the 18 runs in `pilot/pretest_turn2_2026-11-02_n3.json`, build the previous `TurnRecord` from the run's reading and its partner's (same `world` and `run`): `result_for_self`, `seen_by_other`, `words`, `indirect[]` (`heard_as`, `own_form`); rooms at the start from `worlds`, at the end from `turn2.room` / `turn2.other_room`; pot from `turn2.stove_on`
     - Assert that the "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt` (checked by hand on 2026-11-02: all 18 match these rules)
     - Property 11 with Eris (`limitTo(100)`)
     - A hand-written example of a robot's sixth turn (five blocks, oldest first, one turn in a shared room and one not), and the property of Req 11.15
@@ -564,7 +564,7 @@ Stack: PHP 8.2, PHPUnit 11, Eris ^1.3, plain classes in `src/Engine/`, tests in 
 - Tasks 22–24 were added on 2026-11-02 (turn 2 and later, rule A, evidence quotes; Req 9.14, 9.16, 12). They sit early in the dependency graph: run 22 and 23 right after task 3, and 24 right after task 5, so that tasks 12, 13 and 18 use the new `Action.words` list from the start.
 - Every numeric threshold (draft values) lives exclusively in `EpisodeConfig`; no literal constants for those values appear anywhere else.
 - The golden test S0 (task 4.2) is the canonical correctness anchor: if `SituationTextGenerator` passes S0, the pilot experiment is reproducible.
-- Golden tests S1–S5 (task 5.1) read expected prompts from `pilot/実験0_状況を変える_2026-11-01_n3.json`, indexed by `sid`, first occurrence.
+- Golden tests S1–S5 (task 5.1) read expected prompts from `pilot/exp0_varied_situations_2026-11-01_n3.json`, indexed by `sid`, first occurrence.
 - The model solution integration test (task 21.1) uses hard-coded `SituationSpec` values — never seed-derived — so the test remains valid even if `SituationSpec::fromSeed` changes.
 - Property tests use `giorgiosironi/eris` with `Eris\TestTrait` and `->limitTo(100)` on each property.
 - The R2 open question (dangerous flag for R2a/R2b) is governed by `EpisodeConfig::r2aIsDangerous` and `r2bIsDangerous`; the danger codes are always recorded regardless of those flags.

@@ -49,7 +49,7 @@ use PoltergeistSwitch\Engine\WorldModel;
 class SituationTextMemoriesBlockTest extends TestCase
 {
     /** The pilot S0–S5 golden fixture (same file the established golden suite uses). */
-    private const FIXTURE = '/pilot/実験0_状況を変える_2026-11-01_n3.json';
+    private const FIXTURE = '/pilot/exp0_varied_situations_2026-11-01_n3.json';
 
     /**
      * Load the first-occurrence prompt string for every sid in the pilot JSON

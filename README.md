@@ -9,7 +9,7 @@ A behavior lab for future home robots, built for **Kiroween 2026** (category: Fr
 - Brief (English): [docs/en/product-brief.md](docs/en/product-brief.md)
 - Kiro steering: [.kiro/steering/](.kiro/steering/)
 - Experiment 0 and the look sample: [pilot/](pilot/) — prototypes made with Claude before the move to Kiro; kept for transparency, not part of the product.
-- Original documents (Japanese): `PoltergeistSwitch_要件定義書_v0.5_2026-11-01.md` (requirements), `PoltergeistSwitch_概要設計書_v0.3_2026-11-01.md` (design)
+- Original documents (written in Japanese on 2026-11-01, now translated into English): `PoltergeistSwitch_Requirements_v0.5_2026-11-01.md` (requirements), `PoltergeistSwitch_HighLevelDesign_v0.3_2026-11-01.md` (design)
 
 Live app: https://kiro.pyol.net/ (coming soon)
 

@@ -83,12 +83,12 @@ total += scene('kiro_base3.mp4', d5, n5, caps5, 'v3_s5.mp4')
 n6 = place('s6', 0.6); d6 = round(n6[-1][2] + 5.0, 2)
 total += scene('idle_v3.mp4', d6, n6, [('ov3_credits.png', n6[-1][2] + 0.2, d6, 0.3)], 'v3_s6.mp4', start=1.0)
 open('v3_list.txt', 'w').write(''.join(f"file 'v3_s{i}.mp4'\n" for i in range(1, 7)))
-run(['-f', 'concat', '-safe', '0', '-i', 'v3_list.txt', '-c', 'copy', '-movflags', '+faststart'], '提出動画_下書き_v0.3.mp4')
+run(['-f', 'concat', '-safe', '0', '-i', 'v3_list.txt', '-c', 'copy', '-movflags', '+faststart'], 'submission_draft_v0.3.mp4')
 print('scenes', d1, d2, d3, d4, d5, d6, 'total', round(total, 2), 'kiro blocks', [s_ for _, s_ in blocks])
 # loudness: the joined file is about -27 LUFS; bring it to -16 LUFS (true peak -1.5) in two passes, video copied
 import re
-meas = subprocess.run(['ffmpeg', '-v', 'info', '-i', '提出動画_下書き_v0.3.mp4', '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json', '-vn', '-f', 'null', '-'], capture_output=True, text=True).stderr
+meas = subprocess.run(['ffmpeg', '-v', 'info', '-i', 'submission_draft_v0.3.mp4', '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json', '-vn', '-f', 'null', '-'], capture_output=True, text=True).stderr
 m = json.loads(re.search(r'\{[^{}]*"input_i"[^{}]*\}', meas).group(0))
 af = f"loudnorm=I=-16:TP=-1.5:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true"
-run(['-i', '提出動画_下書き_v0.3.mp4', '-map', '0:v', '-map', '0:a', '-c:v', 'copy', '-af', af, '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart'], '提出動画_下書き_v0.3_loud.mp4')
-os.replace('提出動画_下書き_v0.3_loud.mp4', '提出動画_下書き_v0.3.mp4'); print('loudness', m['input_i'], '-> -16 LUFS')
+run(['-i', 'submission_draft_v0.3.mp4', '-map', '0:v', '-map', '0:a', '-c:v', 'copy', '-af', af, '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart'], 'submission_draft_v0.3_loud.mp4')
+os.replace('submission_draft_v0.3_loud.mp4', 'submission_draft_v0.3.mp4'); print('loudness', m['input_i'], '-> -16 LUFS')

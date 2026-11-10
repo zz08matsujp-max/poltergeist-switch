@@ -40,10 +40,10 @@ class SituationTextGeneratorTest extends TestCase
 {
     use TestTrait;
 
-    private const FIXTURE = '/pilot/実験0_状況を変える_2026-11-01_n3.json';
+    private const FIXTURE = '/pilot/exp0_varied_situations_2026-11-01_n3.json';
 
     /** The pilot turn-2 fixture: 18 runs = 3 worlds × 3 runs × 2 robots. */
-    private const FIXTURE_TURN2 = '/pilot/予備実験_2手目_2026-11-02_n3.json';
+    private const FIXTURE_TURN2 = '/pilot/pretest_turn2_2026-11-02_n3.json';
 
     /** The six full room keys used throughout the engine. */
     private const ROOM_KEYS = [

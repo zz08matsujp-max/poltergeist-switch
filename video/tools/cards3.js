@@ -25,9 +25,9 @@ const cards = {
     <div style="font-size:120px;color:var(--lan);text-shadow:0 0 18px rgba(240,146,43,.45)">Built with Kiro</div>
     <div style="font-size:52px;line-height:1.5;margin-top:36px;color:var(--bone)">Steering <span style="color:var(--mute)">&gt;</span> Spec <span style="color:var(--mute)">&gt;</span> Tests</div></div>`,
 };
-const SL = [['A', 'Steering', 'robot-input.md などの Steering を開いた画面'], ['B', 'Spec', 'requirements.md → design.md → tasks.md を順に'], ['C', 'Tests', 'Kiro がタスクを実行 → テストが通る → GitHub Desktop の History']];
+const SL = [['A', 'Steering', 'Steering files such as robot-input.md, open'], ['B', 'Spec', 'requirements.md → design.md → tasks.md, in order'], ['C', 'Tests', 'Kiro runs a task → tests pass → History in GitHub Desktop']];
 SL.forEach(([n, what, cuts]) => { cards['kiro' + n] = `<div class="card" style="display:flex;align-items:flex-start;justify-content:center;padding-top:170px"><div style="width:1440px;height:620px;border:4px dashed var(--mute);border-radius:12px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:30px">
-  <div style="font-size:38px;color:var(--mute)">仮の画面（ここに本人が撮った Kiro の画面が入る）</div><div class="sans" style="font-size:72px;color:var(--bone);font-weight:700">${what}</div><div class="sans" style="font-size:40px;color:var(--straw)">${cuts}</div></div></div>`; });
+  <div style="font-size:38px;color:var(--mute)">Placeholder (the maintainer’s Kiro screen recording goes here)</div><div class="sans" style="font-size:72px;color:var(--bone);font-weight:700">${what}</div><div class="sans" style="font-size:40px;color:var(--straw)">${cuts}</div></div></div>`; });
 const kcaps = { kcapA: ['Steering', 'no goals or hints in any robot prompt'], kcapB: ['Spec', '11 requirements, a design, 21 tasks'], kcapC: ['Tests', 'property-based checks on the house rules'], kcapD: ['Next', 'the whole earthquake, stored and replayable'] };
 const rows = {
   row1: ['Jade told Amber to stay put', '9 of 9', 'runs', 'jade'],

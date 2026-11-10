@@ -38,9 +38,9 @@ const cards = {
     <div style="font-size:120px;color:var(--lan);text-shadow:0 0 18px rgba(240,146,43,.45)">Built with Kiro</div>
     <div style="font-size:44px;line-height:1.5;margin-top:36px">Steering, a spec (requirements, design, tasks),<br>property-based tests, and one commit per task.</div></div>`,
 };
-const SL = [['1', 'Steering の4本', 6], ['2', 'Spec の requirements.md', 8], ['3', 'Spec の design.md', 5], ['4', 'tasks.md のチェック', 8], ['5', 'Kiro がタスクを実行している画面', 10], ['6', 'テストが通る画面', 7], ['7', 'GitHub Desktop の History', 6]];
+const SL = [['1', 'The 4 steering files', 6], ['2', 'requirements.md in the Spec', 8], ['3', 'design.md in the Spec', 5], ['4', 'Ticked items in tasks.md', 8], ['5', 'Kiro running a task', 10], ['6', 'Tests passing', 7], ['7', 'History in GitHub Desktop', 6]];
 SL.forEach(([n, what, s]) => { cards['kiro' + n] = `<div class="card" style="display:flex;align-items:center;justify-content:center"><div style="width:1440px;height:760px;border:4px dashed var(--mute);border-radius:12px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:30px">
-  <div style="font-size:40px;color:var(--mute)">仮の画面（ここに本人が撮った Kiro の画面が入る）</div><div class="sans" style="font-size:76px;color:var(--bone);font-weight:700">${n}. ${what}</div><div style="font-size:56px;color:var(--lan)">${s} 秒</div></div></div>`; });
+  <div style="font-size:40px;color:var(--mute)">Placeholder (the maintainer’s Kiro screen recording goes here)</div><div class="sans" style="font-size:76px;color:var(--bone);font-weight:700">${n}. ${what}</div><div style="font-size:56px;color:var(--lan)">${s} s</div></div></div>`; });
 const credits = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:1180px;background:rgba(18,14,34,.92);border:3px solid var(--lan);border-radius:6px;padding:48px 64px;box-shadow:0 0 0 2px #1b110a,8px 8px 0 rgba(0,0,0,.5)">
   <div style="font-size:96px;color:var(--lan);text-shadow:0 0 18px rgba(240,146,43,.45);line-height:1.1">Poltergeist Switch</div>
   <div style="font-size:36px;color:var(--mute);margin-top:10px">Kiroween 2026</div>

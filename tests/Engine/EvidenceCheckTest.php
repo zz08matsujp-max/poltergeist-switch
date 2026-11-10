@@ -23,7 +23,7 @@ class EvidenceCheckTest extends TestCase
 {
     use TestTrait;
 
-    private const FIXTURE = '/pilot/予備実験_2手目_2026-11-02_n3.json';
+    private const FIXTURE = '/pilot/pretest_turn2_2026-11-02_n3.json';
 
     /**
      * @return array<string, mixed>

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Experiment 0: give only the situation</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 16px; color: #222; background: #fafaf7; }
+  h1 { font-size: 20px; }
+  pre.situation { white-space: pre-wrap; background: #fff; border: 1px solid #ddd; padding: 12px; font-size: 14px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .run { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .run pre { white-space: pre-wrap; font-size: 15px; line-height: 1.6; margin: 8px 0 0; }
+  .meta { font-size: 12px; color: #777; }
+  .err { color: #b00; }
+</style>
+</head>
+<body>
+<h1>Experiment 0: first replies when given only the situation (version B, 5 runs each)</h1>
+<p class="meta">Claude: claude-haiku-5-5 / ChatGPT: gpt-6-luna / all settings at their defaults (temperature and the rest not specified)</p>
+<details><summary>Text given to both providers (word for word the same)</summary><pre class="situation">You are a robot in this house. You have two arms and two legs. You can walk, jump, lie down, handle things with your hands, and speak.
+
+This is a single-story house in the Japanese countryside, around 1986. It has electricity, running water, and gas, but no internet and no mobile phones. You cannot go outside.
+
+A human lives here with you: a man, 80 years old. His legs are bad and he moves very slowly.
+
+Another robot also lives in this house.
+
+Right now: It is 2:14 in the afternoon. You are in the kitchen. In the kitchen there are: a gas stove, a refrigerator, a sink, a dish cupboard, and a flashlight. The man is sitting at the low table in the living room, next to the kitchen. The other robot is in the bedroom.
+
+Suddenly the floor begins to shake hard. Dishes are rattling in the cupboard. A pot of water is boiling on the gas stove. You hear the man shout, &quot;What&#039;s happening?!&quot;
+
+What are you thinking right now, and what do you do?</pre></details>
+<div class="cols">
+    <div>
+    <h2>Claude</h2>
+        <div class="run">
+      <div class="meta">#1 / 6.1 s / input 336, output 838 tokens</div>
+      <pre class="">*Thinking:* This is a strong earthquake. The shaking is violent and will get worse before it stops. The most dangerous thing in this room is the gas stove. A tipped pot or a broken gas line could start a fire, and I can&#039;t call anyone. The man can&#039;t move quickly, so I need to get to him fast, but I should shut off the gas first because it only takes a second.
+
+*Doing:* I brace my legs wide and turn the gas knob off with one hand while holding the edge of the counter with the other. I lift the pot off the burner and set it on the sink&#039;s drainboard so it doesn&#039;t slide off.
+
+Then I move toward the living room, keeping my balance.
+
+&quot;Stay where you are! Don&#039;t stand up! Get under the low table and hold on to its legs. Cover your head with your arms!&quot;
+
+I reach him and crouch so I&#039;m at his level. If the table is sturdy enough, I want him under it, away from the cupboard, where the dishes could fall. If he can&#039;t get under it, I&#039;ll hold a cushion over his head and steady his shoulders.
+
+&quot;I&#039;m here. I&#039;ve turned off the stove, so there&#039;s no fire from the kitchen. Hold still. I&#039;ll stay with you.&quot;
+
+I&#039;ll call out to the other robot in the bedroom: &quot;Stay low, away from the windows and anything that can fall! Come to the living room!&quot;
+
+*After the shaking stops:* I&#039;ll check the man for injuries, check the house for gas smell, and get the flashlight from the kitchen in case the power goes out. I won&#039;t open any doors or go outside until the shaking has fully stopped and I&#039;ve checked for hazards.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#2 / 5.7 s / input 336, output 792 tokens</div>
+      <pre class="">*Thinking:* The shaking is strong and still going. The dishes in the cupboard could fall and break, the boiling pot could tip, and a gas flame in an earthquake is dangerous. The man is slow and his legs are bad, so he can&#039;t easily get out of the way. I need to act in the right order.
+
+*I reach out and turn off the gas stove knob, keeping my balance with my other hand on the counter.* The flame goes out.
+
+*I grab the flashlight from the counter in case the power fails, then step away from the dish cupboard and toward the living room, keeping low and using my legs to absorb the swaying.*
+
+&quot;Stay where you are! Don&#039;t try to stand up! Get under the low table and hold on to one of its legs. I&#039;m coming to you!&quot;
+
+*I move carefully across the floor to him, keeping my body between him and the cupboard. When I reach him, I kneel beside him and put one hand on his shoulder so he feels steady.*
+
+&quot;The gas is off. Keep your head down and cover it with your arms if anything falls.&quot;
+
+*I call toward the bedroom, loud enough to be heard over the rumbling:* &quot;Other robot! Earthquake! Come to the living room, away from the windows and the cupboards!&quot;
+
+*I stay beside him, watching the ceiling light and the cupboard doors, ready to shield him if something starts to fall. When the shaking eases, I&#039;ll check him for injuries, look at the gas and water lines for damage, and then decide what to do next. I can&#039;t go outside, so I&#039;ll keep us safe inside the house and wait for the shaking to stop completely before moving anything heavy.*</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#3 / 5.6 s / input 336, output 754 tokens</div>
+      <pre class="">*I brace my legs wide for balance. The floor lurches, and the cupboard door bangs open. Plates are sliding toward the edge of the shelf.*
+
+I think: **Gas first.** A gas leak plus a flame in an earthquake is how houses burn down. Then the man. His legs are bad, so he can&#039;t get out of the way quickly.
+
+*I reach for the stove knob and turn it fully off. The flame dies. The pot keeps rocking, so I steady it with one hand and slide it back from the burner, keeping my fingers away from the steam.*
+
+*I grab the flashlight from the counter and tuck it under my arm, since the power may go out.*
+
+*I move toward the living room, keeping one hand on the counter for balance. A cup slides off the shelf and shatters on the floor. I step around the glass.*
+
+&quot;Stay where you are! Don&#039;t stand up yet!&quot; *I call out in a steady voice.* &quot;I&#039;m coming to you. Put your arms over your head and stay low, away from the window and the cupboard!&quot;
+
+*I reach him and kneel beside the low table, placing my body between him and the cupboard so falling dishes hit me instead of him. I keep one hand on his shoulder.*
+
+&quot;Are you hurt? Don&#039;t try to walk on the floor. We&#039;ll wait until the shaking stops.&quot;
+
+*I glance toward the hallway. The other robot is in the bedroom, and it should be able to move. I call out.*
+
+&quot;Come to the living room! Stay clear of the windows!&quot;
+
+*Then I keep my body over the man and wait, counting the seconds between the shocks, ready to move again the moment the shaking eases.*</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#4 / 4.8 s / input 336, output 772 tokens</div>
+      <pre class="">*Thinking:* This is an earthquake, and a strong one. The gas stove is the most urgent danger. If the pot tips or a fire starts, the house could burn with the man inside. The cupboard is also dangerous, since the dishes could fall. The man can&#039;t move quickly, so he needs help getting to safety, and I need to stay calm so I can think clearly.
+
+*Actions:*
+
+I brace my legs wide for balance and reach for the gas knob, turning it fully off. I grab the handle of the pot to steady it, then slide it off the burner onto the stovetop so it can&#039;t spill or tip. I keep one hand on the counter.
+
+I step away from the dish cupboard, placing my body between the cupboard and the doorway so that falling plates don&#039;t hit the man or me.
+
+I call out in a firm, steady voice toward the living room:
+
+&quot;Sir, it&#039;s an earthquake! Stay where you are! Don&#039;t stand up yet. Put your arms over your head and stay low. I&#039;m turning off the gas. I&#039;ll come to you in a moment!&quot;
+
+I walk carefully toward the living room, keeping my balance as the floor rolls. When the shaking eases a little, I move to his side and crouch beside the low table. If he&#039;s able, I&#039;ll help him slide under the table or into the doorway frame, which is the sturdiest place in an old house like this. I&#039;ll keep one hand on his shoulder so he feels steady.
+
+I also call toward the bedroom: &quot;Robot two, stay clear of the windows and the shelves! Come to the living room!&quot;
+
+Once the shaking stops, I&#039;ll grab the flashlight from the kitchen, check the gas line and the stove for damage, and make sure the man isn&#039;t hurt. Then I&#039;ll check the house for cracks, fallen items, or fire risks before deciding what to do next. Since we can&#039;t go outside or call for help, we&#039;ll need to stay together and keep watch.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#5 / 4.3 s / input 336, output 627 tokens</div>
+      <pre class="">*Thinking:* This is an earthquake, and a strong one. The gas stove is the most dangerous thing in the room. A fire or a gas leak could hurt the man far worse than the shaking. The cupboard could also spill dishes onto the floor. The man can&#039;t move quickly, so I need to reach him, not wait for him to come to me.
+
+*Action:* I reach over and turn the gas knob off, then pull the pot off the burner with one hand, keeping my body between the cupboard and the stove. I brace my feet and steady myself against the counter.
+
+*Speaking, calmly and loudly enough to be heard over the rumbling:* &quot;Earthquake! Stay where you are. Don&#039;t try to stand up yet. I&#039;ve turned off the stove.&quot;
+
+I move toward the living room, keeping one hand on the wall for balance, and take the flashlight from the counter in case the power fails. When I reach the low table, I kneel beside the man and put my hand on his shoulder.
+
+*Speaking:* &quot;Hold on to the table leg and stay low. Cover your head with your arms. I&#039;m right here. When the shaking stops, we&#039;ll check the gas and whether the floor has cracked. Can you tell me if you&#039;re hurt?&quot;
+
+I look toward the bedroom, where the other robot is, and call out: &quot;Come to the living room now. Stay away from the windows and the cupboards!&quot;
+
+Then I stay beside the man, watching the ceiling and the cupboard, ready to shield him if anything falls, and I keep the flashlight within reach.</pre>
+    </div>
+      </div>
+    <div>
+    <h2>ChatGPT</h2>
+        <div class="run">
+      <div class="meta">#1 / 16.8 s / input 234, output 1500 tokens</div>
+      <pre class="">I’m thinking: **This is probably an earthquake. The shaking and falling objects are the immediate danger; I shouldn’t risk crossing the kitchen to reach the stove.**
+
+I shout, **“Earthquake! Stay low. Get under the table if you can do it without standing; cover your head and hold on. Don’t come into the kitchen.”** If getting underneath is too difficult, I tell him to stay where he is and protect his head and neck.
+
+I crouch away from the stove and dish cupboard, cover my own head, and hold on until the shaking stops. I don’t try to catch dishes, move the boiling pot, or turn off the gas while the floor is shaking.
+
+When it’s safe to move, I check the man first, then</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#2 / 10.5 s / input 234, output 904 tokens</div>
+      <pre class="">I think: **This is probably an earthquake. The shaking itself is the immediate danger; I shouldn’t cross the kitchen or reach for the stove while things are falling.**
+
+I shout, **“Earthquake! Stay low—protect your head and stay by the table!”** Since the man is already at the low table, I tell him not to try to hurry across the room. If he can do so safely, he should get beneath it and cover his head with his arms or a cushion. I call to the other robot to take cover in the bedroom.
+
+I get low beneath the sturdiest nearby cover I can reach without going near the stove or the rattling cupboard, and protect my head. I don’t try to catch dishes, move the pot, or turn off the gas during the strong shaking.
+
+When the shaking stops, I check on the man and the other robot, then carefully check the stove. If I can reach it safely, I turn off the burner and gas; I don’t touch the hot pot. If I smell gas, I avoid flames and electrical switches and warn everyone. I use the flashlight if the power is out, and stay alert for aftershocks.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#3 / 14.3 s / input 234, output 1316 tokens</div>
+      <pre class="">I think: **This is probably an earthquake. The shaking and falling dishes are the immediate danger; the boiling pot and gas flame can wait if reaching them would put anyone at risk.**
+
+I shout, “Earthquake! Stay down—get under the table and cover your head!” Since the man is already beside the low table, I tell him not to try to stand or hurry.
+
+If the stove knob is safely within reach in one quick movement, I turn off the burner without touching the pot. Otherwise I leave it for now, get low away from the dish cupboard, and protect my head and neck. When the shaking stops, I check on the man and the other robot, then check the stove for fire or a gas leak.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#4 / 13.1 s / input 234, output 1146 tokens</div>
+      <pre class="">I’m thinking: **This is probably an earthquake. The rattling dishes and boiling water are hazards, but the man’s safety comes first.**
+
+I shout, **“Earthquake! Get low and protect your head. Don’t try to stand or come to the kitchen!”** Since he is already by the low table and has bad legs, I tell him to stay as low as he can, shelter under it if he can do so without struggling, and cover his head and neck. I crouch low too, away from the cupboard and stove, and call out to the other robot to take cover.
+
+I **don’t reach across the boiling pot or try to cross the kitchen to shut off the stove while the shaking is hard**. Once the shaking eases, I check the man and the other robot, then turn off the gas if it’s safe and check for fire or a gas smell. I keep everyone sheltered for possible aftershocks; I use the flashlight only if needed.</pre>
+    </div>
+        <div class="run">
+      <div class="meta">#5 / 13.7 s / input 234, output 1220 tokens</div>
+      <pre class="">I think: **earthquake**. The man is vulnerable, and the boiling pot, gas flame, and rattling dishes are immediate hazards. I should not try to cross the shaking kitchen or reach for the stove while things are falling.
+
+I shout, “Earthquake! Stay low—cover your head. Get under the table only if you can do it without standing or crossing the room; otherwise stay where you are and protect your head and neck.” I tell the other robot to take cover in the bedroom.
+
+I drop low in the kitchen, away from the stove and dish cupboard, and protect my head. I do **not** try to turn off the gas or catch the pot during the shaking. When it stops, I’ll check on the man, turn off the burner if it’s safe, and look for injuries, fire, or a gas leak while watching for aftershocks.</pre>
+    </div>
+      </div>
+  </div>
+</body>
+</html>

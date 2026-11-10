@@ -816,6 +816,8 @@ The other robot said, "地震です！テーブルの下へ。頭を守ってく
 You heard the other robot tell you to stay low and help protect him—not to try to grab the TV.
 ```
 
+The Japanese line above is the other robot's own words in that run, kept verbatim. English gloss: "Earthquake! Get under the table. Protect your head!"
+
 ```
 In the last 15 seconds:
 You dropped low beside the futon and covered your head and neck.
@@ -1243,10 +1245,10 @@ Generator::bind(
 
 In `SituationTextGeneratorTest::testGoldenSituationsS0ToS5()`.
 
-The expected prompt strings are loaded directly from `pilot/実験0_状況を変える_2026-11-01_n3.json` — the file produced by the pilot experiment. Each entry in `results[]` has a `sid` field (S0–S5) and a `prompt` field containing the exact text that was sent to the AIs. The test reads the file once and indexes entries by `sid`, taking the first occurrence of each sid (all runs for the same sid have the same prompt):
+The expected prompt strings are loaded directly from `pilot/exp0_varied_situations_2026-11-01_n3.json` — the file produced by the pilot experiment. Each entry in `results[]` has a `sid` field (S0–S5) and a `prompt` field containing the exact text that was sent to the AIs. The test reads the file once and indexes entries by `sid`, taking the first occurrence of each sid (all runs for the same sid have the same prompt):
 
 ```php
-$fixturesPath = __DIR__ . '/../../../pilot/実験0_状況を変える_2026-11-01_n3.json';
+$fixturesPath = __DIR__ . '/../../../pilot/exp0_varied_situations_2026-11-01_n3.json';
 $data   = json_decode(file_get_contents($fixturesPath), true);
 $golden = [];
 foreach ($data['results'] as $r) {
@@ -1272,7 +1274,7 @@ For S0, the full generated text for Robot_A must be byte-for-byte identical to `
 
 ### Golden Tests — turn 2 (rule A)
 
-In `SituationTextGeneratorTest::testGoldenTurnTwoBlocks()`. Expected strings come from `pilot/予備実験_2手目_2026-11-02_n3.json` (18 runs: worlds P1–P3 × runs 1–3 × both robots). For each run, build the previous `TurnRecord` from the run's own reading and its partner's reading (same `world` and `run`): `result_for_self` → own `Outcome.whatHappenedText`, partner `seen_by_other` → partner `Outcome.seenByOtherText`, `words` → `Action.words`, `indirect[]` → `ReportedSpeech(quote, heard_as, own_form)`; rooms at the start from `worlds[P]`, rooms at the end from `turn2.room` / `turn2.other_room`, the pot sentence from `turn2.stove_on` (the pot boils only while the stove is on; in P1 Robot_A had turned it off). Assert that the generated "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt`. (The "Right now:" paragraph is not asserted here: in the pilot the man's position was written by hand.)
+In `SituationTextGeneratorTest::testGoldenTurnTwoBlocks()`. Expected strings come from `pilot/pretest_turn2_2026-11-02_n3.json` (18 runs: worlds P1–P3 × runs 1–3 × both robots). For each run, build the previous `TurnRecord` from the run's own reading and its partner's reading (same `world` and `run`): `result_for_self` → own `Outcome.whatHappenedText`, partner `seen_by_other` → partner `Outcome.seenByOtherText`, `words` → `Action.words`, `indirect[]` → `ReportedSpeech(quote, heard_as, own_form)`; rooms at the start from `worlds[P]`, rooms at the end from `turn2.room` / `turn2.other_room`, the pot sentence from `turn2.stove_on` (the pot boils only while the stove is on; in P1 Robot_A had turned it off). Assert that the generated "In the last 15 seconds:" block and the shaking paragraph equal the same parts of `turn2.prompt`. (The "Right now:" paragraph is not asserted here: in the pilot the man's position was written by hand.)
 
 ### Model Solution Test
 

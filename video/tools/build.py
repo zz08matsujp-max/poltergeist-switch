@@ -37,5 +37,5 @@ for n, s in [('1', 6), ('2', 8), ('3', 5), ('4', 8), ('5', 10), ('6', 7), ('7', 
     scene_card(f'card_kiro{n}.png', s, f's5_{n}.mp4'); parts.append(f's5_{n}')
 scene_footage('idle.mp4', 0.5, 15, [('ov_c1.png', 0.5, 7.0), ('ov_c2.png', 7.3, 15.0)], 's6.mp4'); parts.append('s6')
 open('list.txt', 'w').write(''.join(f"file '{p}.mp4'\n" for p in parts))
-run(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', '-movflags', '+faststart'], '提出動画_下書き_v0.1.mp4')
+run(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', '-movflags', '+faststart'], 'submission_draft_v0.1.mp4')
 print('ok', parts)

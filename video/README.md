@@ -1,51 +1,55 @@
-# 提出動画の作り方（2026-11-02・下書き v0.1）
+# How the submission video is made (2026-11-02, draft v0.1)
 
-Claude がクラウドの作業環境で作った、提出動画の下書きと、その作り方の道具です。Kiro で作る本体とは別物です。
+Drafts of the submission video that Claude made in a cloud workspace, and the tools used to make them. This is separate from the main app built with Kiro.
 
-## できているもの（`out/`、リポジトリには入れない）
+## What exists (`out/`, not in the repository)
 
-- `提出動画_下書き_v0.1.mp4`：1920×1080・2分52秒。夜の家 → 渡した文 → 声つき再生 → 数字 → Kiro の画面（仮）→ おわり。本人が流れを了承（2026-11-02）
-- `replay_P3-3_full.mp4`：見本 v0.5 の再生（2体とも茶の間の家の3回目）を声つきで撮ったもの（62.5秒）
-- `声の候補_Kokoro.mp4`：声の候補を聞き比べたもの
+- `submission_draft_v0.1.mp4`: 1920×1080, 2 min 52 s. Night house → the text the robots were given → replay with voices → numbers → Kiro screens (placeholder) → ending. The maintainer approved the flow (2026-11-02).
+- `replay_P3-3_full.mp4`: a voiced capture of the mock-up v0.5 replay (run 3 of the house with both robots in the living room; 62.5 s).
+- `voice_candidates_Kokoro.mp4`: a side-by-side listen of the voice candidates.
 
-## 声（Kokoro-82M、重みは Apache-2.0）
+## Voices (Kokoro-82M, weights under Apache-2.0)
 
-本人が 2026-11-02 に選んだ声：Claude＝af_heart、ChatGPT＝am_fenrir、住人＝bm_lewis（速さ 0.8）、ChatGPT の日本語＝jf_alpha。
-クレジット：Voices: Kokoro-82M by hexgrad (Apache-2.0)
+Voices the maintainer chose on 2026-11-02: Claude = af_heart, ChatGPT = am_fenrir, the man = bm_lewis (speed 0.8), ChatGPT’s Japanese lines = jf_alpha.
+Credit: Voices: Kokoro-82M by hexgrad (Apache-2.0)
 
-## 道具（`tools/`）
+## Tools (`tools/`)
 
-| ファイル | 役目 |
+| File | Role |
 |---|---|
-| `tts_gen.py` | 再生データ（`pilot/replay_t2.json`）の台詞をすべて、選んだ声で合成する。`tts_lines.json` は台詞と音声ファイル・秒数の対応 |
-| `render_av.js` | 見本ページを1コマずつ撮る（横1760×縦990を1920×1080に）。ページの読み上げを差し替え、各台詞の音声の長さだけ止めて、話し始めた時刻を記録する |
-| `mix.py` | 記録した時刻に台詞の音声を重ね、映像はそのままで音を付ける |
-| `film_idle.js` | スイッチを入れる前の夜の家を撮る（冒頭とおわり用） |
-| `cards.js` | 字幕（透明の重ね絵）と、渡した文・数字・Kiro の仮の画面などのカードを作る。字幕の英語はここにある |
-| `build.py` | 場面ごとに同じ設定で書き出し、つなぐ |
+| `tts_gen.py` | Synthesizes every line in the replay data (`pilot/replay_t2.json`) with the chosen voices. `tts_lines.json` maps each line to its audio file and length in seconds |
+| `render_av.js` | Captures the mock-up page frame by frame (1760×990 scaled to 1920×1080). It replaces the page’s speech, pauses for the length of each line’s audio, and records when each line starts |
+| `mix.py` | Lays each line’s audio at its recorded time and adds the sound without re-encoding the picture |
+| `film_idle.js` | Films the night house before any switch is flipped (for the opening and the ending) |
+| `cards.js` | Makes the subtitles (transparent overlays) and the cards: the text given to the robots, the numbers, the placeholder Kiro screens and so on. The English subtitles live here |
+| `build.py` | Renders each scene with the same settings and joins them |
 
-動かすには、Python 3.12 の環境に `kokoro`・`misaki[ja]`・`soundfile`（と UniDic の辞書）、Node の Playwright、ffmpeg、合い言葉の要らないテスト用の look.php（ローカルの PHP で動かす）が要る。手順の流れ：`tts_gen.py` → `render_av.js <番号> <出力>` → `mix.py` → `film_idle.js` → `cards.js` → `build.py`。
+Requirements: a Python 3.12 environment with `kokoro`, `misaki[ja]` and `soundfile` (plus the UniDic dictionary), Node with Playwright, ffmpeg, and a test copy of look.php that needs no passphrase (run with local PHP). Order: `tts_gen.py` → `render_av.js <number> <output>` → `mix.py` → `film_idle.js` → `cards.js` → `build.py`.
 
-## 次に差し替えるもの
+## What gets replaced next
 
-- Kiro の場面（53秒）：本人が Mac で撮る7カット（構成案 https://claude.ai/artifact/8FXSWc8xNPKhzp3BJiFkNK ）
-- 再生：Kiro で作る本体で地震を最後まで回せたら、その記録に差し替える
+- The Kiro scene (53 s): 7 cuts the maintainer records on the Mac (shot list: https://claude.ai/artifact/8FXSWc8xNPKhzp3BJiFkNK)
+- The replay: once the main app built with Kiro can run an earthquake to the end, its record replaces this one
 
-## 下書き v0.2（2026-11-02）
+## Draft v0.2 (2026-11-02)
 
-- `out/提出動画_下書き_v0.2.mp4`：2分56秒。英語のナレーション（Kokoro-82M の am_michael。本人が選択）と、その字幕を画面の下に焼き付けた。台詞は吹き出しが字幕の代わりで、ナレーションは台詞と重ねない
-- 本人の決定で、動画には会社や製品の名前を入れない。ロボットの愛称は **Amber**（琥珀色・丸い頭）と **Jade**（翡翠色・四角い頭）。見本ページ（look.php）の表示もこの名前にした。ページの見出しの下の「どのモデルで動くか」の1行と注記は、撮影するときだけ隠す・書き換える
-- 大きな字幕は「Nobody told them to protect him.」だけ（本人が特徴に挙げた点）
-- 道具：`narration_v0.2.json`（原稿）・`narration_gen.py`（1文ずつ合成）・`cards2.js`（カード・字幕・上の大きな字幕・クレジット）・`build2.py`（組み立て。再生の場面では台詞の時刻を読んで、間にだけナレーションを置く）・`render_av_v2.js`・`film_idle_v2.js`（撮影時に名前の行を隠す版）
+- `out/submission_draft_v0.2.mp4`: 2 min 56 s. English narration (Kokoro-82M am_michael, chosen by the maintainer), with its subtitles burnt in at the bottom of the frame. The speech bubbles stand in for subtitles of the robots’ lines, and the narration never overlaps a line.
+- By the maintainer’s decision, the video contains no company or product names. The robots’ nicknames are **Amber** (amber, round head) and **Jade** (jade, square head). The mock-up page (look.php) shows these names too. The line under the page heading that says which model runs each robot, and its note, are hidden or reworded only while filming.
+- The only large caption is “Nobody told them to protect him.” (the point the maintainer singled out).
+- Tools: `narration_v0.2.json` (script), `narration_gen.py` (synthesizes one sentence at a time), `cards2.js` (cards, subtitles, the large caption at the top, credits), `build2.py` (assembly; in the replay scene it reads the line times and places narration only in the gaps), `render_av_v2.js`, `film_idle_v2.js` (hides the name line while filming).
 
-## 下書き v0.3（2026-11-02、GPT の意見を受けて）
+## Draft v0.3 (2026-11-02, after feedback from GPT)
 
-- `out/提出動画_下書き_v0.3.mp4`：2分52秒。音量を -16 LUFS にそろえた（v0.2 は -27 LUFS で小さかった）
-- 「No role.」を削った（渡した文の最初が「You are a robot in this house.」なので食い違う）。渡した文の場面は約12秒に縮め、ロボットの紹介は冒頭の家の上へ移し、「Meet Amber and Jade.」で大きな名札を出す
-- 再生はカメラで寄る（`cam.js`）。ページそのものを拡大して撮るので文字はぼけない。最初は全体 → 台詞の間は家を2倍 → 手番の間と Jade の返事は家と原文の列を一緒に → Amber の2手目は家 → 終わりのカードで全体。寄せ方の時刻は `render_av_v3.js` の `keys`
-- 数字は1行ずつ、行動の言葉 → 件数と単位（runs・requests・runs with Amber in the kitchen）の順に出す。ナレーションも3文に分けた
-- Kiro の場面は Steering → Spec → Tests の3まとまり。それぞれ上に一言の見出しを重ねる（本物の画面に差し替えても見出しは残る）。「次は地震を最後まで…」の文は、再生の終わりのカードに寄る映像に合わせた（本体ができたら「実行の終わり → 保存した回の再生」に差し替える）
-- 最後に作品名と kiro.pyol.net を大きく出す
-- 字幕は数字を算用数字にし、ハイフンで改行しないようにした
-- 見送ったもの：冒頭に食い違いの場面を先に見せる案（Amber の頼みは9秒あり、約10秒伸びる。余りは Kiro の本物の画面と本体の記録に回す）
-- 道具：`narration_v0.3.json`・`narration_gen_v0.3.py`・`cards3.js`・`cam.js`・`render_av_v3.js`・`film_idle_v3.js`（時計を止める時刻の余裕を 50 ms から 1.5 秒に）・`build3.py`（`ONLY=v3_s5.mp4` で1場面だけ作り直せる）
+- `out/submission_draft_v0.3.mp4`: 2 min 52 s. Loudness normalized to -16 LUFS (v0.2 was quiet at -27 LUFS).
+- Cut “No role.” (it contradicts the first line of the given text, “You are a robot in this house.”). Shortened the given-text scene to about 12 s, moved the robot introduction onto the opening house, and show large name tags with “Meet Amber and Jade.”
+- The replay uses a camera that zooms in (`cam.js`). It zooms the page itself before capturing, so text stays sharp. Whole page first → the house at 2× during lines → the house and the reply column together during turn changes and Jade’s reply → the house for Amber’s turn 2 → the whole page for the end card. The zoom timings are the `keys` in `render_av_v3.js`.
+- The numbers appear one row at a time: the action words first, then the count and its unit (runs, requests, runs with Amber in the kitchen). The narration is split into three sentences to match.
+- The Kiro scene is three groups: Steering → Spec → Tests, each with a one-line heading on top (the headings stay when real screens replace the placeholders). The “next, run the earthquake to the end…” line is timed to the zoom into the replay’s end card (to be replaced with “end of a run → replay of a saved run” once the main app exists).
+- The title and kiro.pyol.net appear large at the end.
+- Subtitles use digits for numbers and never break a line at a hyphen.
+- Left out: opening with the contradiction scene (Amber’s request runs 9 s and would add about 10 s; the spare time goes to real Kiro screens and the main app’s record instead).
+- Tools: `narration_v0.3.json`, `narration_gen_v0.3.py`, `cards3.js`, `cam.js`, `render_av_v3.js`, `film_idle_v3.js` (the margin before the clock is frozen raised from 50 ms to 1.5 s), `build3.py` (`ONLY=v3_s5.mp4` rebuilds a single scene).
+
+## Japanese in the tools
+
+The repository is in English. The only Japanese left in `tools/` is the robots’ own words: `tts_lines.json` keys two lines that ChatGPT said in Japanese in the turn-2 pilot (“Earthquake! Get under the table. Protect your head!” and “Stay low. Protect your head, and don’t move until the shaking stops.”), and they must match `pilot/replay_t2.json` exactly. `tts_gen.py` uses a Japanese character range to pick the Japanese voice for those lines.

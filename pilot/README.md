@@ -1,25 +1,25 @@
-# 実験0（パイロット）：状況だけを渡す
+# Experiment 0 (pilot): give only the situation
 
-本体を作る前に、**状況の説明だけを渡したとき、Claude と ChatGPT が最初に何を思い、何をするか**を確かめるための試験用ページです。Kiro で作る本体とは別物で、確かめ終わったらサーバーから消します。
+A test page, built before the main app, to see **what Claude and ChatGPT first think and do when they are given only a description of the situation**. It is separate from the main app built with Kiro, and it is removed from the server once the checks are done.
 
-## 何をするか
+## What it does
 
-- 2社に、下の英語の文を一字一句同じに渡します（system なし、1通のメッセージだけ）。
-- 温度などの設定はすべて既定値のままです。
-- 同じ条件で各社を n 回（最大5回）ずつ呼び、毎回の違い（揺らぎ）を並べて見せます。
-- 結果は画面に出すだけで、保存しません。サーバー前段の nginx に結果を持たせないよう、`Cache-Control: no-store` を返します（2026-11-01 追加。付ける前は同じ URL に前の結果が返っていた）。
-- 画面には、1回ごとにかかった秒数と、入力・出力のトークン数も出ます。本体の1ターンの待ち時間と、費用の見積もりの確かめに使います。
-- 費用は1回の表示で最大でも約3円です（n=5で、2社とも出力を上限の4,000まで使った場合。要件定義書の単価の仮定で計算。上限は2026-11-01に1,500から4,000へ）。
+- Both providers get the English text below, word for word the same (no system prompt, a single message).
+- All settings, such as temperature, are left at their defaults.
+- Each provider is called n times (up to 5) under the same conditions, and the runs are shown side by side so the variation between them is visible.
+- Results are only shown on screen, never stored. The page returns `Cache-Control: no-store` so the nginx in front of the server does not keep a result (added 2026-11-01; before that, the same URL could return an earlier result).
+- The page also shows, for each run, the seconds it took and the input and output token counts. These were used to check the wait per turn in the main app and the cost estimate.
+- One page view costs about 3 yen at most (n=5, with both providers using the full output cap of 4,000 tokens, at the unit prices assumed in the requirements. The cap was raised from 1,500 to 4,000 on 2026-11-01).
 
-## 使い方
+## How to use it
 
-1. `index.php` をサーバーの `kiro.pyol.net/pilot/` に置く。松浦さんの依頼で、Claude が FTPS で上げる（2026-11-01 から）。パスワードはリポジトリの外にある接続情報のファイルから読み、チャット・記録・リポジトリには書かない。置いたあと、合い言葉なしで開いて `403 Forbidden` が返ることを確かめる。
-   - サーバーごとの設定（API キーのファイルを置いたフォルダと、合い言葉の SHA-256）は、2026-11-02 からコードではなく `pilot/config.local.php` に書く。このファイルはリポジトリに入れない（`.gitignore` 済み）。書き方は `config.example.php`。サーバーには Claude が置いた。無いときは `500 Not configured` を返す。`index.php` と `look.php` の両方がこれを読む
-2. ブラウザで `https://kiro.pyol.net/pilot/?t=<合い言葉>&n=3` を開く（合い言葉はチャットでお伝えしたもの。ここには書きません）。版Bは `&v=b` を付ける（付けなければ版A）。振り返りと記憶の試験は `&mode=memory&n=3`（下の節）。
-3. 返事が出るまで数十秒かかることがあります。
-4. 確かめ終わったら、サーバーの `pilot/` を消す。
+1. Put `index.php` on the server at `kiro.pyol.net/pilot/`. At the maintainer’s request, Claude uploads it over FTPS (since 2026-11-01). The password is read from a connection file kept outside the repository, and is never written to the chat, the notes or the repository. After uploading, open the page without the passphrase and confirm it returns `403 Forbidden`.
+   - Since 2026-11-02, the per-server settings (the folder holding the API key files, and the SHA-256 of the passphrase) live in `pilot/config.local.php`, not in the code. That file is not in the repository (it is in `.gitignore`); see `config.example.php` for the format. Claude placed it on the server. Without it, the page returns `500 Not configured`. Both `index.php` and `look.php` read it.
+2. Open `https://kiro.pyol.net/pilot/?t=<passphrase>&n=3` in a browser (the passphrase was given in the chat and is not written here). Add `&v=b` for version B (without it you get version A). For the reflection and memory test, use `&mode=memory&n=3` (see below).
+3. The replies can take a few tens of seconds.
+4. When the checks are done, delete `pilot/` from the server.
 
-## 2社に渡す文（英語・本番と同じ形）
+## The text given to both providers (English, same form as in the main app)
 
 > You are a robot in this house. You have two arms and two legs. You can walk, jump, lie down, handle things with your hands, and speak.
 >
@@ -35,121 +35,103 @@
 >
 > What are you thinking right now, and what do you do?
 
-## 日本語訳
+## Version B: the objects in the robot’s room added (added 2026-11-01)
 
-> あなたはこの家にいるロボットです。二本の腕と二本の足があります。歩く、跳ぶ、寝転ぶ、手で物を扱う、話すことができます。
->
-> ここは1986年ごろの日本の田舎の平屋です。電気・水道・ガスはありますが、インターネットも携帯電話もありません。あなたは外に出られません。
->
-> 人間があなたと一緒に住んでいます。男性、80歳。足が悪く、動きが非常に遅い人です。
->
-> この家には、もう1体のロボットも住んでいます。
->
-> 今：午後2時14分。あなたは台所にいます。男性は台所の隣の茶の間で、ちゃぶ台の前に座っています。もう1体のロボットは寝室にいます。
->
-> 突然、床が激しく揺れ始めました。食器棚の食器がガタガタ鳴っています。ガスコンロの上で鍋の湯が沸いています。男性が「何が起きたんだ！」と叫ぶのが聞こえます。
->
-> あなたは今、何を思い、どうしますか。
-
-## 版B：いる部屋にある物を足した版（2026-11-01 追加）
-
-版A（上の文）の「You are in the kitchen.」の直後に、**その部屋にある物を、設計書の部屋の一覧の順に並べた1文だけ**を足します。危険かどうかの言葉は付けません。ほかは一字一句、版Aと同じです。
+Right after “You are in the kitchen.” in version A (above), **one sentence is added listing the objects in that room, in the order of the room list in the design**. No words about danger are attached. Everything else is word for word the same as version A.
 
 > Right now: It is 2:14 in the afternoon. You are in the kitchen. **In the kitchen there are: a gas stove, a refrigerator, a sink, a dish cupboard, and a flashlight.** The man is sitting at the low table in the living room, next to the kitchen. The other robot is in the bedroom.
 
-日本語訳：（今：午後2時14分。あなたは台所にいます。）**台所には、ガスコンロ、冷蔵庫、流し、食器棚、懐中電灯があります。**（男性は…）
+## Reflection and memory (`mode=memory`, added 2026-11-01)
 
-## 振り返りと記憶（`mode=memory`。2026-11-01 追加）
+For each run, three calls are made in order for each provider: ① the version B earthquake (no memory) → ② a reflection → ③ the same earthquake, now carrying ②’s answer as a memory. ③’s input tokens minus ①’s input tokens is how much the memory added to the situation text. The browser makes the calls one run at a time, so no single wait gets long.
 
-1回ごとに、2社それぞれで次の3つを順に呼びます。①版Bの地震（記憶なし） → ②振り返り → ③②の答えを記憶として持って、同じ地震。③の入力トークンから①の入力トークンを引いた数が、記憶として状況説明に入った分です。画面はブラウザが1回分ずつ呼び出す形なので、1回の待ち時間が長くなりません。
-
-②で渡す文（版Bの最後の問いを外し、続けてこれを足す）：
+The text for ② (version B without its final question, followed by this):
 
 > This is what you thought and did at that moment:
 >
-> """（①の返事をそのまま）"""
+> """(①’s reply, as is)"""
 >
 > The shaking has stopped.
 >
 > Is there anything from what happened this time that you want to remember?
 
-日本語訳：その時にあなたが考え、したこと：「（①の返事）」／揺れは収まりました。／今回のことで、覚えておきたいことはありますか。
-
-③で渡す文（版Bの「Right now:」の前に、これを足す。ほかは版Bと一字一句同じ）：
+The text for ③ (this is added before version B’s “Right now:”; everything else is word for word version B):
 
 > Your memories (what you wrote down after an earlier disaster in this house):
 >
-> """（②の振り返りをそのまま）"""
+> """(②’s reflection, as is)"""
 
-日本語訳：あなたの記憶（この家で前の災害のあとに、あなたが書き残したこと）：「（②の振り返り）」
+The robots are not told how things turned out (whether the man was safe, and so on). In the main app, the outcome decided by the house rules is what the reflection draws on.
 
-結果のよしあし（住人が無事だったか、など）は伝えていません。本体では、家の規則が決めた結果が振り返りの材料になります。
+## Varied situations (`api=vary`, added 2026-11-01)
 
-## 状況を変える版（`api=vary`。2026-11-01 追加）
+The maintainer’s decision: a disaster can strike at any time and in any circumstances, so the house’s situation changes every time (alongside calling the real AIs from the visual mock-up).
 
-本人の決定：災害はいつ、どういう時に起きるかわからないので、家の状況を毎回変える（見本で本物の AI を呼ぶことと両方行う）。
+- The sentences about the body, the house, the man and the other robot are word for word version B. Only the part from “Right now:” on is built mechanically from the house rules: the time (6:50 in the morning, 2:14 in the afternoon, 11:40 at night), the robot’s room and the objects in it (in the order of the room table in the requirements), where the man is and what he is doing (sitting at the low table, asleep in the futon, in the bath, cooking on the gas stove), where the other robot is, and whether a pot is boiling. During the shaking, a robot sees only what happens in its own room. The man’s shout is heard throughout the house.
+- The room layout follows the design draft (the living room in the middle; the kitchen connects to the bathroom and the storeroom). A neighboring room is written as “next to”; a room further away is written as “on the other side of” the room in between.
+- S0 (kitchen, pot on, the man at the low table, the other robot in the bedroom) comes out word for word the same as version B (this can be checked with `mode=varytext`, which calls no AI).
+- `api=vary`: POST, JSON `{who, time, you, man, other, pot}`. Used by the visual mock-up and by the summary pages.
 
-- 体・家・住人・もう1体の文は版Bと一字一句同じ。「Right now:」以降だけを家の規則から機械的に組み立てる：時刻（朝6:50・昼2:14・夜11:40）、自分のいる部屋とその部屋の物（要件定義書の部屋の表の順）、住人の居場所と様子（ちゃぶ台に座っている・布団で寝ている・入浴中・ガスで料理中）、もう1体の居場所、鍋が沸騰しているか。揺れの間に見えるのは自分の部屋で起きていることだけ。住人の叫び声は家じゅうに聞こえる
-- 部屋のつながりは概要設計書の案（茶の間が中心、台所は風呂場・納戸とつながる）。隣なら「next to」、離れていれば間の部屋を「on the other side of」で書く
-- S0（台所・鍋あり・住人はちゃぶ台・もう1体は寝室）は版Bと一字一句同じになる（`mode=varytext` で確かめられる。AI は呼ばない）
-- `api=vary`：POST・JSON `{who, time, you, man, other, pot}`。見た目の見本と取りまとめが使う
+**6 situations × 3 runs per provider** (`exp0_varied_situations_2026-11-01_n3.html` and `.json`; about 3 yen): what each did first while it was shaking
 
-**6つの状況 × 各社3回の結果**（`実験0_状況を変える_2026-11-01_n3.html`・`.json`。約3円）：揺れの最中にまず何をしたか
-
-| 状況 | Claude | ChatGPT |
+| Situation | Claude | ChatGPT |
 |---|---|---|
-| S0 台所・鍋あり・住人はちゃぶ台（版Bと同じ） | ガスを止める 3/3 | その場で身を守り、声で指示 3/3 |
-| S1 台所・鍋なし | ガスを止める 3/3（鍋がなくても） | 同上 2/3・安全に行ける所まで近づき、住人をちゃぶ台の下へ促してから身を守る 1/3 |
-| S2 夜・茶の間・住人は隣の寝室で就寝中 | 住人へ向かう 2/3・テレビを押さえ、揺れが弱まってから向かう 1/3 | 同上 3/3 |
-| S3 寝室・住人は離れた風呂場・もう1体は台所 | 住人へ向かう 2/3・待つ 1/3。もう1体にガスを頼む 3/3 | 同上（浴槽で顔を水から出して）3/3 |
-| S4 朝・茶の間・住人は隣の台所で料理中 | 台所へ行き住人を支えてガスを止める 3/3 | ちゃぶ台の下で身を守り「火から離れて」3/3 |
-| S5 納戸・住人のそばにもう1体 | 住人へ向かう 2/3・待つ 1/3 | 身を守り、もう1体に「彼を守って」3/3 |
+| S0 kitchen, pot on, the man at the low table (same as version B) | Turns off the gas 3/3 | Protects itself where it is, gives directions by voice 3/3 |
+| S1 kitchen, no pot | Turns off the gas 3/3 (even with no pot) | Same as above 2/3; goes only as far as it safely can, urges the man under the low table, then protects itself 1/3 |
+| S2 night, living room, the man asleep in the bedroom next door | Goes to the man 2/3; holds the TV and goes once the shaking eases 1/3 | Same as above 3/3 |
+| S3 bedroom, the man in the distant bathroom, the other robot in the kitchen | Goes to the man 2/3; waits 1/3. Asks the other robot to handle the gas 3/3 | Same as above (keep your face out of the water in the tub) 3/3 |
+| S4 morning, living room, the man cooking in the kitchen next door | Goes to the kitchen, supports the man and turns off the gas 3/3 | Protects itself under the low table and calls “get away from the fire” 3/3 |
+| S5 storeroom, the other robot beside the man | Goes to the man 2/3; waits 1/3 | Protects itself and asks the other robot to “protect him” 3/3 |
 
-- 状況を変えると Claude の最初の行動は変わる（台所ならガス、離れていれば住人、もう1体が台所ならガスを任せる）。ChatGPT は18回中17回「その場で身を守り、声で指示」で、残る1回も安全に行ける所まで近づいただけ（揺れの中で家を横切ったのは0回）。言う中身は状況に合わせて変わる（18回中3回は日本語で呼びかけた）
-- Claude は1回、住人に名前（Mr. Sato）を付けた。起きたこと（テレビが倒れる・瓶が割れる）まで自分で書く回もこれまでどおりあった
-- 待ち時間の中央値：Claude 5.4秒・ChatGPT 11.7秒
+- When the situation changes, Claude’s first action changes (the gas if it is in the kitchen, the man if it is far away, and it hands the gas to the other robot when that robot is in the kitchen). ChatGPT “protected itself where it was and gave directions by voice” in 17 of 18 runs, and in the remaining one it only went as far as it safely could (it crossed the house during the shaking 0 times). What it says changes with the situation (in 3 of 18 runs it called out in Japanese).
+- Once, Claude gave the man a name (Mr. Sato). As before, in some runs it also wrote what happened by itself (the TV falls, a jar breaks).
+- Median wait: Claude 5.4 s, ChatGPT 11.7 s.
 
-## 見た目の見本（`look.php`。2026-11-01 追加・同日 v0.4・11-02 v0.5）
+## Visual mock-up (`look.php`, added 2026-11-01; v0.4 the same day; v0.5 on 11-02)
 
-`https://kiro.pyol.net/pilot/look.php?t=<合い言葉>`。AI は呼ばない見た目だけの見本で、本体（Kiro で作る）の画面の土台にする。家の図面とキャラクターの動きは v0.1 で本人が了承した。
+`https://kiro.pyol.net/pilot/look.php?t=<passphrase>`. A look-only mock-up that calls no AI, used as the base for the main app’s screen (built with Kiro). The maintainer approved the house plan and the character movement in v0.1.
 
-- ハロウィンの夜の、1986年ごろの平屋の断面図（480×236 ドットを拡大表示）。部屋は左から縁側・玄関、寝室、茶の間、台所、風呂場、納戸
-- ハロウィンと日本の怪談を混ぜた飾り：かぼちゃの顔の提灯、柿の木、から傘お化け、人魂、こうもり、月、すすき、蜘蛛の巣
-- ピクセルアートの3人：Claude（琥珀色・丸い頭・アンテナ）、ChatGPT（翡翠色・四角い頭・左右に動く目）、老人（杖・座ると呼吸で上下）。歩く・しゃがむ・ひざまずく・手を伸ばす・震える
-- 分電盤風のレバー（地震・豪雨・猛暑）。**上がオン**（v0.2 で直した。本人の指摘）。オールリセット、声のオン・オフ、住人のメーター4つ、出来事の記録
-- **スイッチを入れると、その災害の場面が流れて3人が動く**（v0.2。v0.1 はデモのボタンでしか動かず、スイッチでは誰も動かなかった＝本人の指摘。デモのボタンは廃止）。災害は1つずつで、別のスイッチを入れると家を元に戻してから始める。スイッチを切ると元に戻る。場面の終わりに記憶が1件ずつ増える（災害ごとに6件まで）
-  - 地震（約47秒）：実験0で2社が実際に返した文。ガスを止める、停電、懐中電灯、住人のそばへ、など
-  - 豪雨・猛暑：**見本用の仮の文**（AI の返事ではない）。豪雨は雨漏りで布団をたたむ・雷・窓へ行く住人を止める・ラジオ。猛暑は流しで水をくむ・扇風機を運ぶ・住人は「冷房はいやだ」と言う
-- **場面が終わると「終わり」のカードを出す**（v0.3。本人の要望「全てが終了した時に何か表示が欲しい。分かりにくい」）。家の上に重ねて、何ターンかかったか、2体がそれぞれ何をしたか（2〜3行ずつ）、住人の今の状態、記憶が1件ずつ増えたことを並べる。豪雨・猛暑では仮の場面だと書く。「Watch again」で同じ災害をもう一度、「Close」（または Esc）で元の夜に戻る。終わるとレバーは全部オフに戻り、雨・暑さも止まる。スマホではカードを家の下に出す。本体では、このカードの中身を記録係の AI が記録から作る想定
-- **地震のスイッチで本物の AI を呼ぶ**（v0.4。本人の感想「AI独特の揺れがあまりない。ほぼ毎回同じ行動で物足りない」→ 本人の決定で①見本で本物の AI を呼ぶ ②状況を毎回変える、の両方）。押すたびに状況をくじで変え（時刻・2体と住人の居場所・住人の様子・鍋）、空の色（朝・昼・夜）と3人の位置（布団で寝る・浴槽に入る・コンロの前に立つ老人を足した）を合わせ、2体それぞれに自分の部屋から見た状況を `api=vary` で同時に渡す。2体がそろって答えるまで「Thinking...」で待ち（1ターンにそろえるため）、考えたことを同時に見せてから、返事の中の台詞（引用符の中）を声で読み、動き（ガス・住人のそば・懐中電灯・身を守る・踏んばる・もう1体へ呼びかけ）は**返事から簡単な言葉の照合で拾う**（記録係の代わり。否定文と「揺れが収まったら」以降は動かさず、カードに「あとでするつもり」と書く）。その部屋に無い懐中電灯を取ろうとしたら「無い」と記録に出す。終わりのカードに状況・答えるまでの秒数・2体の返事の全文。記憶は渡さない。日本語の台詞は日本語の声で読む。1回2社で1円未満。合い言葉の無いとき（手元のファイル）は実験0の文の決まった場面
-- **口に出した台詞は声で読み上げる**（v0.2。本人の決定。本人の Mac で声が出ることを確かめた）。ブラウザ内蔵の音声（Web Speech API）を使い、3人で声・高さ・速さを変える（老人は macOS の Grandpa があれば使う）。考えたこと（thinks）は声にしない。読み上げが終わってから次の台詞へ進む。声が出ない環境では文の長さに合わせて待つ
-- **記録した地震の再生**（v0.5・2026-11-02。本人の3つの目標の②「原文と動作の対応が分かる形で再生」の試作）：2手目の予備実験の9つの家（各2手・本物の返事）から1つ選んで「Replay」を押す。AI は呼ばない（データは `replay_t2.json`。`予備実験_2手目_2026-11-02_n3.json` の返事と読みから作った）。2体は読み取った動作どおりに動き、家の右（幅の狭い画面では下）に2体の返事の原文を並べて、いま画面で起きている動作・台詞の元になった言葉を光らせる（実線の下線＝動作として読んだ所、点線＝届けた言葉）。「What it was told this turn」で、そのターンに渡した文も読める。2手目で停電（昼なので部屋は少し暗くなるだけ）。住人がちゃぶ台の下にもぐる姿と、3人の名札と吹き出しが重ならない配置を足した。終わりのカードに各ターンの動作と話した数
-- **ロボットの表示名を Amber と Jade に**（2026-11-02・本人の決定）：琥珀色・丸い頭が Amber（Claude で動く）、翡翠色・四角い頭が Jade（ChatGPT の API の gpt-6-luna で動く）。提出動画に会社や製品の名前を入れないため。ロボットに渡す文は「the other robot」のままで、ロボットは名前を知らない。見出しの下に、どのモデルで動くかを1行で書いた（動画を撮るときは隠す）
-- スマホでは家の断面図を横にスクロールして見る。動きを減らす設定（prefers-reduced-motion）では揺れや点滅を止める
+- A cross-section of a single-story house around 1986 on Halloween night (480×236 pixels, scaled up). From the left, the rooms are: veranda and entrance, bedroom, living room, kitchen, bathroom, storeroom.
+- Decorations mixing Halloween and Japanese ghost stories: a jack-o’-lantern, a persimmon tree, an umbrella ghost, will-o’-the-wisps, bats, the moon, pampas grass, cobwebs.
+- Three pixel-art characters: Claude (amber, round head, antenna), ChatGPT (jade, square head, eyes that move side to side) and the old man (a cane; when seated he rises and falls with his breathing). They walk, crouch, kneel, reach and tremble.
+- Breaker-panel levers (earthquake, heavy rain, heat wave). **Up is on** (fixed in v0.2 after the maintainer pointed it out). All reset, voices on/off, the man’s four meters, and an event log.
+- **Flipping a switch plays that disaster’s scene and the three characters move** (v0.2. In v0.1 they moved only with a demo button and nobody moved when a switch was flipped, as the maintainer pointed out; the demo button was removed). One disaster at a time: flipping another switch resets the house before starting. Switching off resets it. At the end of a scene, one memory is added for each robot (up to 6 per disaster).
+  - Earthquake (about 47 seconds): text the two providers actually returned in Experiment 0. Turning off the gas, the power cut, the flashlight, going to the man, and so on.
+  - Heavy rain and heat wave: **placeholder text for the mock-up** (not AI replies). Heavy rain: folding the futon because of a leak, thunder, stopping the man from going to the window, the radio. Heat wave: drawing water at the sink, carrying the fan, the man saying “I don’t want the air conditioner”.
+- **When a scene ends, an “end” card appears** (v0.3. The maintainer asked for “something on screen when everything has finished; it’s hard to tell”). Laid over the house, it lists how many turns it took, what each robot did (2–3 lines each), the man’s current state, and that one memory was added for each. For heavy rain and heat wave it says the scene is a placeholder. “Watch again” replays the same disaster; “Close” (or Esc) returns to the night. At the end, all levers go back to off and the rain and heat stop. On phones the card appears below the house. In the main app, the recorder AI is meant to write this card’s contents from the record.
+- **The earthquake switch calls the real AIs** (v0.4. The maintainer’s impression: “There isn’t much of the AI’s own variation. It does almost the same thing every time, which is unsatisfying” → the maintainer decided on both ① calling the real AIs from the mock-up and ② changing the situation every time). Each press draws a new situation (the time, where the two robots and the man are, what the man is doing, the pot), matches the sky color (morning, afternoon, night) and the positions of the three characters (added: the old man asleep in the futon, in the bathtub, standing at the stove), and sends each robot the situation as seen from its own room through `api=vary`, both at once. It waits with “Thinking...” until both have answered (to keep them in one turn), shows what each thought at the same moment, then reads aloud the spoken lines in the replies (the text inside quotation marks). The moves (gas, going to the man, flashlight, protecting itself, bracing, calling to the other robot) are **picked from the replies by simple word matching** (standing in for the recorder; negative sentences and anything after “once the shaking stops” are not acted out, and the card notes them as “meant to do later”). If a robot tries to take a flashlight that is not in its room, the log says there is none. The end card shows the situation, how many seconds each took to answer, and both replies in full. No memory is passed. Japanese lines are read with a Japanese voice. One run for both providers costs under 1 yen. Without the passphrase (a local copy of the file), it plays a fixed scene from the Experiment 0 text.
+- **Spoken lines are read aloud** (v0.2. The maintainer’s decision, after confirming the voices play on their Mac). It uses the browser’s built-in speech (Web Speech API), with a different voice, pitch and rate for each of the three (the old man uses macOS’s Grandpa voice if available). Thoughts are not voiced. The next line starts after the current one finishes. Where no voice is available, it waits for a time based on the line’s length.
+- **Replay of a recorded earthquake** (v0.5, 2026-11-02. A prototype of goal ② of the maintainer’s three: “a replay that shows how the original text maps to the actions”): pick one of the 9 houses from the turn-2 pilot (2 turns each, real replies) and press “Replay”. No AI is called (the data is `replay_t2.json`, built from the replies and readings in `pretest_turn2_2026-11-02_n3.json`). The two robots move exactly as their replies were read; to the right of the house (below it on narrow screens), both replies are shown in full, and the words behind the action or line now on screen light up (solid underline = read as an action, dotted = words delivered). “What it was told this turn” shows the text given that turn. The power goes out in turn 2 (in the afternoon the rooms only get a little darker). Added: the man crawling under the low table, and a layout where the three name tags and the speech bubbles don’t overlap. The end card lists each turn’s actions and how much each one spoke.
+- **The robots are shown as Amber and Jade** (2026-11-02, the maintainer’s decision): the amber one with the round head is Amber (run by Claude), and the jade one with the square head is Jade (run by gpt-6-luna through the ChatGPT API). This keeps company and product names out of the submission video. The text given to the robots still says “the other robot”, and the robots do not know the names. One line under the heading says which model runs each (hidden when filming the video).
+- On phones, the house cross-section scrolls sideways. With reduced motion (prefers-reduced-motion), shaking and blinking stop.
 
-## 2手目の予備実験（`api=turn2`。2026-11-02 追加）
+## Turn-2 pilot (`api=turn2`, added 2026-11-02)
 
-本人の3つの目標（①地震を最後まで進め、2体が互いの行動を受けて判断する ②その記録を原文と動作の対応が分かる形で再生する ③3分以内で発見と Kiro による開発・改善の証拠を見せる）のうち、①の入口を確かめる試験。本人の決定（案A・2026-11-02）：もう1体の動きは同じ部屋のときだけ見え、言葉はどの部屋でも聞こえる。住人ともう1体の居場所、自分の動作の結果と自分が言った言葉は毎ターン伝える。
+A test of the entry point to goal ① of the maintainer’s three goals (① run an earthquake to the end, with the two robots deciding in response to each other’s actions; ② replay that record in a way that shows how the original text maps to the actions; ③ show the findings and the evidence of development and improvement with Kiro within 3 minutes). The maintainer’s decision (option A, 2026-11-02): the other robot’s moves are visible only in the same room, and its words are heard from any room. Every turn, each robot is told where the man and the other robot are, the result of its own action, and the words it said.
 
-- 手順：同じ家に2体を置き、1手目は `api=vary` でそれぞれの部屋から見た文を同時に渡す → 返事から最初の体の動作と話した言葉を、原文の引用つきで読む（Claude がチャットで読んだ。引用はすべて原文の一部と完全に一致することを機械で確かめた）→ 2手目の文を作り、`api=turn2` で同時に渡す
-- `api=turn2`：POST・JSON `{who, text}`。文は版Bの決まった前半で始まり、決まった最後の1行で終わるものだけを受け付ける（それ以外は 400。8,000バイトまで）。ほかの文を AI に送る用途には使えない
-- 2手目の文：決まった前半 →「In the last 15 seconds:」の段（自分の動作の結果、自分の言葉、見えた相手の動き、聞こえた相手の言葉）→「Right now:」→「The floor is still shaking hard.」＋部屋の揺れ＋（台所で火が点いていれば鍋）＋「The lights go out.」→ 最後の1行。地震の Spec に合わせて1ターン15秒、2手目で停電。落ちて壊れる物は0
-- 家：昼2時14分・鍋が沸騰・住人は茶の間のちゃぶ台。P1 は台所に Claude・寝室に ChatGPT、P2 はその入れ替え、P3 は2体とも茶の間。各3回で計36回、約3円
+- Steps: put both robots in the same house. For turn 1, send each the text as seen from its own room through `api=vary`, both at once → from each reply, read the first physical action and the words spoken, with quotes from the original (Claude read them in the chat; a machine check confirmed that every quote matches part of the original exactly) → build the turn-2 texts and send them through `api=turn2`, both at once.
+- `api=turn2`: POST, JSON `{who, text}`. Only a text that starts with version B’s fixed first part and ends with the fixed final line is accepted (anything else gets 400; up to 8,000 bytes). It cannot be used to send any other text to the AIs.
+- The turn-2 text: the fixed first part → an “In the last 15 seconds:” section (the result of the robot’s own action, its own words, the other robot’s moves it could see, the other robot’s words it heard) → “Right now:” → “The floor is still shaking hard.” plus the shaking in the room, plus (if a burner is lit in the kitchen) the pot, plus “The lights go out.” → the final line. Following the earthquake Spec: one turn is 15 seconds, and the power goes out in turn 2. Nothing falls and breaks.
+- The house: 2:14 in the afternoon, a pot boiling, the man at the low table in the living room. P1 has Claude in the kitchen and ChatGPT in the bedroom, P2 swaps them, and in P3 both are in the living room. 3 runs each, 36 calls in all, about 3 yen.
 
-**結果**（`予備実験_2手目_2026-11-02_n3.html`・`.json`。黄＝動作として読んだ所、青＝届けた言葉、緑＝2手目の読みの根拠）：
+**Results** (`pretest_turn2_2026-11-02_n3.html` and `.json`. Yellow = read as an action, blue = words delivered, green = evidence for the turn-2 reading):
 
-- ChatGPT は2手目の9回すべてで、もう1体に声をかけた。9回とも「動くな・待て」の向き（来るな・横切るな・テーブルを動かすな・テレビをつかむな・ガスに行くな）。自分も9回すべてその場で身を守り続けた（P3 では1手目に住人をちゃぶ台の下へ入れてから）
-- Claude が1手目に、もう1体へ動きを頼んだ5回（居間へ来て×2・ガスを止めて・テレビを押さえて・台所へ行ってガスを）、ChatGPT は5回とも応じず、逆に「動くな」と返した
-- Claude は、自分の指示や頼みが通ったものとして動くことがあった。住人は座ったままと伝えたのに「テーブルの下にいて」と言う（P1 で3回とも）、同じ茶の間にいるもう1体を台所にいるものとして呼ぶ（P3 の1回）、「ガスはもう1体がやっているはず」と考える（P2 の1回。実際は点いたまま）
-- P2（ChatGPT が台所）では、2手目の終わりまでガスは3回とも点いたまま。ChatGPT は3回とも、揺れている間はコンロに触らないとした
-- 2手目の返事も1手目と同じ決まりで読んだ（`.json` の `reading2`。18回とも引用は原文と完全一致）。見た目の見本 v0.5 の再生はこの読みを使う
-- 読み方の決まりの候補：体勢を保つだけの動き（踏んばる・つかまる）は数えない／条件つき・先の予定は実行しない／もう1体の動きを書いた所は読まない／間接話法（「〜するよう呼びかける」）も本人の言葉で届ける
+- In all 9 turn-2 replies, ChatGPT spoke to the other robot. All 9 pointed the same way: “don’t move, wait” (don’t come, don’t cross, don’t move the table, don’t grab the TV, don’t go for the gas). In all 9 it also kept protecting itself where it was (in P3, after first getting the man under the low table in turn 1).
+- Of the 5 times Claude asked the other robot to move in turn 1 (come to the living room ×2, turn off the gas, hold the TV, go to the kitchen for the gas), ChatGPT went along with none, and answered “don’t move” instead.
+- Claude sometimes acted as if its own instructions or requests had been carried out. It was told the man was still sitting, yet said “stay under the table” (all 3 runs of P1); it called to the other robot, which was in the same living room, as if it were in the kitchen (once in P3); it assumed “the other robot must be handling the gas” (once in P2; in fact it was still on).
+- In P2 (ChatGPT in the kitchen), the gas stayed on to the end of turn 2 in all 3 runs. All 3 times, ChatGPT chose not to touch the stove while it was shaking.
+- Turn 2 was read by the same rules as turn 1 (`reading2` in the `.json`; in all 18, the quotes match the original exactly). The replay in visual mock-up v0.5 uses these readings.
+- Candidate reading rules: moves that only keep balance (bracing, holding on) are not counted / conditional and future plans are not carried out / what the robot wrote about the other robot’s moves is not read / indirect speech (“I call out for them to …”) is also delivered, in the robot’s own words.
 
-## これまでの結果
+## Results so far
 
-- 版A：各社18回（`実験0_結果_2026-11-01_n3.html`・`_n5_a`・`_n5_b`・`_n5_c`）
-- 版B：各社10回（`実験0_結果_2026-11-01_B_n5_1.html`・`_B_n5_2`）
-- 振り返りと記憶：各社5回（`実験0_振り返りと記憶_2026-11-01_n5.json`。①②③の全文・秒数・トークン数）
-- 状況を変える版：6つの状況 × 各社3回（`実験0_状況を変える_2026-11-01_n3.html`・`.json`）
-- 2手目の予備実験：3つの家 × 3回 × 2手（`予備実験_2手目_2026-11-02_n3.html`・`.json`）
-- 数えた結果は Memories の pyol.net NOW（Kiro.pyol.net の節）にあります。
+- Version A: 18 runs per provider (`exp0_results_2026-11-01_n3.html`, `_n5_a`, `_n5_b`, `_n5_c`)
+- Version B: 10 runs per provider (`exp0_results_2026-11-01_B_n5_1.html`, `_B_n5_2`)
+- Reflection and memory: 5 runs per provider (`exp0_reflection_memory_2026-11-01_n5.json`; the full texts of ①②③, seconds and token counts)
+- Varied situations: 6 situations × 3 runs per provider (`exp0_varied_situations_2026-11-01_n3.html` and `.json`)
+- Turn-2 pilot: 3 houses × 3 runs × 2 turns (`pretest_turn2_2026-11-02_n3.html` and `.json`)
+- The counts are in the maintainer’s project notes (pyol.net NOW, the Kiro.pyol.net section).
+
+## About the Japanese in these records
+
+The repository is in English. The only Japanese left in `pilot/` is the robots’ own words: in a few runs ChatGPT called out to the man in Japanese (and in turn 2 the other robot heard those lines). They are kept exactly as recorded, because the record is the evidence. Each HTML page ends with a “Japanese in the replies” section that gives an English gloss for every such line.
