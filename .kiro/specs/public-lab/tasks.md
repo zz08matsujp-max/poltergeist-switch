@@ -340,7 +340,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11**
     - Create `tests/js/observe-phases-property.test.js` (seeded `mulberry32`, at least 100 random event sequences against `fake-api.js`): at most one `createEpisode` in flight and none while `starting`, `running`, `unfinished` or `staged` (for Start); Lever and Start act as Try again while `unfinished`; Levers OFF after an episode ends and its reflection settles; empty client state on a later run; first-load state after an accepted All reset; the All reset button disabled in `starting` and `running`; no notice contains "Paused"; a 429 leaves the Levers OFF and the stage unchanged.
 
-- [~] 14. Add Voices and the sequencer to Replay
+- [x] 14. Add Voices and the sequencer to Replay
   - [x] 14.1 Wire Voices, the sequencer and cancel-on-control into Replay
     - `public/replay.php`: add `<button type="button" class="btn" id="btn-voices" aria-pressed="true">Voices: on</button>` in the header outside the hidden controls, and load `js/speech-sequencer.js` before `act-out.js`. `public/js/replay.js`: construct voices (`enabled:true`, `autoUnlock:false`), the sequencer and act-out as on Observe, `bindVoicesButton`; call `voices.gesture()` in the Play, Pause, Step back and Step forward handlers; `play`, `pausePlayback`, `stepBack`, `stepForward` and `chooseAnother` each call `actOut.cancel()` first. The Replay control set itself is unchanged.
     - _Requirements: 10.6, 11.1, 11.2, 11.3, 11.4, 11.16_
