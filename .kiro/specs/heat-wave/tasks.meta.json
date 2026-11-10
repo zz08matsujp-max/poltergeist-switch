@@ -243,6 +243,96 @@
         "executionId": "c25fec58-63f3-4e75-9519-3d44f756976f",
         "chatSessionId": "sess_ced99377-53c0-417d-9184-5009f23a7041",
         "timestamp": 1794229724387
+      },
+      {
+        "executionId": "c25fec58-63f3-4e75-9519-3d44f756976f",
+        "chatSessionId": "sess_ced99377-53c0-417d-9184-5009f23a7041",
+        "timestamp": 1794231260117
+      }
+    ],
+    "13. Add the heat-wave recorder input (earthquake recorder input and prompt unchanged)": [
+      {
+        "executionId": "f72a19c9-01d4-462f-8241-1bcbf4251baa",
+        "chatSessionId": "sess_8e7e7bdf-ee68-4870-9ed3-d0e99cc34972",
+        "timestamp": 1794231297441
+      },
+      {
+        "executionId": "f72a19c9-01d4-462f-8241-1bcbf4251baa",
+        "chatSessionId": "sess_8e7e7bdf-ee68-4870-9ed3-d0e99cc34972",
+        "timestamp": 1794258078633
+      }
+    ],
+    "14.1 Enable the Heat wave lever and add heat drawing": [
+      {
+        "executionId": "16cad511-5e23-4ddc-9d7d-11c65d88faec",
+        "chatSessionId": "sess_b9a17b33-9bd8-4172-bfba-8c47b8cb3b61",
+        "timestamp": 1794258182554
+      }
+    ],
+    "14.2 Write the JS screen example tests": [
+      {
+        "executionId": "16cad511-5e23-4ddc-9d7d-11c65d88faec",
+        "chatSessionId": "sess_b9a17b33-9bd8-4172-bfba-8c47b8cb3b61",
+        "timestamp": 1794258716086
+      }
+    ],
+    "15.1 Write the model-solution and four calibration runs": [
+      {
+        "executionId": "dd1b31d5-2352-458b-88f2-f4c6b027584e",
+        "chatSessionId": "sess_be49c7dd-fe2a-4766-9ba8-21faf2763863",
+        "timestamp": 1794259100054
+      }
+    ],
+    "16. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "23764bec-1b9e-4c5c-9ad1-b21faa9eb722",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794261364241
+      },
+      {
+        "executionId": "23764bec-1b9e-4c5c-9ad1-b21faa9eb722",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794261533239
+      },
+      {
+        "executionId": "8e2b0949-d6e3-45cc-b44f-0e9584bd1540",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794261795494
+      },
+      {
+        "executionId": "8e2b0949-d6e3-45cc-b44f-0e9584bd1540",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794261917905
+      },
+      {
+        "executionId": "cf96cd5b-fe45-4895-a14d-28115e4e0512",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794263475443
+      },
+      {
+        "executionId": "cf96cd5b-fe45-4895-a14d-28115e4e0512",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794263914965
+      },
+      {
+        "executionId": "62020f17-3e7d-485a-a4b9-661e6c2ab67f",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794264769328
+      },
+      {
+        "executionId": "62020f17-3e7d-485a-a4b9-661e6c2ab67f",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794264919133
+      },
+      {
+        "executionId": "070f89ab-9cee-4217-965f-5e7184334e62",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794266306935
+      },
+      {
+        "executionId": "070f89ab-9cee-4217-965f-5e7184334e62",
+        "chatSessionId": "sess_40e51419-591a-415f-9a60-ec4bed8bd7dd",
+        "timestamp": 1794266463622
       }
     ]
   }

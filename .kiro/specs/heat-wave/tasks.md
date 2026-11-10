@@ -246,7 +246,7 @@ Steering constraints that apply to every task: PHP 8.2 language features only (n
     - Include the four verified calibration runs: no help → weakened at turn 13; AC from turn 5 → never weakened; fan on in his room from turn 3 → never weakened (reaches 37.9 °C at turn 20); AC from turn 14 → weakened from turn 13, recovered by turn 16.
     - _Requirements: 11.7, 4.10_
 
-- [-] 16. Final checkpoint - Ensure all tests pass
+- [x] 16. Final checkpoint - Ensure all tests pass
   - Ensure the full PHPUnit suite (including the earthquake golden-master and every existing earthquake test) and the JavaScript tests pass, and `php -l` reports no error on every changed PHP file; ask the user if questions arise.
   - _Requirements: 1.10, 11.10, 11.11_
 
