@@ -429,7 +429,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 17.1, 17.2, 17.3**
     - Create `tests/js/voices-split-property.test.js` (seeded `mulberry32`, at least 100 cases, tag `Feature: public-lab, Property 23: Speech splitting preserves the line and respects the limits`): random texts with sentence ends, ellipses, commas, semicolons, long words and Japanese text; chunks are non-blank, in order, rejoin to the trimmed text (cut whitespace ignored), none over 180 characters unless a single word, and a short text with no inner sentence end gives one chunk.
     - _Requirements: 17.1, 17.2, 17.3_
-- [ ] 21. Cap provider calls under concurrent requests
+- [x] 21. Cap provider calls under concurrent requests
   - [x] 21.1 Add the Turn_Lock and reserve attempts before the provider call
     - Touches `src/` only (this is intended). Change nothing in `sql/`, the engine, `api/`, `public/` or any text the robots read; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged, and no expected value is edited to make a test pass.
     - `src/TurnLoop/Repository/EpisodeRepository.php`: add `acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool` and `releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void` with doc comments (kind is `ask` or `apply`; non-waiting; per connection).
@@ -459,7 +459,7 @@ Steering constraints that apply to every task:
     - Create `tests/js/observe-turn-busy.test.js` with `fake-api.js` and the injectable `observeWait`: a 409 `turn_busy` for `ask` and for `apply` makes Observe wait exactly 2000 ms, call `getEpisode` once, continue from the stored turn state (`waiting`, `replies_complete`, `applied`), show no notice and count no failed try; 15 consecutive Turn_Busy answers keep waiting and the 16th counts one failed try; `ask-apply-recovery.test.js` and every other existing test pass unchanged.
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 21. Commit only the files of task 21 with `task 21: Cap provider calls under concurrent requests`. Never push, amend, rebase or reset.
     - _Requirements: 18.13, 14.28, 14.32_
-- [ ] 22. Stop episodes that never run from blocking other visitors
+- [x] 22. Stop episodes that never run from blocking other visitors
   - [x] 22.1 Add the Origin check and the 60-second slot rule
     - Touches `src/` and `api/` only (this is intended). Change nothing in `sql/`, `public/`, the engine or any text the robots read; no table or column is added; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged.
     - `src/TurnLoop/Config.php`: add `public int $unaskedReleaseSeconds = 60` next to `idleSlotReleaseSeconds`.
@@ -485,7 +485,7 @@ Steering constraints that apply to every task:
     - Create `tests/TurnLoop/Repository/RunningSlotPdoTest.php`, skipped unless `PS_TEST_MYSQL_DSN` names a throwaway database: the same boundary cases as 22.2 run against `PdoEpisodeRepository` and the fake, with identical answers (it inserts episodes and turn rows with chosen `last_activity_at` values; no real clock wait).
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 22. Commit only the files of task 22 with `task 22: Stop episodes that never run from blocking other visitors`. Never push, amend, rebase or reset.
     - _Requirements: 19.13, 19.14, 14.30, 14.32_
-- [ ] 23. Add response headers and block direct access to api/ files
+- [x] 23. Add response headers and block direct access to api/ files
   - [x] 23.1 Send the Security_Headers from the pages and the API
     - Touches `src/`, `api/` and `public/` (this is intended). Change nothing in `sql/`, the engine, the game logic or any text the robots read; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged. Do not loosen the policy.
     - Create `src/TurnLoop/Http/SecurityHeaders.php` (`final class SecurityHeaders`, `public static function all(): array`) returning exactly: `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security: max-age=31536000`.
