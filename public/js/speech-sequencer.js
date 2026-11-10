@@ -7,16 +7,18 @@
  * to `window` and exports them with CommonJS when a module system exists
  * (same shape as voices.js).
  *
- * Per line: mode 'voice' (voices.speak() returned true; the bubble stays until
- * onDone or startedAt + 12000 ms, then voices.cancel()) or mode 'timer' (the
- * bubble stays for readingTime(text)). After a line closes the next starts at
- * once. Thoughts are never part of a line list. Speech is best effort: every
+ * Per line: mode 'voice' (voices.speak() returned true; the bubble closes at
+ * the LATER of the voice's 'end' and startedAt + readingTime(text); an 'error'
+ * switches to timer mode for the remaining Reading_Time; a safety cap of
+ * 4000 ms + 100 ms per code point, used only when the voice reports neither,
+ * cancels the voice and closes the bubble) or mode 'timer' (the bubble stays
+ * for readingTime(text)). After a line closes the next starts at once. Thoughts are never part of a line list. Speech is best effort: every
  * call into voices / house is guarded.
  */
 (function () {
   'use strict';
 
-  var HARD_CAP_MS = 12000;
+  var READING_CAP_MS = 12000;
 
   function codePoints(text) {
     return Array.from(String(text)).length;
@@ -24,7 +26,12 @@
 
   // Req 11.7: min(12000, 2000 + 60 * code points).
   function readingTime(text) {
-    return Math.min(HARD_CAP_MS, 2000 + 60 * codePoints(text));
+    return Math.min(READING_CAP_MS, 2000 + 60 * codePoints(text));
+  }
+
+  // Req 11.9: safety cap for a voice that reports neither 'end' nor 'error'.
+  function safetyCap(text) {
+    return 4000 + 100 * codePoints(text);
   }
 
   function isLine(s) {
@@ -139,14 +146,15 @@
 
       if (started) {
         line.mode = 'voice';
-        showBubble(item.id, item.text, HARD_CAP_MS / 1000);
+        var capMs = safetyCap(item.text);
+        showBubble(item.id, item.text, capMs / 1000);
         line.capTimer = timers.setTimeout(function () {
           line.capTimer = null;
           if (line.closed || line.mode !== 'voice') { return; }
           line.mode = 'capped'; // ignore the 'cancelled' report of our own cancel
           voicesCancel();
           closeLine(line, next);
-        }, HARD_CAP_MS);
+        }, capMs);
         if (earlyDone !== null) { onVoiceDone(line, earlyDone); }
       } else {
         var ms = readingTime(item.text);
@@ -160,8 +168,10 @@
 
     function onVoiceDone(line, reason) {
       if (line.closed || line.mode !== 'voice') { return; }
-      if (reason === 'cancelled') { toTimerMode(line); return; }
-      closeLine(line, line.next);
+      // 'end' closes at the later of the end and the Reading_Time; 'error' and
+      // 'cancelled' keep the remaining Reading_Time. All three: timer mode
+      // for the time left, counted from the line's start (Req 11.7, 11.14).
+      toTimerMode(line);
     }
 
     return {

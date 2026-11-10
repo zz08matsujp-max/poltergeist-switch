@@ -227,7 +227,7 @@ sequenceDiagram
   loop each line in order
     Q->>H: showBubble(id, text)
     alt Voices on and V.speak(...) returns true
-      V-->>Q: onDone("end" or "error")   (or hard cap at 12000 ms)
+      V-->>Q: onDone("end" or "error")   (or safety cap at 4000 + 100 x codePoints ms)
     else Voices off, no engine, or no gesture
       Q->>Q: wait readingTime(text)
     end
@@ -240,7 +240,7 @@ sequenceDiagram
 State per line: `mode = 'voice' | 'timer'`, `startedAt`. Rules implemented there:
 
 - `readingTime(text) = min(12000, 2000 + 60 * codePoints(text))`.
-- Voice mode ends on `onDone('end'|'error')` or at `startedAt + 12000` (the hard cap also calls `voices.cancel()` so the next line is not queued behind a stuck utterance).
+- Voice mode ends at the later of `onDone('end')` and `startedAt + readingTime` (a reading that ends early keeps the bubble for the rest of the Reading_Time; a long reading is never cut). `onDone('error')` switches the line to timer mode for the remaining Reading_Time, like Voices turned off. The per-line safety cap `4000 + 100 * codePoints` ms (always at least `readingTime`) applies only when the voice reports neither `'end'` nor `'error'`; it calls `voices.cancel()` so the next line is not queued behind a stuck utterance and closes the bubble.
 - Voices turned off mid-line: `bindVoicesButton` calls `sequencer.voicesChanged(false)`, which calls `voices.cancel()` (stops within 200 ms; `onDone('cancelled')`), and the line switches to timer mode for `max(0, readingTime - elapsed)` from the **original start** (Req 11.14).
 - Voices turned on mid-line: nothing changes for the current line; the next line may use voice (Req 11.15).
 - `cancel()` (Replay Pause/Step/Play, Observe reset or new run): bumps a token, clears all timers, cancels voices, closes the open bubble, resolves the pending `play()` promise.
@@ -643,7 +643,7 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 
 ### Property 18: The sequencer shows one line at a time, in order, for the right time
 
-*For any* list of lines, any Voices on/off setting, and any behaviour of the Voices module per line (ends after d ms, errors, never ends, or refuses to start): at most one bubble is open at any instant; lines open in list order; with Voices on a bubble stays open until `onDone` or 12000 ms, whichever is first, and the next line opens within 100 ms of the close; with Voices off (or a refusal) a bubble stays open exactly `readingTime(text)`; an empty list adds 0 ms; and `playTurn` resolves only after the last bubble has closed and the animation window has ended.
+*For any* list of lines, any Voices on/off setting, and any behaviour of the Voices module per line (ends after d ms, errors, never ends, or refuses to start): at most one bubble is open at any instant; lines open in list order; with Voices on a bubble stays open until the later of the voice's end and `readingTime(text)` from the line's start (a voice that errors keeps it for `readingTime`; a voice that never reports end or error is cancelled and the bubble closes at `4000 + 100 * codePoints` ms), and the next line opens within 100 ms of the close; with Voices off (or a refusal) a bubble stays open exactly `readingTime(text)`; an empty list adds 0 ms; and `playTurn` resolves only after the last bubble has closed and the animation window has ended.
 
 **Validates: Requirements 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.12**
 
@@ -697,7 +697,7 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 | Featured id missing or not ended | `listEndedEpisodesByIds` | silently absent. |
 | `limit` out of range | `EpisodeListService` | 400 `limit_out_of_range`, as today. |
 | SQL file not yet applied | any new query | 500 `internal_error`. Accepted by Req 5.3; the header comment tells the maintainer to apply it first. |
-| Voices module missing, throws, or never reports the end | `speech-sequencer.js` | falls back to Reading_Time; hard cap 12000 ms; errors swallowed (speech is best effort). |
+| Voices module missing, throws, or never reports the end | `speech-sequencer.js` | a failed reading falls back to the remaining Reading_Time; per-line safety cap 4000 ms + 100 ms per code point; errors swallowed (speech is best effort). |
 | `getEpisode` fails during Try again | `tryAgain` | stays `unfinished` with the same notice and button. |
 | Stale reflection result after a new run began | `finishClosing` guard | ignored (episode id mismatch). |
 | `localStorage` unavailable | `rememberLastEpisode` / `readLastEpisode` | ignored; Notice_Resume still works from the 409 body. |
@@ -737,7 +737,7 @@ The JS suite is the existing style: plain Node scripts with a DOM shim. This spe
 
 New helpers in `tests/js/helpers/`:
 
-- `fake-clock.js`: `setTimeout/clearTimeout/now` driven by `advance(ms)`, injected into `createSpeechSequencer({ timers, now })`, so Reading_Time and the 12000 ms cap run in virtual time with no real waiting.
+- `fake-clock.js`: `setTimeout/clearTimeout/now` driven by `advance(ms)`, injected into `createSpeechSequencer({ timers, now })`, so Reading_Time and the per-line safety cap run in virtual time with no real waiting.
 - `fake-voices.js` (the "fake Voices_Module"): same interface as `voices.js` (`speak(id, line, onDone) -> boolean`, `setOn/isOn`, `gesture`, `cancel`, `available`). It records every call with the virtual time, and `finish('end'|'error')` completes the current line on demand. Options make it refuse to start (`startsReading:false`) or never finish.
 - `fake-house.js`: records `showBubble(id, text, seconds)` with virtual time and exposes the set of currently open bubbles so "never two at once" is a direct assertion.
 - `fake-canvas.js`: a 2D context stub that records `fillStyle`, `globalAlpha`, `fillRect`, `arc/fill` calls for the renderer tests (with `Math.random` stubbed so the renderer's star/bat setup is deterministic).
@@ -762,7 +762,7 @@ The Observe flow property is the hardest to write against the existing IIFE. Two
 
 - The MySQL SQL (reserve transaction, per-Device retire, list queries). Only the gated PDO tests would exercise it, and no MySQL was available to me for the new statements. The statements are kept simple and the fake mirrors them. For C1 the maintainer ran the existing gated test against MariaDB 10.11 and saw it fail; after the fix `testPdoTwoPerTripleCommitsSerializeToExactlySix` and the new per-Device retire test must pass on MariaDB (the maintainer runs them with `PS_TEST_MYSQL_DSN`).
 - Whether PHP can write into `secrets_dir`. It has a safe fallback (above) but should be checked once after deployment.
-- Real speech in real browsers (autoplay policy, `onend` reliability). The sequencer's 12000 ms cap exists because some engines never fire `onend`; only manual checking on Chrome, Safari and Firefox confirms the experience.
+- Real speech in real browsers (autoplay policy, `onend` reliability). The sequencer's safety cap exists because some engines never fire `onend`; only manual checking on Chrome, Safari and Firefox confirms the experience.
 
 ### Implementation order and protection gates
 

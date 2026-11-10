@@ -17,6 +17,7 @@ const IDS = ['amber', 'jade', 'man'];
 const ALPHABET = ['a', 'b', 'c', ' ', '.', 'あ', 'い', '家', '😀', 'é'];
 
 // Independent statement of Req 11.7 (code points, not UTF-16 units).
+function expectedCap(text) { return 4000 + 100 * Array.from(text).length; }
 function expectedReading(text) { return Math.min(12000, 2000 + 60 * Array.from(text).length); }
 const flush = async () => { for (let i = 0; i < 5; i++) { await Promise.resolve(); } };
 
@@ -62,9 +63,11 @@ function planLines(rng) {
   const lines = [];
   for (let i = 0; i < n; i++) {
     const kind = pick(rng, ['timer', 'timer', 'voice', 'voice', 'cap']);
+    const text = genText(rng);
     lines.push({
-      id: pick(rng, IDS), text: genText(rng), kind: kind,
-      d: int(rng, 0, 11999), reason: bool(rng) ? 'end' : 'error'
+      id: pick(rng, IDS), text: text, kind: kind,
+      // The voice reports before the safety cap (Req 11.9).
+      d: int(rng, 0, expectedCap(text) - 1), reason: bool(rng) ? 'end' : 'error'
     });
   }
   return lines;
@@ -89,8 +92,11 @@ function buildVoices(clock, lines) {
 
 function expectedDuration(l) {
   if (l.kind === 'timer') { return expectedReading(l.text); }
-  if (l.kind === 'voice') { return l.d; }
-  return 12000;
+  if (l.kind === 'voice') {
+    // Req 11.7: the later of the voice's end and the Reading_Time; an error keeps the Reading_Time.
+    return l.reason === 'end' ? Math.max(l.d, expectedReading(l.text)) : expectedReading(l.text);
+  }
+  return expectedCap(l.text); // Req 11.9: neither end nor error
 }
 
 (async function () {
@@ -151,7 +157,7 @@ function expectedDuration(l) {
       }
       start = close.at;
     }
-    // Voices were only cancelled for the 12 s cap lines.
+    // Voices were only cancelled for the safety-cap lines.
     const caps = lines.filter((l) => l.kind === 'cap').length;
     assert.strictEqual(voices.calls.filter((x) => x.type === 'cancel').length, caps, 'case ' + c + ': cancel only at the cap');
 

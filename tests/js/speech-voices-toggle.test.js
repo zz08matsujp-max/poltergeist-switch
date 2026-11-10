@@ -69,8 +69,8 @@ run('off', function (rng) {
   env.sequencer.play(lines);
   assert.strictEqual(env.voices.reading().length, 1, 'first line is read by voice');
 
-  // The voice never reports the end, so the line is open until the 12 s cap.
-  const t = int(rng, 0, 11999);
+  // The voice never reports the end, so the line is open until the safety cap.
+  const t = int(rng, 0, Math.min(11999, 4000 + 100 * Array.from(first.text).length - 1));
   env.clock.advance(t);
   assert.strictEqual(closeTimes(env.house, first.id).length, 0, 'still open mid-line');
 
