@@ -22,21 +22,15 @@
  * (Req 3.12). Non-Japanese lines use the character's English voice, or
  * `lang='en-US'` as a last resort.
  *
- * On/off (Req 3.4, 3.10): when Voices are ON, lines are spoken in the order
- * `speak()` is called (speechSynthesis queues FIFO, so ordering is preserved
- * without cancelling prior utterances within a turn). When OFF, `speak()` is a
- * no-op and nothing is read aloud. DEFAULT is OFF — the design did not state an
- * explicit default, and the Observe/Replay "Voices on/off" control turns it on;
- * starting OFF respects the browser autoplay rule and avoids speech before the
- * first user gesture. (Flagged as an interpretation in the task report.)
- *
- * Playback is unlocked on the first user gesture (browser autoplay rule): an
- * `unlock()` method primes speechSynthesis, and a one-time click/keydown/touch
- * listener is auto-attached so later `speak()` calls are audible. Controllers
- * may also call `unlock()` on their first play gesture.
- *
- * `cancel()` clears the queue so a controller can interrupt between TURNS; it is
- * never called automatically within a turn's ordered lines.
+ * Setting and gesture (Req 11.1, 11.3, 11.4, 11.14): the on/off setting
+ * (`setOn/isOn`) defaults ON and is independent of the engine. `speak(id, line,
+ * onDone)` returns a boolean: false (and touches no speechSynthesis) when the
+ * setting is off, there is no engine, `gesture()` has not run, or the line is
+ * blank. When true, `onDone` fires exactly once with 'end' | 'error' |
+ * 'cancelled'. There is no "any click" unlock: controllers call `gesture()`
+ * from a real click. `cancel()` stops reading at once and reports 'cancelled'
+ * for every active or queued line. `setEnabled/isEnabled/on/off/unlock/stop`
+ * remain as aliases. Lines queue FIFO in call order.
  *
  * `getVoices()` is often empty until the async `voiceschanged` event fires, so
  * voices are cached, re-resolved on `voiceschanged`, and resolved lazily at
@@ -92,15 +86,15 @@
     var opts = options || {};
     var synth = hasSpeech() ? window.speechSynthesis : null;
 
-    // Default OFF (see header note). When there is no speech engine at all,
-    // enabled stays false and every speak() is naturally a no-op.
-    var enabled = (opts.enabled === true) && !!synth;
+    // The setting defaults ON (Req 11.1) and is independent of the engine;
+    // speaking additionally needs an engine and a prior gesture().
+    var enabled = opts.enabled !== false;
 
     var voiceMap = {};      // renderId -> chosen English SpeechSynthesisVoice
     var voiceJa = null;     // chosen Japanese SpeechSynthesisVoice
     var voicesLoaded = false;
-    var unlocked = false;
-    var keepU = [];         // hold references so GC doesn't drop live utterances
+    var gestured = false;
+    var active = [];        // lines handed to the engine and not yet done
 
     // Resolve the per-character and Japanese voices from the current voice list.
     // Safe to call repeatedly (on voiceschanged); non-throwing.
@@ -154,12 +148,14 @@
       } catch (e) { /* ignore */ }
     }
 
-    // Prime speechSynthesis on a user gesture so later speak() calls are
-    // audible (browser autoplay rule). Idempotent and guarded.
-    function unlock() {
-      if (unlocked || !synth) { return; }
-      unlocked = true;
-      // Re-resolve in case voices loaded between construction and first gesture.
+    // gesture(): call from a real user gesture (a click on Start or Voices).
+    // Primes speechSynthesis (browser autoplay rule) and allows speak(). There
+    // is no "any click" listener; only controllers call this (Req 11.3).
+    function gesture() {
+      if (!synth) { return; }
+      var first = !gestured;
+      gestured = true;
+      if (!first) { return; }
       if (!voicesLoaded) { pickVoices(); }
       try {
         var u = new window.SpeechSynthesisUtterance(' ');
@@ -168,45 +164,37 @@
       } catch (e) { /* best-effort priming */ }
     }
 
-    // Auto-attach a one-time gesture listener so a user click/keydown/touch
-    // unlocks playback even if no controller calls unlock() explicitly.
-    if (synth && typeof window !== 'undefined' && window.addEventListener && opts.autoUnlock !== false) {
-      var onGesture = function () {
-        unlock();
-        try {
-          window.removeEventListener('click', onGesture, true);
-          window.removeEventListener('keydown', onGesture, true);
-          window.removeEventListener('touchstart', onGesture, true);
-        } catch (e) { /* ignore */ }
-      };
-      try {
-        window.addEventListener('click', onGesture, true);
-        window.addEventListener('keydown', onGesture, true);
-        window.addEventListener('touchstart', onGesture, true);
-      } catch (e) { /* ignore */ }
+    // Finish one active line exactly once and report why.
+    function complete(entry, reason) {
+      if (entry.done) { return; }
+      entry.done = true;
+      var idx = active.indexOf(entry);
+      if (idx >= 0) { active.splice(idx, 1); }
+      if (typeof entry.onDone === 'function') {
+        try { entry.onDone(reason); } catch (e) { /* caller errors never break us */ }
+      }
     }
 
-    // Speak one SPOKEN line for a character (Req 3.4, 3.10, 3.11, 3.12). A
-    // no-op when Voices are off or there is no speech engine. Does NOT cancel
-    // prior utterances, so lines queue FIFO and are spoken in call order.
-    function speak(id, line) {
-      if (!enabled || !synth) { return; }
-      if (!id || typeof line !== 'string') { return; }
+    // Speak one SPOKEN line (Req 3.11, 3.12, 11.3, 11.4, 11.14). Returns true
+    // when the line was handed to the engine; then onDone fires exactly once
+    // with 'end' | 'error' | 'cancelled'. Returns false (onDone NOT called,
+    // speechSynthesis untouched) when the setting is off, there is no engine,
+    // gesture() has not run, or the line is blank. Lines queue FIFO.
+    function speak(id, line, onDone) {
+      if (!enabled || !synth || !gestured) { return false; }
+      if (!id || typeof line !== 'string') { return false; }
       var text = line.trim();
-      if (!text) { return; }
+      if (!text) { return false; }
       var profile = PROFILES[id];
-      if (!profile) { return; }
+      if (!profile) { return false; }
 
-      // Voices may have loaded since construction; resolve lazily so an early
-      // line still gets the right voice once available.
       if (!voicesLoaded) { pickVoices(); }
 
       var u;
       try { u = new window.SpeechSynthesisUtterance(text); }
-      catch (e) { return; }
+      catch (e) { return false; }
 
       if (JA.test(text)) {
-        // Japanese line: a Japanese voice when available, else ja-JP (Req 3.12).
         if (voiceJa) { u.voice = voiceJa; u.lang = voiceJa.lang; }
         else { u.lang = 'ja-JP'; }
       } else {
@@ -217,48 +205,50 @@
       u.pitch = profile.pitch;
       u.rate = profile.rate;
 
-      // Hold a reference until the utterance ends (some engines drop unheld
-      // utterances to GC mid-speech); release on end/error or a safety timeout.
-      keepU.push(u);
-      var done = false;
-      function fin() {
-        if (done) { return; }
-        done = true;
-        var idx = keepU.indexOf(u);
-        if (idx >= 0) { keepU.splice(idx, 1); }
-      }
-      u.onend = fin;
-      u.onerror = fin;
-      try { setTimeout(fin, 2500 + text.length * 110); } catch (e) { /* ignore */ }
+      // The entry keeps the utterance referenced until it is done (some
+      // engines drop unheld utterances to GC mid-speech).
+      var entry = { u: u, onDone: onDone, done: false };
+      u.onend = function () { complete(entry, 'end'); };
+      u.onerror = function () { complete(entry, 'error'); };
+      active.push(entry);
 
-      try { synth.speak(u); } catch (e) { fin(); }
+      try { synth.speak(u); }
+      catch (e) { complete(entry, 'error'); }
+      return true;
     }
 
-    // Clear the queue (controllers call this to interrupt between TURNS; it is
-    // never called automatically within a turn's ordered lines). Non-throwing.
+    // Stop reading now and report 'cancelled' for every active or queued line.
+    // Entries are completed before synth.cancel() so the engine's own error
+    // events cannot relabel them. Non-throwing.
     function cancel() {
-      keepU = [];
+      active.slice().forEach(function (e) { complete(e, 'cancelled'); });
       if (!synth) { return; }
       try { synth.cancel(); } catch (e) { /* ignore */ }
     }
 
-    function setEnabled(on) {
-      enabled = (on === true) && !!synth;
+    // The setting (Req 11.1), independent of the engine. Turning it off stops
+    // anything being read.
+    function setOn(v) {
+      enabled = (v === true);
       if (!enabled) { cancel(); }
     }
 
-    function isEnabled() { return enabled; }
+    function isOn() { return enabled; }
 
     return {
       speak: speak,
-      setEnabled: setEnabled,
-      isEnabled: isEnabled,
-      on: function () { setEnabled(true); },
-      off: function () { setEnabled(false); },
-      unlock: unlock,
+      setOn: setOn,
+      isOn: isOn,
+      gesture: gesture,
       cancel: cancel,
+      // aliases kept for existing callers
+      setEnabled: setOn,
+      isEnabled: isOn,
+      on: function () { setOn(true); },
+      off: function () { setOn(false); },
+      unlock: gesture,
       stop: cancel,
-      // test/diagnostic aid: whether a real speech engine is present.
+      // whether a real speech engine is present
       available: !!synth
     };
   }

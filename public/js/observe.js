@@ -29,7 +29,8 @@
   var api = null;          // createApiClient()
   var house = null;        // createHouseRenderer()
   var voices = null;       // createVoices()
-  var actOut = null;       // createActOut(house, voices)
+  var sequencer = null;    // createSpeechSequencer({ house, voices })
+  var actOut = null;       // createActOut(house, voices, sequencer)
 
   // DOM handles, looked up once on DOMContentLoaded.
   var el = {};
@@ -1624,8 +1625,11 @@
     house = (typeof window.createHouseRenderer === 'function') ? window.createHouseRenderer() : null;
     // Voices default OFF; the toggle turns them on and unlocks on the gesture.
     voices = (typeof window.createVoices === 'function') ? window.createVoices({ enabled: false }) : null;
+    sequencer = (typeof window.createSpeechSequencer === 'function' && house)
+      ? window.createSpeechSequencer({ house: house, voices: voices })
+      : null;
     actOut = (typeof window.createActOut === 'function' && house)
-      ? window.createActOut(house, voices)
+      ? window.createActOut(house, voices, sequencer)
       : null;
 
     // Mount the renderer onto the stage canvas + overlay. Draw a neutral idle

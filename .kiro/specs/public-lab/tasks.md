@@ -245,7 +245,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 13.1, 13.2**
     - Create `tests/TurnLoop/Properties/OnlyStartIsLimitedPropertyTest.php` (tag `Feature: public-lab, Property 14: Only starting an episode is counted or limited`): with Device, IP and site at their limits, `ask`, `apply`, `reflect`, `GET /api/episodes/{id}`, the list and `GET /api/memory` behave as if no limit existed and change no count.
 
-- [~] 9. Keep direct replay links working
+- [x] 9. Keep direct replay links working
   - [x] 9.1 Write `DirectAccessTest` and fix `replay.php` only if it fails
     - Create `tests/TurnLoop/DirectAccessTest.php`: `GET /api/episodes/{id}` works for an ended episode that is in no list and for another Device's episode; `public/replay.php` (source check) plays `?episode=<id>` without consulting a list and shows the not-found message and the list for an unknown id. Change `replay.php` or `replay.js` only if the test shows a gap.
     - _Requirements: 7.1, 7.2, 7.3, 14.8_
@@ -254,40 +254,40 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 7.3**
     - Create `tests/TurnLoop/Properties/DirectAccessPropertyTest.php` (tag `Feature: public-lab, Property 10: Direct access does not depend on the caller`): same status and bytes for no cookie, the owner's cookie and another Device's cookie.
 
-- [ ] 10. Add Voices, the speech sequencer and act-out sequencing
-  - [ ] 10.1 Add the JS test helpers for speech
+- [~] 10. Add Voices, the speech sequencer and act-out sequencing
+  - [x] 10.1 Add the JS test helpers for speech
     - Create `tests/js/helpers/fake-clock.js` (`setTimeout`, `clearTimeout`, `now` driven by `advance(ms)`), `fake-voices.js` (the fake Voices_Module: `speak(id, line, onDone) -> boolean`, `setOn/isOn`, `gesture`, `cancel`, `available`; records calls with virtual time; `finish('end'|'error')`; options `startsReading:false` and never-finish) and `fake-house.js` (records `showBubble(id, text, seconds)` and exposes the open bubbles).
     - _Requirements: 14.11_
-  - [ ] 10.2 Update `public/js/voices.js`
+  - [x] 10.2 Update `public/js/voices.js`
     - Add `speak(id, line, onDone) -> boolean` (onDone exactly once with `'end' | 'error' | 'cancelled'`), `setOn/isOn` (the setting, independent of the engine), `gesture()` and `cancel()`; `speak` returns false and touches no `speechSynthesis` when the setting is off, there is no engine, `gesture()` has not run, or the line is blank. Remove the capture-phase "any click" unlock (`autoUnlock:false`); keep `setEnabled/isEnabled/on/off/unlock/stop` as aliases.
     - _Requirements: 11.1, 11.3, 11.4, 11.14_
-  - [ ] 10.3 Create `public/js/speech-sequencer.js`
+  - [x] 10.3 Create `public/js/speech-sequencer.js`
     - UMD shape like `voices.js`. `readingTime(text)` is `min(12000, 2000 + 60 * codePoints)`; `linesOfTurn(turn)` takes each element of `reading.words` for `robot_a`, then `robot_b`, then `residentLine`, drops blanks and never includes a thought; `createSpeechSequencer({house, voices, timers, now})` with `play(lines)`, `cancel()` and `voicesChanged(on)` as in the design (12000 ms hard cap that also cancels voices; Voices turned off mid-line switches to the remaining Reading_Time from the original start; turned on mid-line does not start reading that line); `bindVoicesButton(button, voices, sequencer)` updates the label "Voices: on|off" and `aria-pressed` within 100 ms.
     - _Requirements: 11.1, 11.2, 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.12, 11.13, 11.14, 11.15_
-  - [ ] 10.4 Make `act-out.js` use the sequencer
+  - [x] 10.4 Make `act-out.js` use the sequencer
     - `createActOut(house, voices, sequencer)`: remove `emitSpeech/showSpoken/speakAloud`; `playTurn` starts the animation as today, calls `sequencer.play(linesOfTurn(turn))`, snaps to the recorded world when the animation ends, and resolves after both are done; `cancel()` also calls `sequencer.cancel()`; reduced motion still jumps to the world within 100 ms. Update every existing JS test that constructs `createActOut`.
     - _Requirements: 11.5, 11.10, 11.11, 11.12, 11.16_
-  - [ ] 10.5 Write `voices-gesture.test.js`
+  - [x] 10.5 Write `voices-gesture.test.js`
     - **Property 20: No speech before the First_Gesture**
     - **Validates: Requirements 11.3**
     - Create `tests/js/voices-gesture.test.js` against the real `voices.js` with a fake `speechSynthesis` (seeded generator, at least 100 cases): no utterance before `gesture()`; `speak` returns false with the setting off or no engine; `onDone` fires exactly once; label and setting are independent of the engine; after `gesture()` speech is allowed (11.1, 11.4).
-  - [ ] 10.6 Write `speech-reading-time.test.js`
+  - [x] 10.6 Write `speech-reading-time.test.js`
     - **Property 16: Reading time**
     - **Validates: Requirements 11.8**
     - Create `tests/js/speech-reading-time.test.js` (seeded, at least 100 cases): equals `min(12000, 2000 + 60 * codePointCount)`, at least 2000, at most 12000, non-decreasing as the text grows.
-  - [ ] 10.7 Write `speech-lines.test.js`
+  - [x] 10.7 Write `speech-lines.test.js`
     - **Property 17: Spoken lines never include a thought**
     - **Validates: Requirements 11.13, 11.5**
     - Create `tests/js/speech-lines.test.js` (seeded, at least 100 cases): only `robot_a.reading.words`, then `robot_b.reading.words`, then `residentLine`, blanks dropped, never any other reply text.
-  - [ ] 10.8 Write `speech-sequencer-order.test.js`
+  - [x] 10.8 Write `speech-sequencer-order.test.js`
     - **Property 18: The sequencer shows one line at a time, in order, for the right time**
     - **Validates: Requirements 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.12**
     - Create `tests/js/speech-sequencer-order.test.js` (seeded, at least 100 cases, virtual time): at most one bubble open at any instant, lines in order, voice mode closes on `onDone` or 12000 ms and the next line opens within 100 ms, timer mode closes after exactly `readingTime`, an empty list adds 0 ms, `playTurn` resolves only after the last bubble closed and the animation ended; the caption strip uses the same close (11.11).
-  - [ ] 10.9 Write `speech-voices-toggle.test.js`
+  - [x] 10.9 Write `speech-voices-toggle.test.js`
     - **Property 19: Toggling Voices mid-line**
     - **Validates: Requirements 11.14, 11.15**
     - Create `tests/js/speech-voices-toggle.test.js` (seeded, at least 100 cases): Voices off at time t stops reading within 200 ms and closes at `startedAt + readingTime`; Voices on at time t starts no reading for the current line and closes at `startedAt + readingTime`; the next line may use voice.
-  - [ ] 10.10 Write `act-out-speech.test.js`
+  - [x] 10.10 Write `act-out-speech.test.js`
     - Create `tests/js/act-out-speech.test.js`: `playTurn` resolves only after animation and speech are both done; a turn with no Spoken_Line waits 0 ms for speech; `cancel()` closes the bubble and resolves the pending turn; reduced motion jumps within 100 ms; no speech before the First_Gesture.
     - _Requirements: 11.3, 11.10, 11.12, 11.16, 14.11_
 

@@ -46,7 +46,8 @@
   var api = null;          // createApiClient()
   var house = null;        // createHouseRenderer()
   var voices = null;       // createVoices()
-  var actOut = null;       // createActOut(house, voices)
+  var sequencer = null;    // createSpeechSequencer({ house, voices })
+  var actOut = null;       // createActOut(house, voices, sequencer)
 
   // DOM handles, looked up once on DOMContentLoaded.
   var el = {};
@@ -887,8 +888,11 @@
     house = (typeof window.createHouseRenderer === 'function') ? window.createHouseRenderer() : null;
     // Voices default OFF; task 10.2 adds a toggle if it needs one.
     voices = (typeof window.createVoices === 'function') ? window.createVoices({ enabled: false }) : null;
+    sequencer = (typeof window.createSpeechSequencer === 'function' && house)
+      ? window.createSpeechSequencer({ house: house, voices: voices })
+      : null;
     actOut = (typeof window.createActOut === 'function' && house)
-      ? window.createActOut(house, voices)
+      ? window.createActOut(house, voices, sequencer)
       : null;
 
     // Mount the renderer onto the stage canvas + overlay so the playback seam

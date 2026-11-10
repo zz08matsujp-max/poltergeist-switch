@@ -192,6 +192,7 @@ header('Cache-Control: no-store');
        7); observe.js uses it, so it loads first. -->
   <script src="js/position-map.js"></script>
   <script src="js/house-renderer.js"></script>
+  <script src="js/speech-sequencer.js"></script>
   <script src="js/act-out.js"></script>
   <script src="js/voices.js"></script>
   <script src="js/api.js"></script>

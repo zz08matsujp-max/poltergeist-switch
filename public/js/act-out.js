@@ -16,9 +16,9 @@
  *
  * This module drives the renderer only through its public controller interface
  * (moveCharacter / setPose / setHeld / showBubble / setWorld). It never reads
- * engine internals and never draws. It optionally accepts a Voices module (task
- * 8.2) to read spoken lines aloud when voices are on; every voices call is
- * guarded so Act_Out never hard-depends on it.
+ * engine internals and never draws. Spoken lines are not shown here: the
+ * speech sequencer passed as the third argument shows and reads them one at a
+ * time (public-lab Req 11); `voices` is kept only for signature compatibility.
  *
  * No build step on the server: plain browser JS. It attaches `createActOut`
  * (and `ActOut`) to the browser global when a window exists, and exports via
@@ -50,6 +50,18 @@
   var BUBBLE_MIN_MS = 2000;   // Req 3.5 minimum bubble lifetime
   // Reduced motion collapses everything to a single short jump (< 100 ms).
   var REDUCED_MS = 60;
+
+  // linesOfTurn comes from speech-sequencer.js (window global in the browser,
+  // CommonJS under node).
+  function linesOfTurn(turn) {
+    var fn = (typeof window !== 'undefined' && typeof window.linesOfTurn === 'function')
+      ? window.linesOfTurn
+      : null;
+    if (!fn && typeof require === 'function') {
+      try { fn = require('./speech-sequencer.js').linesOfTurn; } catch (e) { fn = null; }
+    }
+    return fn ? fn(turn) : [];
+  }
 
   function perfNow() {
     return (typeof performance !== 'undefined' && performance.now)
@@ -119,7 +131,7 @@
     };
   }
 
-  function createActOut(houseRenderer, voices) {
+  function createActOut(houseRenderer, voices, sequencer) {
     if (!houseRenderer) { throw new Error('createActOut needs a houseRenderer'); }
 
     // Everything cancelable lives here so cancel() can clear it and still end
@@ -140,33 +152,6 @@
       var id = setTimeout(fn, ms);
       timers.push(id);
       return id;
-    }
-
-    // Speak a line aloud if a Voices module is wired and on. Guarded so Act_Out
-    // never hard-depends on voices (task 8.2 may be absent). Thoughts are never
-    // passed here — only the spoken lines below reach this (Req 3.6, 3.13).
-    function speakAloud(renderId, line) {
-      if (!voices || !line) { return; }
-      try {
-        if (typeof voices.speak === 'function') { voices.speak(renderId, line); }
-      } catch (e) { /* voices are best-effort; never block acting-out */ }
-    }
-
-    // Show one character's SPOKEN lines, in the stored order, in that
-    // character's bubble, and read them aloud in the same order (Req 3.4, 3.7).
-    // Only spoken words reach the bubble — never a thought (Req 3.6). The bubble
-    // lifetime is the max of 2.0 s and the turn's acting-out length (Req 3.5),
-    // passed as `holdMs`.
-    function showSpoken(renderId, lines, holdMs) {
-      if (!lines || !lines.length) { return; }
-      var seconds = Math.max(BUBBLE_MIN_MS, holdMs) / 1000;
-      // Join the stored lines so each character shows its spoken line(s) in
-      // order; speak them one after another in the same order.
-      var joined = lines.join(' ');
-      try { houseRenderer.showBubble(renderId, joined, seconds); } catch (e) { /* ignore */ }
-      for (var i = 0; i < lines.length; i++) {
-        speakAloud(renderId, lines[i]);
-      }
     }
 
     // Animate one robot's single physical Operation toward its Position_Map
@@ -313,13 +298,21 @@
         activeToken++;
         activeWorld = (worldState === undefined) ? null : worldState;
 
-        return new Promise(function (resolve) {
+        // Speech is the sequencer's job: one line at a time, bubble visible
+        // while read (Req 11.1, 11.5). It runs alongside the animation.
+        var speech = Promise.resolve();
+        if (sequencer && typeof sequencer.play === 'function') {
+          try {
+            speech = Promise.resolve(sequencer.play(linesOfTurn(turn)));
+          } catch (e) { speech = Promise.resolve(); }
+        }
+
+        var animation = new Promise(function (resolve) {
           activeResolve = resolve;
 
           // Reduced motion: no walking/attempt frames — jump straight to the
           // recorded world within 100 ms (Req 12.6). Bubbles still show.
           if (reduced) {
-            emitSpeech(turn, 0, true);
             later(finishActive, REDUCED_MS);
             return;
           }
@@ -331,15 +324,14 @@
           var bDur = animateRobot('robot_b', readingOf(turn, 'robot_b'), worldState, false);
           var actMs = Math.max(aDur, bDur, 300);
 
-          // Spoken lines: shown in the stored order in each character's bubble
-          // and read aloud in order; the bubble lives for max(2.0 s, actMs)
-          // (Req 3.4, 3.5, 3.7). The man's line goes in the man's bubble.
-          emitSpeech(turn, actMs, false);
-
           // End the turn once the acting-out window has elapsed, ALWAYS snapping
           // to the recorded world (Req 3.8, 3.9).
           later(finishActive, actMs);
         });
+
+        // Resolve after both the animation (ended in the recorded world) and
+        // the speech are done (Req 11.5, 11.16).
+        return Promise.all([animation, speech]).then(function () {});
       },
 
       /**
@@ -351,34 +343,18 @@
       cancel: function () {
         if (activeResolve) { finishActive(); }
         else { clearTimers(); }
+        if (sequencer && typeof sequencer.cancel === 'function') {
+          try { sequencer.cancel(); } catch (e) { /* ignore */ }
+        }
       }
     };
-
-    // Show the spoken lines for every character in the turn, in the stored
-    // order: robot_a, robot_b, then the man. Only SPOKEN words are passed to
-    // the bubble/voices — a robot's thought is never shown or spoken (Req 3.6,
-    // 3.13). `holdMs` is the turn's acting-out length so the bubble honours the
-    // ≥ 2.0 s-or-until-end rule (Req 3.5).
-    function emitSpeech(turn, holdMs, reduced) {
-      if (!turn) { return; }
-      var ra = readingOf(turn, 'robot_a');
-      var rb = readingOf(turn, 'robot_b');
-      if (ra && ra.words && ra.words.length) { showSpoken('amber', ra.words, holdMs); }
-      if (rb && rb.words && rb.words.length) { showSpoken('jade', rb.words, holdMs); }
-      // The man's spoken line is the turn's residentLine — a spoken line, not a
-      // thought — shown in the man's bubble (Req 3.4).
-      var manLine = turn.residentLine;
-      if (manLine) { showSpoken('man', [manLine], holdMs); }
-      // `reduced` is accepted for symmetry; bubble timing is unaffected by it.
-      return reduced;
-    }
 
     return api;
   }
 
   // Class-style wrapper for callers that prefer `new`, mirroring house-renderer.
-  function ActOut(houseRenderer, voices) {
-    var impl = createActOut(houseRenderer, voices);
+  function ActOut(houseRenderer, voices, sequencer) {
+    var impl = createActOut(houseRenderer, voices, sequencer);
     var self = this;
     Object.keys(impl).forEach(function (k) { self[k] = impl[k]; });
   }
