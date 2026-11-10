@@ -19,7 +19,7 @@ Steering constraints that apply to every task:
 
 ## Tasks
 
-- [-] 1. Capture the protection pins before any code change
+- [x] 1. Capture the protection pins before any code change
   - [x] 1.1 Write `ProtectedVersionsTest`
     - Create `tests/ProtectedVersionsTest.php`. Read the current code and pin, as literal strings, `SituationTextGenerator::VERSION`, the reflection text version constants and the recorder prompt version, exactly as they are today.
     - Pin the `EpisodeConfig` default values (a literal SHA-256 of their canonical JSON, computed from the unmodified code).
@@ -46,13 +46,13 @@ Steering constraints that apply to every task:
     - If anything fails, stop and report; do not change the code or any expected value.
     - _Requirements: 1.1, 1.8, 14.13_
 
-- [ ] 2. Add the additive SQL file for the public lab
-  - [ ] 2.1 Create `sql/2026-11-10_add_public_lab.sql`
+- [~] 2. Add the additive SQL file for the public lab
+  - [x] 2.1 Create `sql/2026-11-10_add_public_lab.sql`
     - Write the file exactly as in the design's Data Models: nullable `memories.device_id` with `idx_device_snapshot` and `idx_device_pick`, the append-only `device_resets` table and the `daily_usage` table (InnoDB, utf8mb4).
     - The header comment says the file is schema only, is never run by any task, and that the maintainer applies it over FTPS before deploying the matching code. No secret, key or provider name.
     - Do not run the file against any database.
     - _Requirements: 1.6, 5.1, 5.3, 5.4, 13.17_
-  - [ ] 2.2 Write `PublicLabMigrationFileTest`
+  - [x] 2.2 Write `PublicLabMigrationFileTest`
     - Create `tests/Memory/PublicLabMigrationFileTest.php` in the style of `MigrationFileTest`: the file exists with the dated name; the header says to apply it before deploying and that it is never run by tasks; only `CREATE TABLE`, `ADD COLUMN ... NULL` and `ADD KEY` appear; no `DROP`, `UPDATE`, `DELETE`, `TRUNCATE`; utf8mb4; no secret-like text.
     - _Requirements: 1.6, 1.7, 5.1, 5.3, 13.17_
 
