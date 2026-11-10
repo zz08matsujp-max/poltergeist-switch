@@ -460,20 +460,20 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 21. Commit only the files of task 21 with `task 21: Cap provider calls under concurrent requests`. Never push, amend, rebase or reset.
     - _Requirements: 18.13, 14.28, 14.32_
 - [ ] 22. Stop episodes that never run from blocking other visitors
-  - [~] 22.1 Add the Origin check and the 60-second slot rule
+  - [x] 22.1 Add the Origin check and the 60-second slot rule
     - Touches `src/` and `api/` only (this is intended). Change nothing in `sql/`, `public/`, the engine or any text the robots read; no table or column is added; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged.
     - `src/TurnLoop/Config.php`: add `public int $unaskedReleaseSeconds = 60` next to `idleSlotReleaseSeconds`.
     - `src/TurnLoop/Repository/PdoEpisodeRepository.php`: in `countRunningEpisodes` and `findRunningEpisodeForDevice` add `AND (last_activity_at >= :unasked_threshold OR EXISTS (SELECT 1 FROM turns t WHERE t.episode_id = episodes.id AND t.turn_number >= 1))`, with the second threshold computed in PHP next to `idleThreshold()` and bound as a parameter. `tests/TurnLoop/InMemoryEpisodeRepository.php`: the same rule in `isRunning` using its turn map (turn number 1 or more). `TurnService::assertCanStart` and the `ask` path need no change.
     - `api/router.php`: `ps_dispatch()` gets trailing parameters `?string $origin = null` and `array $allowedOrigins = []`; for `POST` only, if `$origin !== null` and `!in_array($origin, $allowedOrigins, true)` return `ps_json_response(403, ['error' => 'cross_site'])` before routing, the cookie read or any service call. `api/index.php`: pass `$_SERVER['HTTP_ORIGIN'] ?? null` and `$localConfig['allowed_origins']` (only if it is a list of strings, else `[]`). `api/config.example.php`: add `'allowed_origins' => ['https://kiro.pyol.net']` with a comment (placeholder, no secret).
     - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 22 in 22.5.
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9, 19.10, 19.11, 19.12, 19.13, 19.14, 19.15_
-  - [~] 22.2 Write the slot-rule tests on the fake repository
+  - [x] 22.2 Write the slot-rule tests on the fake repository
     - Create `tests/TurnLoop/RunningSlotTest.php` with the injected clock: an unasked episode still counts as running at 59 s and not at 61 s; an episode with a turn row of 1 or more counts at 299 s and not at 301 s; `device_already_running` (with the episode id) and `too_many_running` follow the same rule through `assertCanStart`; after release the Device creates a new episode and the old one is unchanged and readable through `GET`; an accepted `ask` on a released episode makes it count as running again; an ended episode never counts. Update `ConfigPublicLabTest` for the new default (60).
     - _Requirements: 19.8, 19.9, 19.10, 19.11, 19.12, 19.13, 19.14, 14.30_
-  - [~] 22.3 Write the Origin tests through `ps_dispatch`
+  - [x] 22.3 Write the Origin tests through `ps_dispatch`
     - Create `tests/TurnLoop/CrossSiteRouteTest.php` with a fake-backed `TurnService`: for each POST route (create, disaster, ask, apply, reflect, memory reset) a foreign `Origin` gives 403 `cross_site`, `Cache-Control: no-store`, no `Set-Cookie`, no episode, no usage count and no client call; an allowed `Origin` and no `Origin` give the same responses as before; an empty list and a missing list refuse any `Origin`; `null`, a trailing slash, a different case and a different port are refused; GET requests are not checked; the body contains only the error code.
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 14.29_
-  - [~] 22.4 Write the property tests for the Origin check and the slot rule
+  - [x] 22.4 Write the property tests for the Origin check and the slot rule
     - **Property 25: Cross-site POST is refused and changes nothing**
     - **Validates: Requirements 19.1, 19.2, 19.3, 19.5, 19.6**
     - Create `tests/TurnLoop/Properties/CrossSitePropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 25: Cross-site POST is refused and changes nothing`): random origin strings and allowed lists; refused exactly when the string is not a list member, with the repository, usage counts and cookies unchanged; otherwise handled as with no `Origin`.
@@ -481,7 +481,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 19.8, 19.9, 19.10, 19.11, 19.12, 19.13**
     - Create `tests/TurnLoop/Properties/RunningSlotPropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 26: The running-slot rule matches a simple model`): random episodes (ended or not, with or without an accepted ask, random last-activity age) and clock values; `countRunningEpisodes` and `findRunningEpisodeForDevice` match the model (not ended, at most 300 s, and at most 60 s unless an accepted ask); an accepted `ask` on a released episode makes it running again.
     - _Requirements: 19.1, 19.3, 19.5, 19.6, 19.8, 19.9, 19.10, 19.12, 14.29, 14.30_
-  - [~] 22.5 Write the gated PDO slot test, then run everything and commit
+  - [x] 22.5 Write the gated PDO slot test, then run everything and commit
     - Create `tests/TurnLoop/Repository/RunningSlotPdoTest.php`, skipped unless `PS_TEST_MYSQL_DSN` names a throwaway database: the same boundary cases as 22.2 run against `PdoEpisodeRepository` and the fake, with identical answers (it inserts episodes and turn rows with chosen `last_activity_at` values; no real clock wait).
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 22. Commit only the files of task 22 with `task 22: Stop episodes that never run from blocking other visitors`. Never push, amend, rebase or reset.
     - _Requirements: 19.13, 19.14, 14.30, 14.32_

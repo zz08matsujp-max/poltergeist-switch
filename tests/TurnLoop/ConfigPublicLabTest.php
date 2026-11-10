@@ -29,6 +29,8 @@ class ConfigPublicLabTest extends TestCase
     public function testDefaultLimits(): void
     {
         $c = new Config();
+        $this->assertSame(60, $c->unaskedReleaseSeconds);
+        $this->assertSame(300, $c->idleSlotReleaseSeconds);
         $this->assertSame(10, $c->dailyDeviceLimit);
         $this->assertSame(30, $c->dailyIpLimit);
         $this->assertSame(100, $c->dailySiteLimit);

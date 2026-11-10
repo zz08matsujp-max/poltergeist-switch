@@ -173,10 +173,13 @@ final class PdoEpisodeRepository implements EpisodeRepository
     public function countRunningEpisodes(): int
     {
         $sql = 'SELECT COUNT(*) FROM episodes '
-            . 'WHERE ended = 0 AND last_activity_at >= :threshold';
+            . 'WHERE ended = 0 AND last_activity_at >= :threshold '
+            . 'AND (last_activity_at >= :unasked_threshold OR EXISTS ('
+            . 'SELECT 1 FROM turns t WHERE t.episode_id = episodes.id AND t.turn_number >= 1))';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':threshold', $this->idleThreshold());
+        $stmt->bindValue(':unasked_threshold', $this->unaskedThreshold());
         $stmt->execute();
 
         return (int) $stmt->fetchColumn();
@@ -187,12 +190,15 @@ final class PdoEpisodeRepository implements EpisodeRepository
         $sql = 'SELECT * FROM episodes '
             . 'WHERE device_id = :device_id AND ended = 0 '
             . 'AND last_activity_at >= :threshold '
+            . 'AND (last_activity_at >= :unasked_threshold OR EXISTS ('
+            . 'SELECT 1 FROM turns t WHERE t.episode_id = episodes.id AND t.turn_number >= 1)) '
             . 'ORDER BY last_activity_at DESC '
             . 'LIMIT 1';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':device_id', $deviceId);
         $stmt->bindValue(':threshold', $this->idleThreshold());
+        $stmt->bindValue(':unasked_threshold', $this->unaskedThreshold());
         $stmt->execute();
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1273,6 +1279,11 @@ final class PdoEpisodeRepository implements EpisodeRepository
      * so its slot is released (Requirements 9.7–9.10). Computed in PHP and
      * bound as a parameter; never interpolated into SQL.
      */
+    private function unaskedThreshold(): string
+    {
+        return date('Y-m-d H:i:s', time() - $this->config->unaskedReleaseSeconds);
+    }
+
     private function idleThreshold(): string
     {
         return date('Y-m-d H:i:s', time() - $this->config->idleSlotReleaseSeconds);

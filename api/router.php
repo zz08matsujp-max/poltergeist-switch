@@ -87,9 +87,19 @@ function ps_dispatch(
     ?EpisodeStarter $starter = null,
     ?string $clientIp = null,
     ?IpHasher $hasher = null,
+    ?string $origin = null,
+    array $allowedOrigins = [],
 ): PsApiResponse {
     $method = strtoupper($method);
     $route = trim($route, '/');
+
+    // Cross-site guard (public-lab Requirement 19): a POST that carries an
+    // Origin header outside the allowed list is refused before routing, the
+    // cookie read or any service call. No Origin header (same-origin tools,
+    // curl) passes; an empty or missing list refuses every Origin.
+    if ($method === 'POST' && $origin !== null && !in_array($origin, $allowedOrigins, true)) {
+        return ps_json_response(403, ['error' => 'cross_site']);
+    }
 
     try {
         $segments = $route === '' ? [] : explode('/', $route);

@@ -651,7 +651,22 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             return false;
         }
 
-        return ($now - $lastActivity) <= $this->config->idleSlotReleaseSeconds;
+        if (($now - $lastActivity) > $this->config->idleSlotReleaseSeconds) {
+            return false;
+        }
+
+        // An episode with no turn row of 1 or more (never asked) is released
+        // sooner (public-lab Requirement 19).
+        if (($now - $lastActivity) <= $this->config->unaskedReleaseSeconds) {
+            return true;
+        }
+        foreach ($this->turns as $turn) {
+            if ($turn->episodeId === $episode->id && $turn->turnNumber >= 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

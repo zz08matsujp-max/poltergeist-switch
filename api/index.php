@@ -73,6 +73,25 @@ try {
     $clientIp = ps_client_ip($_SERVER, $localConfig);
     $salt = ps_load_ip_salt($localConfig['secrets_dir']);
     $hasher = $salt !== null ? new IpHasher($salt) : null;
+    // Allowed Origin values for POST (public-lab Requirement 19): used only
+    // when it is a list of strings, else an empty list (every Origin refused).
+    $origin = isset($_SERVER['HTTP_ORIGIN']) && is_string($_SERVER['HTTP_ORIGIN'])
+        ? $_SERVER['HTTP_ORIGIN']
+        : null;
+    $allowedOrigins = [];
+    $configured = $localConfig['allowed_origins'] ?? null;
+    if (is_array($configured) && array_is_list($configured)) {
+        $allStrings = true;
+        foreach ($configured as $item) {
+            if (!is_string($item)) {
+                $allStrings = false;
+                break;
+            }
+        }
+        if ($allStrings) {
+            $allowedOrigins = $configured;
+        }
+    }
     $response = ps_dispatch(
         $service,
         (string) $method,
@@ -85,6 +104,8 @@ try {
         $starter,
         $clientIp,
         $hasher,
+        $origin,
+        $allowedOrigins,
     );
 } catch (\Throwable) {
     // Any failure before/around dispatch (config, secrets, DB connection)

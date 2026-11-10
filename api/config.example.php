@@ -21,6 +21,12 @@ return [
     // REMOTE_ADDR (the default). For a comma-separated list the rightmost entry
     // is used. Placeholder only.
     // 'client_ip_header' => 'HTTP_X_REAL_IP',
+
+    // Origin values allowed to POST to the API. A POST that carries any other
+    // Origin header gets 403 cross_site; a POST with no Origin header is not
+    // checked. Exact match (scheme + host + port, no trailing slash). An empty
+    // or missing list refuses every Origin. Placeholder only.
+    'allowed_origins' => ['https://kiro.pyol.net'],
 ];
 
 // The IP salt is NOT configured here: api/ip_salt.php creates

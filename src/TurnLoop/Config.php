@@ -35,6 +35,9 @@ readonly class Config
         // --- Slot limits (Req 9.9, 9.10) ---
         public int $maxRunningEpisodes = 5,
         public int $idleSlotReleaseSeconds = 300,
+        // An episode that never had an accepted ask (no turn row >= 1) frees
+        // its slot after this many seconds without activity (public-lab Req 19).
+        public int $unaskedReleaseSeconds = 60,
 
         // --- Public lab: daily start limits (Req 13.3) ---
         public int $dailyDeviceLimit = 10,
