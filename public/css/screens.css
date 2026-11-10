@@ -447,6 +447,9 @@ p.reflection.failed.jade { color: var(--jade); }
 /* ── messages / errors ────────────────────────────────────────────────────── */
 .message { color: var(--mute); font-size: 14px; line-height: 1.5; }
 .message.error { color: var(--alarm); }
+/* Notice area under the levers; same margin on wide and narrow screens. */
+#notice { margin-top: 10px; }
+#notice[hidden] { display: none; }
 
 /* ── visible focus indicator, >= 3:1 contrast (Req 12.4) ──────────────────── */
 /* The ember outline on the dark panels gives well over 3:1 contrast against

@@ -401,14 +401,14 @@ Steering constraints that apply to every task:
     - _Requirements: 15.1, 15.2, 15.3, 15.5, 15.6, 15.8, 14.9_
 
 - [ ] 19. Notices next to the levers
-  - [~] 19.1 Move the Notice_Area into the Switches_Panel and reveal it
+  - [x] 19.1 Move the Notice_Area into the Switches_Panel and reveal it
     - Front end only. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
     - `public/index.php`: move `<div class="message" id="notice" hidden>` from the bottom of `.wrap` into the "Breaker switches" `section.panel` (`aria-label="Disaster switches"`), directly after `div.switches`; add `aria-live="polite"` to it; keep `id="notice"` so `showNotice`, `clearNotice` and `renderNoticePanel` need no change in what they write. Fix the stale comment above it.
     - `public/css/screens.css`: a small top margin for `#notice` inside the panel, identical on wide and narrow screens; no new colours.
     - `public/js/observe.js`: add `revealNotice()` called at the end of `showNotice` and `renderNoticePanel` when the notice is non-empty: if `el.notice.getBoundingClientRect()` is not fully inside the viewport (top below 0, bottom above `window.innerHeight`), call `el.notice.scrollIntoView({block: 'nearest', behavior})` with `behavior = 'instant'` when `matchMedia('(prefers-reduced-motion: reduce)').matches` and `'smooth'` otherwise; a fully visible notice is not scrolled; a missing `scrollIntoView` or `matchMedia` is ignored. The texts and buttons stay as they are.
     - Before committing run `php -l public/index.php`, the full PHPUnit suite and `node tests/js/run-all.js`. Commit with `task 19: Notices next to the levers`. Never push.
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6_
-  - [~] 19.2 Write `observe-notice-placement.test.js`
+  - [x] 19.2 Write `observe-notice-placement.test.js`
     - Create `tests/js/observe-notice-placement.test.js`: a static check that in `public/index.php` the `#notice` element lies inside the "Breaker switches" `section.panel` and right after `div.switches` (and nowhere else in `.wrap`), with `aria-live="polite"`; with the DOM shim, a notice shown while its `getBoundingClientRect()` is off-screen calls `scrollIntoView` once with `block: 'nearest'` and `behavior: 'smooth'`, and with `matchMedia` reporting reduced motion with `behavior: 'instant'`; a notice fully inside the viewport does not scroll; an empty notice does not scroll. Confirm every existing notice test (`ask-apply-recovery`, `observe-flow`, `heat-wave-screens`, `disaster-already-set` and friends) still passes unchanged.
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 14.22_
 

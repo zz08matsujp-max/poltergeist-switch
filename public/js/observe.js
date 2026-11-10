@@ -1353,6 +1353,28 @@
     el.notice.className = 'message';
     el.notice.textContent = text || '';
     el.notice.hidden = !text;
+    if (text) { revealNotice(); }
+  }
+
+  // Scroll the notice into view when any part of it is outside the viewport
+  // (public-lab Req 16.3-16.5). Instant when reduced motion is requested.
+  // Missing scrollIntoView / matchMedia / getBoundingClientRect are ignored.
+  function revealNotice() {
+    try {
+      var n = el.notice;
+      if (!n || n.hidden || typeof n.scrollIntoView !== 'function' ||
+          typeof n.getBoundingClientRect !== 'function') { return; }
+      var r = n.getBoundingClientRect();
+      var vh = window.innerHeight ||
+        (document.documentElement && document.documentElement.clientHeight) || 0;
+      if (!(r.top < 0 || r.bottom > vh)) { return; }
+      var reduced = false;
+      if (typeof window.matchMedia === 'function') {
+        var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+        reduced = !!(mq && mq.matches);
+      }
+      n.scrollIntoView({ block: 'nearest', behavior: reduced ? 'instant' : 'smooth' });
+    } catch (e) { /* best effort */ }
   }
 
   function clearNotice() {
@@ -1385,6 +1407,7 @@
       row.appendChild(btn);
     });
     el.notice.appendChild(row);
+    revealNotice();
   }
 
   // ── robot memory: status line, All reset, missed-reflection catch-up ────────

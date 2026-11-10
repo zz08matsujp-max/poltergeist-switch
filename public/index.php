@@ -98,6 +98,9 @@ header('Cache-Control: no-store');
             <span class="mark">OFF</span>
           </button>
         </div>
+        <!-- Notice area: 409 / resume / busy / 429 / Start hint messages appear
+             here, directly under the levers. Hidden while empty. -->
+        <div class="message" id="notice" aria-live="polite" hidden></div>
       </section>
 
       <!-- Resident meters: temperature, water, injury, fear. injury and fear
@@ -166,9 +169,8 @@ header('Cache-Control: no-store');
          and removes it on Confirm or Cancel. Empty and hidden until then. -->
     <div class="confirm-host" id="reset-confirm-host" hidden></div>
 
-    <!-- Slots task 9.4 fills: a message area for 409 / resume / busy, and the
-         End_Card container. Left empty and hidden here. -->
-    <div class="message" id="notice" hidden></div>
+    <!-- End_Card container. observe.js fills it when a run ends. The notice
+         area lives in the Breaker switches panel above. -->
     <div id="endcard-host"></div>
   </div>
 
