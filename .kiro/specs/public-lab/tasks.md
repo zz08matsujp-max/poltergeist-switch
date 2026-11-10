@@ -108,7 +108,7 @@ Steering constraints that apply to every task:
     - Rewrite `tests/Memory/Properties/ResetZeroPropertyTest.php`, `CapRetirementPropertyTest.php`, `SnapshotEqualityPropertyTest.php`, `StatusCountsPropertyTest.php` and `ReflectIdempotencyPropertyTest.php` for a single Device (global reset replaced by Device reset); `NoLeakPropertyTest.php` and `NoStorePropertyTest.php` keep their routes and assertions.
     - _Requirements: 2.10, 3.1, 4.1, 14.13_
 
-- [~] 5. Add the Device memory tests and properties
+- [x] 5. Add the Device memory tests and properties
   - [x] 5.1 Write the gated `DeviceRepositoryPdoTest`
     - Create `tests/Memory/Repository/DeviceRepositoryPdoTest.php` (skipped without `PS_TEST_MYSQL_DSN`, like the existing PDO tests): the same cases as the fake, the retire-oldest regression (the oldest surplus is retired, the newest 6 stay active), Device isolation, `device_id IS NULL` rows ignored, reset appends one row and updates none.
     - Run the gated tests, including `EpisodeRepositoryTest::testPdoTwoPerTripleCommitsSerializeToExactlySix`, against MariaDB 10.11 only if the maintainer provided a throwaway test database in `PS_TEST_MYSQL_DSN`. They must pass after the C1 fix. Otherwise say so in the summary; the maintainer runs them.
@@ -155,35 +155,35 @@ Steering constraints that apply to every task:
     - Extend `tests/Memory/ApiRoutingTest.php`: `GET /api/memory` and `POST /api/memory/reset` with and without the cookie (no cookie: 200, empty status, nothing recorded, no cookie minted), 409 `episode_running` during the Device's own running episode, 200 when only another Device is running, `Cache-Control: no-store`, no Device_Id in any body.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.4, 4.5, 4.6, 4.9, 14.6_
 
-- [ ] 6. Add daily usage counting and EpisodeStarter
-  - [ ] 6.1 Create `UsageRepository` with its PDO and in-memory implementations
+- [x] 6. Add daily usage counting and EpisodeStarter
+  - [x] 6.1 Create `UsageRepository` with its PDO and in-memory implementations
     - Create `src/TurnLoop/Repository/UsageRepository.php` (`tryReserve`, `release`, `counts`), `PdoUsageRepository.php` (one transaction in primary-key order: upsert each tracked row, `SELECT ... FOR UPDATE`, `DailyLimitPolicy::denial`, rollback on denial, else `starts = starts + 1`; `release` is `UPDATE ... SET starts = starts - 1 WHERE starts > 0`) and the fake `tests/TurnLoop/InMemoryUsageRepository.php` with the same all-or-nothing rule and an injectable clock.
     - _Requirements: 13.1, 13.3, 13.4, 13.5, 13.6, 13.9, 13.14, 13.17_
-  - [ ] 6.2 Add `TurnService::assertCanStart` and the `episodeId` on the running-episode 409
+  - [x] 6.2 Add `TurnService::assertCanStart` and the `episodeId` on the running-episode 409
     - Extract the two existing checks (`device_already_running`, `too_many_running`) verbatim into a public `assertCanStart(string $deviceId)`; `createEpisode` calls it where the inline checks were, so the order of operations is unchanged. `device_already_running` carries the running episode's id.
     - Update `TurnServiceCreateTest`, `ApiTest` and any test that asserts that 409 body. Guard: `HeatWaveTurnLoopTest`, `EarthquakeGoldenMasterTest`.
     - _Requirements: 1.2, 10.4, 13.8_
-  - [ ] 6.3 Add `ApiError::tooManyRequests` and the optional conflict `episodeId`
+  - [x] 6.3 Add `ApiError::tooManyRequests` and the optional conflict `episodeId`
     - `tooManyRequests(string $code)` gives status 429 and body `{"error": code}` only; `conflict()` takes an optional `?string $episodeId` that `toArray()` emits when set.
     - _Requirements: 13.4, 13.5, 13.6, 13.18_
-  - [ ] 6.4 Create `EpisodeStarter`
+  - [x] 6.4 Create `EpisodeStarter`
     - Create `src/TurnLoop/EpisodeStarter.php`: `assertCanStart` (409 first), `tryReserve` (429), `createEpisode` (on any throw: `release` and rethrow), `snapshotForNewEpisode`. If the snapshot step fails the count is not released. Injectable clock.
     - _Requirements: 13.1, 13.4, 13.5, 13.6, 13.7, 13.8, 13.9, 13.10_
-  - [ ] 6.5 Write `EpisodeStarterTest`
+  - [x] 6.5 Write `EpisodeStarterTest`
     - Create `tests/TurnLoop/EpisodeStarterTest.php` against the in-memory fakes: the 10th, 30th and 100th start succeed and the 11th, 31st and 101st give 429 `daily_device_limit`, `daily_ip_limit`, `daily_site_limit` with nothing created; the error order; counts restart at UTC midnight (injected clock); the 409 for a running episode comes before the limits; a running episode is unaffected when a limit is reached; a failing `createEpisode` releases the count.
     - _Requirements: 13.4, 13.5, 13.6, 13.7, 13.8, 13.9, 13.10, 14.17, 14.18_
-  - [ ] 6.6 Write the gated `UsageRepositoryPdoTest`
+  - [x] 6.6 Write the gated `UsageRepositoryPdoTest`
     - Create `tests/TurnLoop/Repository/UsageRepositoryPdoTest.php` (skipped without `PS_TEST_MYSQL_DSN`): the same cases as the fake, and two connections reserving at the boundary admit exactly `limit - current`. Run it only against a throwaway test database named by the maintainer.
     - _Requirements: 13.4, 13.5, 13.6, 13.9_
-  - [ ] 6.7 Write the property test for daily counting
+  - [x] 6.7 Write the property test for daily counting
     - **Property 11: Daily counting matches a simple model**
     - **Validates: Requirements 13.3, 13.4, 13.5, 13.6, 13.7, 13.10**
     - Create `tests/TurnLoop/Properties/DailyLimitCountingPropertyTest.php` (tag `Feature: public-lab, Property 11: Daily counting matches a simple model`).
-  - [ ] 6.8 Write the property test for 409 before any limit
+  - [x] 6.8 Write the property test for 409 before any limit
     - **Property 12: A running episode is reported before any limit**
     - **Validates: Requirements 13.8**
     - Create `tests/TurnLoop/Properties/StartOrderingPropertyTest.php` (tag `Feature: public-lab, Property 12: A running episode is reported before any limit`).
-  - [ ] 6.9 Write the property test for denied or failed starts
+  - [x] 6.9 Write the property test for denied or failed starts
     - **Property 13: Denied or failed starts count nothing**
     - **Validates: Requirements 13.9**
     - Create `tests/TurnLoop/Properties/StartReleasePropertyTest.php` (tag `Feature: public-lab, Property 13: Denied or failed starts count nothing`).

@@ -93,6 +93,26 @@ class TurnService
     }
 
     /**
+     * The Device_Episode_Slot checks (Requirements 9.7–9.9; public-lab 1.2,
+     * 10.4, 13.8): 409 `device_already_running` (carrying the running
+     * episode's id) when this device already has a running episode, then 409
+     * `too_many_running` when the site-wide cap is reached. The lazy idle-slot
+     * release is applied inside these repository queries.
+     *
+     * @throws ApiError
+     */
+    public function assertCanStart(string $deviceId): void
+    {
+        $running = $this->repo->findRunningEpisodeForDevice($deviceId);
+        if ($running !== null) {
+            throw ApiError::conflict('device_already_running', null, null, $running->id);
+        }
+        if ($this->repo->countRunningEpisodes() >= $this->config->maxRunningEpisodes) {
+            throw ApiError::conflict('too_many_running');
+        }
+    }
+
+    /**
      * Create a new earthquake episode and return its view (Requirement 4.1–4.3,
      * 9.6–9.9).
      *
@@ -145,14 +165,8 @@ class TurnService
     ): EpisodeView {
         $deviceId = $deviceId !== '' ? $deviceId : $this->assignDeviceId();
 
-        // Device_Episode_Slot rules first (Requirements 9.7–9.9). The lazy
-        // idle-slot release is applied inside these repository queries.
-        if ($this->repo->findRunningEpisodeForDevice($deviceId) !== null) {
-            throw ApiError::conflict('device_already_running');
-        }
-        if ($this->repo->countRunningEpisodes() >= $this->config->maxRunningEpisodes) {
-            throw ApiError::conflict('too_many_running');
-        }
+        // Device_Episode_Slot rules first (Requirements 9.7–9.9).
+        $this->assertCanStart($deviceId);
 
         $seedValue = $seed ?? $this->drawSeed();
         $now = $this->now();

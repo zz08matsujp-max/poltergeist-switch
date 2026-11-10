@@ -233,6 +233,23 @@ class ApiTest extends TestCase
         $this->assertSafeJson($get);
     }
 
+    public function testSecondCreateReturns409WithRunningEpisodeId(): void
+    {
+        // The 409 body carries the running episode's id so Notice_Resume works
+        // after a reload (public-lab Requirements 10.4, 13.8).
+        $service = $this->service(new InMemoryEpisodeRepository());
+        $cookies = ['ps_device' => 'device-busy'];
+
+        $first = $this->assertSafeJson(ps_dispatch($service, 'POST', 'episodes', $cookies));
+        $second = ps_dispatch($service, 'POST', 'episodes', $cookies);
+
+        $this->assertSame(409, $second->status);
+        $this->assertSame(
+            ['error' => 'device_already_running', 'episodeId' => $first['episodeId']],
+            $this->assertSafeJson($second),
+        );
+    }
+
     public function testUnmatchedRouteReturns404(): void
     {
         $response = ps_dispatch($this->service(), 'POST', 'nonsense/path', []);

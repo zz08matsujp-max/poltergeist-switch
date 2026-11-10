@@ -73,7 +73,7 @@ class TurnServiceCreateTest extends TestCase
         $repo = new InMemoryEpisodeRepository();
         $service = $this->service($repo, new Config());
 
-        $service->createEpisode('dev_same', seed: 1);
+        $first = $service->createEpisode('dev_same', seed: 1);
 
         $this->expectException(ApiError::class);
         try {
@@ -81,6 +81,11 @@ class TurnServiceCreateTest extends TestCase
         } catch (ApiError $e) {
             $this->assertSame(409, $e->status);
             $this->assertSame('device_already_running', $e->errorCode);
+            $this->assertSame($first->episodeId, $e->episodeId);
+            $this->assertSame(
+                ['error' => 'device_already_running', 'episodeId' => $first->episodeId],
+                $e->toArray(),
+            );
             throw $e;
         }
     }

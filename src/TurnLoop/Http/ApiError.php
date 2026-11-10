@@ -29,6 +29,7 @@ final class ApiError extends \RuntimeException
         public readonly ?int $currentExpectedTurn = null,
         public readonly ?string $turnState = null,
         ?\Throwable $previous = null,      // the underlying cause, kept off the body
+        public readonly ?string $episodeId = null, // running episode's id on a 409 (public-lab)
     ) {
         parent::__construct($errorCode, 0, $previous);
     }
@@ -41,8 +42,19 @@ final class ApiError extends \RuntimeException
         string $code,
         ?int $currentExpectedTurn = null,
         ?string $turnState = null,
+        ?string $episodeId = null,
     ): self {
-        return new self(409, $code, $currentExpectedTurn, $turnState);
+        return new self(409, $code, $currentExpectedTurn, $turnState, null, $episodeId);
+    }
+
+    /**
+     * Reject with HTTP 429 Too Many Requests when a daily start limit is
+     * reached (public-lab Requirements 13.4, 13.5, 13.6, 13.18). The body is
+     * just the machine code.
+     */
+    public static function tooManyRequests(string $code): self
+    {
+        return new self(429, $code);
     }
 
     /**
@@ -94,6 +106,9 @@ final class ApiError extends \RuntimeException
         }
         if ($this->turnState !== null) {
             $body['turnState'] = $this->turnState;
+        }
+        if ($this->episodeId !== null) {
+            $body['episodeId'] = $this->episodeId;
         }
 
         return $body;
