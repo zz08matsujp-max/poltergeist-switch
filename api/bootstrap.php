@@ -35,6 +35,7 @@ use PoltergeistSwitch\TurnLoop\DailyLimitPolicy;
 use PoltergeistSwitch\TurnLoop\EpisodeStarter;
 use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
+use PoltergeistSwitch\TurnLoop\Http\SecurityHeaders;
 use PoltergeistSwitch\TurnLoop\ReplayEngineFactory;
 use PoltergeistSwitch\TurnLoop\Repository\PdoEpisodeRepository;
 use PoltergeistSwitch\TurnLoop\Repository\PdoUsageRepository;
@@ -377,10 +378,11 @@ function ps_device_cookie_header(string $deviceId): string
  */
 function ps_json_response(int $status, array $body, ?string $setDeviceId = null): PsApiResponse
 {
+    // Security_Headers (public-lab Requirement 20.2) on every response.
     $headers = [
         'Content-Type'  => 'application/json; charset=utf-8',
         'Cache-Control' => 'no-store',
-    ];
+    ] + SecurityHeaders::all();
     if ($setDeviceId !== null) {
         $headers['Set-Cookie'] = ps_device_cookie_header($setDeviceId);
     }

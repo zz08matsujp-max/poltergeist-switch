@@ -3,6 +3,19 @@
 # so the API still works when mod_rewrite is unavailable; this rewrite is a
 # best-effort convenience for clean paths.
 
+# Deny direct HTTP requests to every PHP file in this directory except
+# index.php (the front controller). The other files are only loaded by
+# index.php through server-side require, which this rule does not affect.
+<FilesMatch "^(?!index\.php$).+\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

@@ -36,6 +36,9 @@ declare(strict_types=1);
 
 header('Cache-Control: no-store');
 
+require_once __DIR__ . '/security_headers.php';
+ps_send_security_headers();
+
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
