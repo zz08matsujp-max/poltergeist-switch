@@ -140,7 +140,8 @@ final class MemoryServiceTest extends TestCase
 
     public function testResetIsRefusedWhileTheDevicesEpisodeRunsAndRecordsNothing(): void
     {
-        $repo = new InMemoryEpisodeRepository();
+        // A fixed clock keeps the episode running whatever the real time.
+        $repo = new InMemoryEpisodeRepository(clock: static fn (): int => strtotime('2026-11-10 09:01:00'));
         $service = new MemoryService($repo);
         $repo->createEpisode(new EpisodeRow(
             id: 'ep_live',
