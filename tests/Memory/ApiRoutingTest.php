@@ -224,6 +224,98 @@ final class ApiRoutingTest extends TestCase
     }
 
     // =====================================================================
+    // Device-scoped memory routes (public-lab Req 3.1-3.4, 4.4-4.6, 4.9, 14.6)
+    // =====================================================================
+
+    public function testMemoryRoutesWithoutCookieAreEmptyRecordNothingAndMintNoCookie(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $memoryService = new MemoryService($repo);
+        $repo->appendMemory($this->memoryRow('robot_a', 'seed_a1', 'Amber remembers the kettle'));
+        $before = $repo->latestDeviceResetAt(self::DEVICE);
+
+        foreach ([['GET', 'memory'], ['POST', 'memory/reset']] as [$method, $route]) {
+            $response = ps_dispatch($this->turnService($repo), $method, $route, [], [], null, $memoryService);
+            $this->assertSame(200, $response->status);
+            $body = $this->assertSafeJson($response);
+            $this->assertArrayNotHasKey('Set-Cookie', $response->headers, "{$method} {$route} mints no cookie");
+            $this->assertSame(1, $body['generation'] ?? null);
+            $this->assertStringNotContainsString(self::DEVICE, $response->body);
+        }
+
+        $this->assertSame($before, $repo->latestDeviceResetAt(self::DEVICE), 'nothing recorded');
+        $this->assertSame(1, $repo->deviceGeneration(self::DEVICE));
+    }
+
+    public function testMemoryResetIsRefusedWith409DuringTheDevicesOwnRunningEpisode(): void
+    {
+        $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);
+        $memoryService = new MemoryService($repo);
+        $this->turnService($repo)->createEpisode(self::DEVICE, seed: 7);
+
+        $response = ps_dispatch(
+            $this->turnService($repo),
+            'POST',
+            'memory/reset',
+            [PS_DEVICE_COOKIE => self::DEVICE],
+            [],
+            null,
+            $memoryService,
+        );
+
+        $this->assertSame(409, $response->status);
+        $this->assertSame('no-store', $response->headers['Cache-Control'] ?? null);
+        $this->assertStringContainsString('episode_running', $response->body);
+        $this->assertStringNotContainsString(self::DEVICE, $response->body);
+        $this->assertSame(1, $repo->deviceGeneration(self::DEVICE), 'a refused reset records nothing');
+    }
+
+    public function testMemoryResetSucceedsWhenOnlyAnotherDeviceIsRunning(): void
+    {
+        $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);
+        $memoryService = new MemoryService($repo);
+        $this->turnService($repo)->createEpisode('dev_other', seed: 7);
+
+        $response = ps_dispatch(
+            $this->turnService($repo),
+            'POST',
+            'memory/reset',
+            [PS_DEVICE_COOKIE => self::DEVICE],
+            [],
+            null,
+            $memoryService,
+        );
+
+        $this->assertSame(200, $response->status);
+        $body = $this->assertSafeJson($response);
+        $this->assertSame(2, $body['generation'] ?? null);
+        $this->assertArrayNotHasKey('Set-Cookie', $response->headers);
+        $this->assertStringNotContainsString(self::DEVICE, $response->body);
+        $this->assertStringNotContainsString('dev_other', $response->body);
+    }
+
+    public function testMemoryStatusIsAllowedDuringTheDevicesOwnRunningEpisode(): void
+    {
+        $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);
+        $memoryService = new MemoryService($repo);
+        $this->turnService($repo)->createEpisode(self::DEVICE, seed: 7);
+
+        $response = ps_dispatch(
+            $this->turnService($repo),
+            'GET',
+            'memory',
+            [PS_DEVICE_COOKIE => self::DEVICE],
+            [],
+            null,
+            $memoryService,
+        );
+
+        $this->assertSame(200, $response->status);
+        $this->assertSafeJson($response);
+        $this->assertStringNotContainsString(self::DEVICE, $response->body);
+    }
+
+    // =====================================================================
     // Reflection prompt/response is stored with kind='reflection', turn -1
     // =====================================================================
 

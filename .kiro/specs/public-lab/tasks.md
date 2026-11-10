@@ -77,7 +77,7 @@ Steering constraints that apply to every task:
     - Create `tests/TurnLoop/ClientIpTest.php` and `tests/TurnLoop/IpHasherTest.php`: normalisation examples (public v4, public v6 in one /64, mapped v4, 127.0.0.1, 10.x, 192.168.x, ::1, garbage), hash determinism, 64 lowercase hex, different salt gives a different hash, device and ip scopes never collide.
     - _Requirements: 13.14, 14.19_
 
-- [~] 4. Make memory Device-scoped in the repositories, services and routes
+- [x] 4. Make memory Device-scoped in the repositories, services and routes
   - [x] 4.1 Extend `MemoryRow` and the `EpisodeRepository` interface
     - Add trailing `public ?string $deviceId = null` to `MemoryRow`.
     - Add to the interface: `deviceGeneration`, `recordDeviceReset`, `latestDeviceResetAt`; change `activeMemories` and `activeCount` to take a leading `string $deviceId`; `appendMemory` and `commitReflectionAnswer` cap on `(device, robot, disaster, generation)`.
@@ -108,50 +108,50 @@ Steering constraints that apply to every task:
     - Rewrite `tests/Memory/Properties/ResetZeroPropertyTest.php`, `CapRetirementPropertyTest.php`, `SnapshotEqualityPropertyTest.php`, `StatusCountsPropertyTest.php` and `ReflectIdempotencyPropertyTest.php` for a single Device (global reset replaced by Device reset); `NoLeakPropertyTest.php` and `NoStorePropertyTest.php` keep their routes and assertions.
     - _Requirements: 2.10, 3.1, 4.1, 14.13_
 
-- [ ] 5. Add the Device memory tests and properties
-  - [ ] 5.1 Write the gated `DeviceRepositoryPdoTest`
+- [~] 5. Add the Device memory tests and properties
+  - [x] 5.1 Write the gated `DeviceRepositoryPdoTest`
     - Create `tests/Memory/Repository/DeviceRepositoryPdoTest.php` (skipped without `PS_TEST_MYSQL_DSN`, like the existing PDO tests): the same cases as the fake, the retire-oldest regression (the oldest surplus is retired, the newest 6 stay active), Device isolation, `device_id IS NULL` rows ignored, reset appends one row and updates none.
     - Run the gated tests, including `EpisodeRepositoryTest::testPdoTwoPerTripleCommitsSerializeToExactlySix`, against MariaDB 10.11 only if the maintainer provided a throwaway test database in `PS_TEST_MYSQL_DSN`. They must pass after the C1 fix. Otherwise say so in the summary; the maintainer runs them.
     - _Requirements: 2.10, 2.11, 5.5, 14.14_
-  - [ ] 5.2 Write `DeviceRetirementTest`
+  - [x] 5.2 Write `DeviceRetirementTest`
     - Create `tests/Memory/DeviceRetirementTest.php` with two Devices on the in-memory fake: when one Device stores more than 6 memories for a robot and disaster, only its oldest surplus is retired; the other Device's memories stay active and unchanged; every Legacy_Memory is unchanged; the reflection `activeCount` is per Device; the Memory_Snapshot cap stays at 18.
     - _Requirements: 2.10, 2.11, 2.12, 2.13, 14.14_
-  - [ ] 5.3 Write `LegacyMemoryTest`
+  - [x] 5.3 Write `LegacyMemoryTest`
     - Create `tests/Memory/LegacyMemoryTest.php`: a memory with no owner never appears in a snapshot, a status or a reflection count for any Device; a new Device gets an empty snapshot (0 memories) for both robots.
     - _Requirements: 2.6, 2.7, 5.2, 14.4_
-  - [ ] 5.4 Write the property test for ownership and isolation
+  - [x] 5.4 Write the property test for ownership and isolation
     - **Property 1: Memory ownership and isolation**
     - **Validates: Requirements 2.1, 2.2, 2.5, 2.6, 2.12, 3.1, 3.5, 5.2**
     - Create `tests/Memory/Properties/DeviceIsolationPropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 1: Memory ownership and isolation`).
-  - [ ] 5.5 Write the property test for snapshot order and cap
+  - [x] 5.5 Write the property test for snapshot order and cap
     - **Property 2: Snapshot order and cap**
     - **Validates: Requirements 2.3, 2.4, 2.7, 2.13**
     - Create `tests/Memory/Properties/DeviceSnapshotPropertyTest.php` (tag `Feature: public-lab, Property 2: Snapshot order and cap`).
-  - [ ] 5.6 Write the property test for the per-Device cap and retirement
+  - [x] 5.6 Write the property test for the per-Device cap and retirement
     - **Property 3: Per-Device cap and retirement**
     - **Validates: Requirements 2.10, 2.11**
     - Create `tests/Memory/Properties/DeviceCapPropertyTest.php` (tag `Feature: public-lab, Property 3: Per-Device cap and retirement`).
-  - [ ] 5.7 Write the property test for reset
+  - [x] 5.7 Write the property test for reset
     - **Property 4: Reset hides the caller's own memory and changes nothing else**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.7**
     - Create `tests/Memory/Properties/DeviceResetPropertyTest.php` (tag `Feature: public-lab, Property 4: Reset hides the caller's own memory and changes nothing else`). Includes the reset-by-one-Device-leaves-others-unchanged case (status, snapshots, episode list) and the zero-rows-deleted check.
-  - [ ] 5.8 Write the property test for late reflections
+  - [x] 5.8 Write the property test for late reflections
     - **Property 5: A reflection that finishes after a reset never becomes visible**
     - **Validates: Requirements 4.8**
     - Create `tests/Memory/Properties/LateReflectionPropertyTest.php` (tag `Feature: public-lab, Property 5: A reflection that finishes after a reset never becomes visible`).
-  - [ ] 5.9 Write the property test for the reset gate
+  - [x] 5.9 Write the property test for the reset gate
     - **Property 6: Reset is refused exactly while the caller's own episode is running**
     - **Validates: Requirements 4.4, 4.5**
     - Create `tests/Memory/Properties/ResetGatePropertyTest.php` (tag `Feature: public-lab, Property 6: Reset is refused exactly while the caller's own episode is running`).
-  - [ ] 5.10 Write the property test that nothing is deleted
+  - [x] 5.10 Write the property test that nothing is deleted
     - **Property 7: No operation deletes a row**
     - **Validates: Requirements 2.8**
     - Create `tests/Memory/Properties/NoDeletePropertyTest.php` (tag `Feature: public-lab, Property 7: No operation deletes a row`).
-  - [ ] 5.11 Write the property test for frozen snapshots
+  - [x] 5.11 Write the property test for frozen snapshots
     - **Property 8: A recorded episode's snapshot is frozen**
     - **Validates: Requirements 1.3, 2.9**
     - Create `tests/Memory/Properties/FrozenSnapshotPropertyTest.php` (tag `Feature: public-lab, Property 8: A recorded episode's snapshot is frozen`).
-  - [ ] 5.12 Write the routing tests for the memory routes
+  - [x] 5.12 Write the routing tests for the memory routes
     - Extend `tests/Memory/ApiRoutingTest.php`: `GET /api/memory` and `POST /api/memory/reset` with and without the cookie (no cookie: 200, empty status, nothing recorded, no cookie minted), 409 `episode_running` during the Device's own running episode, 200 when only another Device is running, `Cache-Control: no-store`, no Device_Id in any body.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.4, 4.5, 4.6, 4.9, 14.6_
 
