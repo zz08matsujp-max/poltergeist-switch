@@ -82,6 +82,49 @@
       window.speechSynthesis;
   }
 
+  var CHUNK_MAX = 180;
+
+  // Split a line into Spoken_Chunks (Req 17.1-17.3): cut after . ! ? or an
+  // ellipsis followed by whitespace or the end; cut any chunk over 180
+  // characters after ", " or "; " (packed greedily), else at the last space
+  // before 180 (a hard cut at 180 when there is no space). Blanks are dropped.
+  function splitForSpeech(text) {
+    if (typeof text !== 'string') { return []; }
+    var sentences = [], re = /[\s\S]*?[.!?\u2026](?=\s|$)/g, m, last = 0, t;
+    while ((m = re.exec(text)) !== null) {
+      if (m[0].length === 0) { re.lastIndex++; continue; }
+      t = m[0].trim(); if (t) { sentences.push(t); }
+      last = re.lastIndex;
+    }
+    t = text.slice(last).trim(); if (t) { sentences.push(t); }
+
+    var out = [];
+    sentences.forEach(function (sen) {
+      if (sen.length <= CHUNK_MAX) { out.push(sen); return; }
+      var parts = [], pre = /[\s\S]*?[,;](?=\s)/g, pm, pl = 0;
+      while ((pm = pre.exec(sen)) !== null) {
+        if (pm[0].trim()) { parts.push(pm[0].trim()); }
+        pl = pre.lastIndex;
+      }
+      if (sen.slice(pl).trim()) { parts.push(sen.slice(pl).trim()); }
+      var cur = '';
+      parts.forEach(function (part) {
+        if (cur && cur.length + 1 + part.length <= CHUNK_MAX) { cur += ' ' + part; return; }
+        if (cur) { out.push(cur); cur = ''; }
+        while (part.length > CHUNK_MAX) {
+          var cut = part.lastIndexOf(' ', CHUNK_MAX);
+          if (cut <= 0) { cut = CHUNK_MAX; }
+          var head = part.slice(0, cut).trim();
+          if (head) { out.push(head); }
+          part = part.slice(cut).trim();
+        }
+        cur = part;
+      });
+      if (cur) { out.push(cur); }
+    });
+    return out;
+  }
+
   function createVoices(options) {
     var opts = options || {};
     var synth = hasSpeech() ? window.speechSynthesis : null;
@@ -94,7 +137,14 @@
     var voiceJa = null;     // chosen Japanese SpeechSynthesisVoice
     var voicesLoaded = false;
     var gestured = false;
-    var active = [];        // lines handed to the engine and not yet done
+
+    // Timers, clock and listener targets are injectable for tests.
+    var tm = opts.timers || {};
+    function setT(fn, ms) { return (tm.setTimeout || setTimeout)(fn, ms); }
+    function clearT(id) { return (tm.clearTimeout || clearTimeout)(id); }
+    var now = typeof opts.now === 'function' ? opts.now : Date.now;
+    var docT = opts.document || (typeof document !== 'undefined' ? document : null);
+    var winT = opts.window || (typeof window !== 'undefined' ? window : null);
 
     // Resolve the per-character and Japanese voices from the current voice list.
     // Safe to call repeatedly (on voiceschanged); non-throwing.
@@ -146,6 +196,19 @@
         if (synth.addEventListener) { synth.addEventListener('voiceschanged', pickVoices); }
         else { synth.onvoiceschanged = pickVoices; }
       } catch (e) { /* ignore */ }
+
+      // Chrome stalls backgrounded speech: resume when the page is shown or
+      // focused again (Req 17.7). Installed once, only with an engine.
+      try {
+        if (docT && docT.addEventListener) {
+          docT.addEventListener('visibilitychange', function () {
+            if (docT.visibilityState === 'visible') { resumeNow(); }
+          });
+        }
+        if (winT && winT.addEventListener) {
+          winT.addEventListener('focus', function () { resumeNow(); });
+        }
+      } catch (e) { /* ignore */ }
     }
 
     // gesture(): call from a real user gesture (a click on Start or Voices).
@@ -164,22 +227,169 @@
       } catch (e) { /* best-effort priming */ }
     }
 
-    // Finish one active line exactly once and report why.
+    // ---- Chunked speaking and keep-alive (Requirement 17) -----------------
+    // `queue` holds the lines not yet done, in call order. Each entry is
+    // { id, text, chunks:[{text, u, issued, finished}], index, onDone, done,
+    //   wd, ka }. Every chunk is one utterance; all chunks of all lines are
+    // handed to the engine in order (it queues FIFO), and the entry advances
+    // `index` as chunks end. Only the head entry is watched (watchdog and
+    // keep-alive tick), because only it can be read aloud.
+    var queue = [];
+    var lastCancelAt = -Infinity;
+    var epoch = 0;          // bumped by cancel(); abandons deferred speaks
+    var flushTimer = null;
+
     function complete(entry, reason) {
       if (entry.done) { return; }
       entry.done = true;
-      var idx = active.indexOf(entry);
-      if (idx >= 0) { active.splice(idx, 1); }
+      clearEntryTimers(entry);
+      var idx = queue.indexOf(entry);
+      if (idx >= 0) { queue.splice(idx, 1); }
       if (typeof entry.onDone === 'function') {
         try { entry.onDone(reason); } catch (e) { /* caller errors never break us */ }
       }
     }
 
+    function resumeIfPaused() {
+      if (!synth) { return; }
+      try { if (synth.paused) { synth.resume(); } } catch (e) { /* ignore */ }
+    }
+
+    function resumeNow() {
+      if (!synth) { return; }
+      try { synth.resume(); } catch (e) { /* ignore */ }
+    }
+
+    function clearEntryTimers(entry) {
+      if (entry.wd !== null && entry.wd !== undefined) { clearT(entry.wd); entry.wd = null; }
+      if (entry.ka !== null && entry.ka !== undefined) { clearT(entry.ka); entry.ka = null; }
+    }
+
+    // Build one utterance for a chunk with the line's voice, lang, pitch, rate.
+    function makeUtterance(entry, chunk) {
+      var u = new window.SpeechSynthesisUtterance(chunk.text);
+      if (JA.test(entry.text)) {
+        if (voiceJa) { u.voice = voiceJa; u.lang = voiceJa.lang; }
+        else { u.lang = 'ja-JP'; }
+      } else {
+        var v = voiceMap[entry.id];
+        if (v) { u.voice = v; u.lang = v.lang; }
+        else { u.lang = 'en-US'; }
+      }
+      u.pitch = entry.profile.pitch;
+      u.rate = entry.profile.rate;
+      // Handlers only count while this utterance is the chunk's live one.
+      u.onend = function () { chunkEvent(entry, chunk, u, 'end'); };
+      u.onerror = function () { chunkEvent(entry, chunk, u, 'error'); };
+      chunk.u = u;   // kept referenced (some engines drop unheld utterances)
+      return u;
+    }
+
+    // Hand every not-yet-issued chunk to the engine, in order. Never within
+    // 150 ms of our own cancel(): defer for the remainder, abandon if a newer
+    // cancel() ran meanwhile.
+    function flush() {
+      if (!synth || flushTimer !== null) { return; }
+      var wait = 150 - (now() - lastCancelAt);
+      if (wait > 0) {
+        var myEpoch = epoch;
+        flushTimer = setT(function () {
+          flushTimer = null;
+          if (myEpoch !== epoch) { return; }
+          flush();
+        }, wait);
+        return;
+      }
+      for (var i = 0; i < queue.length; i++) {
+        var entry = queue[i];
+        for (var c = entry.index; c < entry.chunks.length; c++) {
+          var chunk = entry.chunks[c];
+          if (chunk.issued || chunk.finished) { continue; }
+          if (!chunk.u) {
+            try { makeUtterance(entry, chunk); }
+            catch (e) { chunkEvent(entry, chunk, null, 'error', true); return; }
+          }
+          resumeIfPaused();
+          chunk.issued = true;
+          try { synth.speak(chunk.u); }
+          catch (e) { chunkEvent(entry, chunk, chunk.u, 'error'); return; }
+        }
+      }
+    }
+
+    // A chunk reached an end: 'end' goes on, 'error' ends the line (remaining
+    // chunks are dropped). `force` skips the stale-utterance check.
+    function chunkEvent(entry, chunk, u, how, force) {
+      if (entry.done || chunk.finished) { return; }
+      if (!force && chunk.u !== u) { return; }
+      chunk.finished = true;
+      chunk.u = null;
+      if (entry === queue[0]) { clearEntryTimers(entry); }
+      if (how === 'error') { complete(entry, 'error'); arm(); return; }
+      advance(entry);
+    }
+
+    function advance(entry) {
+      entry.index++;
+      if (entry.index >= entry.chunks.length) { complete(entry, 'end'); }
+      else if (entry === queue[0]) { clearEntryTimers(entry); }
+      arm();
+    }
+
+    // Start the watchdog and keep-alive tick for the head entry's current chunk.
+    function arm() {
+      var entry = queue[0];
+      if (!entry || entry.done) { return; }
+      if (entry.wd !== null || entry.ka !== null) { return; }
+      var chunk = entry.chunks[entry.index];
+      if (!chunk || chunk.finished) { return; }
+      var T = 2000 + 120 * chunk.text.length / (entry.profile.rate || 1);
+
+      entry.ka = setT(function tick() {
+        if (entry.done || entry !== queue[0] || entry.chunks[entry.index] !== chunk || chunk.finished) { return; }
+        resumeIfPaused();
+        entry.ka = setT(tick, 5000);
+      }, 5000);
+
+      entry.wd = setT(function () {
+        entry.wd = null;
+        if (entry.done || chunk.finished) { return; }
+        var speaking = false;
+        try { speaking = synth.speaking === true; } catch (e) { speaking = false; }
+        if (!speaking) {
+          // The engine says it is idle: treat the chunk as ended.
+          chunk.finished = true; chunk.u = null;
+          clearEntryTimers(entry);
+          advance(entry);
+          return;
+        }
+        // Still speaking: wait until 2T from the chunk's start, then cancel it.
+        entry.wd = setT(function () {
+          entry.wd = null;
+          if (entry.done || chunk.finished) { return; }
+          chunk.finished = true; chunk.u = null;
+          clearEntryTimers(entry);
+          // synth.cancel() drops every queued utterance: mark them not issued
+          // so flush() re-issues the rest after the 150 ms gap. The line
+          // continues; this is not reported as an error.
+          queue.forEach(function (e) {
+            e.chunks.forEach(function (ch) {
+              if (ch !== chunk && !ch.finished && ch.issued) { ch.issued = false; ch.u = null; }
+            });
+          });
+          lastCancelAt = now();
+          try { synth.cancel(); } catch (e) { /* ignore */ }
+          advance(entry);
+          flush();
+        }, T);
+      }, T);
+    }
+
     // Speak one SPOKEN line (Req 3.11, 3.12, 11.3, 11.4, 11.14). Returns true
-    // when the line was handed to the engine; then onDone fires exactly once
-    // with 'end' | 'error' | 'cancelled'. Returns false (onDone NOT called,
-    // speechSynthesis untouched) when the setting is off, there is no engine,
-    // gesture() has not run, or the line is blank. Lines queue FIFO.
+    // when the line was accepted; then onDone fires exactly once with 'end' |
+    // 'error' | 'cancelled'. Returns false (onDone NOT called, speechSynthesis
+    // untouched) when the setting is off, there is no engine, gesture() has not
+    // run, or the line is blank. Lines queue FIFO.
     function speak(id, line, onDone) {
       if (!enabled || !synth || !gestured) { return false; }
       if (!id || typeof line !== 'string') { return false; }
@@ -190,39 +400,42 @@
 
       if (!voicesLoaded) { pickVoices(); }
 
-      var u;
-      try { u = new window.SpeechSynthesisUtterance(text); }
+      var parts = splitForSpeech(text);
+      if (!parts.length) { return false; }
+      var entry = {
+        id: id, text: text, profile: profile, onDone: onDone, done: false,
+        index: 0, wd: null, ka: null,
+        chunks: parts.map(function (t) { return { text: t, u: null, issued: false, finished: false }; })
+      };
+      try { makeUtterance(entry, entry.chunks[0]); }
       catch (e) { return false; }
-
-      if (JA.test(text)) {
-        if (voiceJa) { u.voice = voiceJa; u.lang = voiceJa.lang; }
-        else { u.lang = 'ja-JP'; }
-      } else {
-        var v = voiceMap[id];
-        if (v) { u.voice = v; u.lang = v.lang; }
-        else { u.lang = 'en-US'; }
+      for (var k = 1; k < entry.chunks.length; k++) {
+        try { makeUtterance(entry, entry.chunks[k]); } catch (e) { return false; }
       }
-      u.pitch = profile.pitch;
-      u.rate = profile.rate;
 
-      // The entry keeps the utterance referenced until it is done (some
-      // engines drop unheld utterances to GC mid-speech).
-      var entry = { u: u, onDone: onDone, done: false };
-      u.onend = function () { complete(entry, 'end'); };
-      u.onerror = function () { complete(entry, 'error'); };
-      active.push(entry);
-
-      try { synth.speak(u); }
-      catch (e) { complete(entry, 'error'); }
+      queue.push(entry);
+      flush();
+      arm();
       return true;
     }
 
     // Stop reading now and report 'cancelled' for every active or queued line.
     // Entries are completed before synth.cancel() so the engine's own error
-    // events cannot relabel them. Non-throwing.
+    // events cannot relabel them. Records the time so no speak follows within
+    // 150 ms. Non-throwing.
     function cancel() {
-      active.slice().forEach(function (e) { complete(e, 'cancelled'); });
+      epoch++;
+      if (flushTimer !== null) { clearT(flushTimer); flushTimer = null; }
+      var busy = queue.length > 0;
+      queue.slice().forEach(function (e) {
+        e.chunks.forEach(function (ch) { ch.finished = true; ch.u = null; });
+        complete(e, 'cancelled');
+      });
       if (!synth) { return; }
+      // The 150 ms gap only matters when something was being read or queued;
+      // a cancel on an idle engine starts none.
+      try { if (synth.speaking || synth.pending) { busy = true; } } catch (e) { /* ignore */ }
+      if (busy) { lastCancelAt = now(); }
       try { synth.cancel(); } catch (e) { /* ignore */ }
     }
 
@@ -249,7 +462,8 @@
       unlock: gesture,
       stop: cancel,
       // whether a real speech engine is present
-      available: !!synth
+      available: !!synth,
+      splitForSpeech: splitForSpeech
     };
   }
 
@@ -261,11 +475,14 @@
     Object.keys(impl).forEach(function (k) { self[k] = impl[k]; });
   }
 
+  createVoices.splitForSpeech = splitForSpeech;
+  Voices.splitForSpeech = splitForSpeech;
+
   if (typeof window !== 'undefined') {
     window.createVoices = createVoices;
     window.Voices = Voices;
   }
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { createVoices: createVoices, Voices: Voices };
+    module.exports = { createVoices: createVoices, Voices: Voices, splitForSpeech: splitForSpeech };
   }
 })();

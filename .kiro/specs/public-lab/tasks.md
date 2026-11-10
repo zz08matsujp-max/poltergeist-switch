@@ -413,18 +413,18 @@ Steering constraints that apply to every task:
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 14.22_
 
 - [ ] 20. Keep Chrome's speech going
-  - [~] 20.1 Chunk the speech and add the keep-alive rules in `voices.js`
+  - [x] 20.1 Chunk the speech and add the keep-alive rules in `voices.js`
     - Front end only, in `public/js/voices.js`; the `speak(id, line, onDone)` interface, `speech-sequencer.js` and the Reading_Time and safety-cap rules stay as they are. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
     - Add `splitForSpeech(text)` (exported on `createVoices` and `Voices`): split after `.`, `!`, `?` or an ellipsis followed by a space or the end; split any chunk over 180 characters after `, ` or `; `, else at the last space before 180. `speak` queues one entry per line with its chunks; each chunk is one utterance with the line's voice, `lang`, pitch and rate; the line reports `'end'` after the last chunk ends, `'error'` if a chunk errors, `'cancelled'` on `cancel()`.
     - Before each `synth.speak`: if `synth.paused`, call `synth.resume()`; never call `speak` within 150 ms of our own `cancel()` (defer until 150 ms have passed, in order, dropped if a newer `cancel()` ran). While a chunk is read, an interval of 5000 ms calls `resume()` if paused. Call `resume()` on `visibilitychange` to visible and on window `focus`.
     - Chunk_Watchdog per chunk: after `2000 + 120 * chars / rate` ms without `end` or `error`, if `synth.speaking` is false treat the chunk as ended and go on; if it is still speaking after twice that time, cancel it and go on with the next chunk (the line continues). Make timers, `now` and the document/window listeners injectable through `createVoices` options (defaults: the real ones).
     - Before committing run the full PHPUnit suite and `node tests/js/run-all.js`. Commit with `task 20: Keep Chrome's speech going`. Never push.
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 17.10, 17.11, 11.7, 11.9_
-  - [~] 20.2 Write `voices-chunks.test.js` and `voices-keepalive.test.js`
+  - [x] 20.2 Write `voices-chunks.test.js` and `voices-keepalive.test.js`
     - Create `tests/js/voices-chunks.test.js` against the real `voices.js` with a fake `speechSynthesis` (as in `voices-gesture.test.js`): fixed splitting examples (sentence ends, ellipsis, a 300-character sentence cut at `, ` or `; `, a long text with no separator cut at the last space before 180); chunks are spoken in order with the line's voice, pitch and rate; the line reports `'end'` exactly once after the last chunk ends; an error in a chunk reports `'error'` for the line; `cancel()` reports `'cancelled'`.
     - Create `tests/js/voices-keepalive.test.js` with `helpers/fake-clock.js` and a fake `speechSynthesis` that records `speak`, `cancel` and `resume` with virtual time: a paused engine is resumed before `speak`; `resume()` on `visibilitychange` to visible and on window `focus`; the 5000 ms check resumes a paused engine while a chunk is read and stops after the chunk ends; no `speak` within 150 ms after our own `cancel()` (the speak happens at 150 ms); a chunk that never ends with `speaking === false` is passed at `2000 + 120 * chars / rate` ms and the next chunk is spoken; with `speaking === true` it is cancelled at twice that time and the next chunk is spoken, the line continuing.
     - _Requirements: 17.1, 17.2, 17.3, 17.5, 17.6, 17.7, 17.8, 17.9, 17.10, 14.23_
-  - [~] 20.3 Write the property test for speech splitting
+  - [x] 20.3 Write the property test for speech splitting
     - **Property 23: Speech splitting preserves the line and respects the limits**
     - **Validates: Requirements 17.1, 17.2, 17.3**
     - Create `tests/js/voices-split-property.test.js` (seeded `mulberry32`, at least 100 cases, tag `Feature: public-lab, Property 23: Speech splitting preserves the line and respects the limits`): random texts with sentence ends, ellipses, commas, semicolons, long words and Japanese text; chunks are non-blank, in order, rejoin to the trimmed text (cut whitespace ignored), none over 180 characters unless a single word, and a short text with no inner sentence end gives one chunk.
