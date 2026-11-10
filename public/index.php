@@ -144,8 +144,8 @@ header('Cache-Control: no-store');
       </section>
     </div>
 
-    <!-- Controls: Start and Voices on/off. Start creates the episode; the
-         levers also start one in the run loop. -->
+    <!-- Controls: Start and Voices on/off. Levers only choose the disaster;
+         Start creates the episode for the lever that is ON and starts the run. -->
     <div class="controls">
       <button type="button" class="btn primary" id="btn-start">Start</button>
       <button type="button" class="btn" id="btn-voices" aria-pressed="true">Voices: on</button>

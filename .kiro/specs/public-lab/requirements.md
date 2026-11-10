@@ -47,7 +47,7 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 - **Line_Sequence**: The Spoken_Lines of one turn in stored order: Amber's lines, then Jade's lines, then the man's line.
 - **Reading_Time**: With Voices off, the time a Spoken_Line stays visible: 2000 ms plus 60 ms per character, capped at 12000 ms.
 - **Speech_Bubble**: The bubble above a character on the stage, and on narrow screens the caption strip, that shows a Spoken_Line.
-- **First_Gesture**: The visitor's first click in a page load on a Lever, Start, Notice_Resume or Try_Again (on Observe), or on Play, a step control or an Episode_List item (on Replay).
+- **First_Gesture**: The visitor's first click in a page load on a Lever (including a click that only turns a Lever ON or OFF), Start, Notice_Resume or Try_Again (on Observe), or on Play, a step control or an Episode_List item (on Replay).
 - **UTC_Day**: One calendar day in UTC, from 00:00:00 to 23:59:59 UTC. Daily limits reset at the start of each UTC_Day.
 - **Daily_Limit**: The maximum number of new episodes that may be started in one UTC_Day by one Device (10), by one IP address (30), or by the whole site (100). The three numbers are `Config` values.
 - **IP_Hash**: The SHA-256 hash of a visitor's IP address combined with the IP_Salt. It is the only form of the IP address that is stored.
@@ -56,6 +56,11 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 - **Device_Busy_Notice**: The Observe notice "A running episode already exists on this device." with the actions "Resume" and "Watch a past episode".
 - **Notice_Resume**: The "Resume" action of the Device_Busy_Notice, which continues this Device's running episode (`resumeEpisode` in `observe.js`) after a page reload. It is not the control-row Resume button removed by Requirement 10.
 - **Try_Again**: The "Try again" button in the notice shown for an Unfinished_Episode. It continues the same episode from its stored state.
+- **Start_Hint**: The Observe notice "Turn on Earthquake or Heat wave, then press Start." shown when Start is pressed with no Lever ON.
+- **Switches_Panel**: The Observe panel headed "Breaker switches" (`section.panel` with `aria-label="Disaster switches"` in `public/index.php`) that holds the two Levers and, under them, the Notice_Area.
+- **Notice_Area**: The Observe element `#notice` (a polite live region) that shows the Device_Busy_Notice, the Unfinished_Episode notice, the All reset 409 message, the 429 messages, the unreachable-lab message and the Start_Hint. Requirement 16 places it inside the Switches_Panel, directly under the Levers.
+- **Spoken_Chunk**: A part of one Spoken_Line, made by the splitting rules of Requirement 17, that `voices.js` hands to the speech engine as one utterance. Chunks exist for speaking only; the Speech_Bubble always shows the whole Spoken_Line.
+- **Chunk_Watchdog**: The per-Spoken_Chunk timer of Requirement 17 that passes over a chunk for which the engine reports neither the end nor an error.
 - **Heat_Palette**: The pilot v0.5 heat colours defined in Requirement 12.
 - **House_Renderer**: The shared stage drawing module `public/js/house-renderer.js`.
 - **Golden_Master**: `tests/fixtures/earthquake_golden_master.json` (SHA-256 starts with `c2aba50f87c22fe6`) and `EarthquakeGoldenMasterTest`.
@@ -188,7 +193,7 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 1. WHEN the visitor confirms All reset and the server accepts it, THE Observe SHALL set both Levers to OFF, return the stage, meters, log and End_Card to their first-load state, and show this Device's (empty) memory status.
 2. WHILE turns are running, THE Observe SHALL disable the All_Reset_Button.
 3. IF the server answers All reset with 409, THEN THE Observe SHALL leave the stage and Levers unchanged and show a short message.
-4. WHEN All reset has completed, THE Observe SHALL start the next run normally when the visitor flips a Lever or presses Start.
+4. WHEN All reset has completed, THE Observe SHALL start the next run normally when the visitor turns a Lever ON and presses Start (Requirement 15).
 
 ---
 
@@ -199,13 +204,13 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 #### Acceptance Criteria
 
 1. WHEN the last turn has been acted out and the reflection has finished (or has been reported as not stored), THE Observe SHALL set both Levers to OFF.
-2. WHEN a Lever is flipped ON or Start is pressed after an episode has ended, THE Observe SHALL create a new episode and run it normally.
+2. WHEN a Lever is ON and Start is pressed after an episode has ended, THE Observe SHALL create a new episode and run it normally (Requirement 15).
 3. WHEN a new run starts after an ended episode, THE Observe SHALL clear the previous episode's client state and dismiss its End_Card.
 4. THE Observe SHALL keep the existing ask and apply 5xx recovery behaviour unchanged (wait 5000 ms, read the stored episode, continue; at most 3 tries per turn), except for the notice and the recovery action defined in criteria 6 to 9.
-5. WHILE a run is in progress, THE Observe SHALL ignore a second flip of a Lever or Start press instead of starting another episode. A run is in progress from the moment a run starts until it ends or stops with an Unfinished_Episode notice.
+5. WHILE a run is in progress, THE Observe SHALL ignore a click on a Lever or on Start instead of starting another episode. A run is in progress from the moment a run starts until it ends or stops with an Unfinished_Episode notice.
 6. WHEN the ask or apply of a turn fails and the recovery tries for that turn are used up, or the failure is not recoverable, THE Observe SHALL stop the run, keep the Unfinished_Episode's turns on screen, and show the notice "A turn could not be completed." with a "Try again" button.
 7. WHEN the visitor presses Try_Again, THE Observe SHALL read the stored state of the same episode, continue from its stored next turn without creating a new episode, and resume the run loop, or show the End_Card if the stored episode has ended.
-8. WHILE an Unfinished_Episode is shown, WHEN a Lever is flipped or Start is pressed, THE Observe SHALL do what Try_Again does and SHALL NOT create a new episode.
+8. WHILE an Unfinished_Episode is shown, WHEN Start is pressed, THE Observe SHALL do what Try_Again does and SHALL NOT create a new episode; the Levers stay locked (Requirement 15, criterion 6).
 9. THE Observe SHALL NOT show the word "Paused" in any notice. This includes the notices for a failed ask, a failed apply and an unreachable lab.
 
 ---
@@ -234,7 +239,7 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 
 1. WHEN Observe or Replay loads, THE Public_Lab SHALL set Voices on and show a button labelled "Voices: on" or "Voices: off" matching the setting.
 2. WHEN the visitor presses the Voices button, THE Public_Lab SHALL switch the setting and update the label within 100 ms.
-3. WHILE no First_Gesture has happened in the page load, THE Voices_Module SHALL NOT start speech. On Replay the First_Gesture is the first click on Play, a step control or an Episode_List item; on Observe it is the first click on a Lever, Start, Notice_Resume or Try_Again.
+3. WHILE no First_Gesture has happened in the page load, THE Voices_Module SHALL NOT start speech. On Replay the First_Gesture is the first click on Play, a step control or an Episode_List item; on Observe it is the first click on a Lever (including a click that only turns it ON or OFF), Start, Notice_Resume or Try_Again.
 4. WHEN the First_Gesture happens and Voices are on, THE Voices_Module SHALL be allowed to speak.
 5. WHEN a turn is acted out, THE Observe and THE Replay SHALL show one Spoken_Line at a time in Line_Sequence order, each in its own character's Speech_Bubble, and never two Speech_Bubbles at once.
 6. WHILE Voices are on and a Spoken_Line is being read aloud, THE Speech_Bubble SHALL stay visible.
@@ -282,7 +287,7 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 8. IF the Device already has a running episode, THEN THE Public_Lab SHALL answer `POST /api/episodes` with the existing 409 before checking any Daily_Limit, so that Notice_Resume stays available.
 9. WHEN a request is answered with 429 or with any other error, THE Public_Lab SHALL count no new episode for it.
 10. WHEN a new UTC_Day begins at 00:00:00 UTC, THE Public_Lab SHALL count every Device, IP address and the site from zero.
-11. WHEN `POST /api/episodes` is answered with 429, THE Observe SHALL keep both Levers OFF, leave the stage unchanged and show a plain message in the notice area.
+11. WHEN `POST /api/episodes` is answered with 429, THE Observe SHALL set both Levers OFF, leave the stage unchanged and show a plain message in the notice area.
 12. WHEN the error is `daily_device_limit` or `daily_ip_limit`, THE Observe SHALL show "You have run the lab many times today. It opens again tomorrow (UTC)."
 13. WHEN the error is `daily_site_limit`, THE Observe SHALL show "The lab has had a busy day. It opens again tomorrow (UTC)."
 14. THE Public_Lab SHALL store no raw IP address in the database, in a log, or in any response body, and SHALL store only the IP_Hash.
@@ -314,9 +319,67 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 12. THE Public_Lab SHALL test that the Heat_Palette sky, hills, ground and sun are drawn in heat-wave worlds only and that an earthquake world is drawn as before.
 13. THE Public_Lab SHALL keep `EarthquakeGoldenMasterTest` and the whole existing suite passing.
 14. THE Public_Lab SHALL test, with two Devices on the in-memory fake repository, that when one Device stores more than 6 memories for a robot and disaster only that Device's oldest surplus memories are retired, while the other Device's memories stay active and unchanged and every Legacy_Memory is unchanged, and that the reflection's active count is per Device. The same test SHALL confirm that the Memory_Snapshot cap stays at 18.
-15. THE Public_Lab SHALL test in JavaScript that, after the ask/apply recovery tries are used up, the notice reads "A turn could not be completed." with a "Try again" button and never contains "Paused", that Try_Again continues the same episode from its stored state without creating a new episode, and that a Lever flip or Start press while the Unfinished_Episode is shown does the same.
-16. THE Public_Lab SHALL test that a flip of a Lever or a Start press while a run is in progress is ignored (Requirement 9, criterion 5).
+15. THE Public_Lab SHALL test in JavaScript that, after the ask/apply recovery tries are used up, the notice reads "A turn could not be completed." with a "Try again" button and never contains "Paused", that Try_Again continues the same episode from its stored state without creating a new episode, and that a Start press while the Unfinished_Episode is shown does the same.
+16. THE Public_Lab SHALL test that a click on a Lever or on Start while a run is in progress is ignored (Requirement 9, criterion 5; Requirement 15, criterion 5).
 17. THE Public_Lab SHALL test each Daily_Limit at its boundary (the 10th, 30th and 100th episode succeed and the 11th, 31st and 101st receive 429 with `daily_device_limit`, `daily_ip_limit` and `daily_site_limit`, with nothing created), the order of the three errors, the reset at UTC midnight, and that the 409 for a running episode comes before the limits.
 18. THE Public_Lab SHALL test that a running episode is not affected when a limit is reached, and that `GET /api/episodes/{id}`, the Episode_List and `replay.php` still work for a Device, IP address or site at its limit.
 19. THE Public_Lab SHALL test that only the IP_Hash is stored, that the same IP address and salt give the same IP_Hash, that the IP_Salt is created once and reused, and that no raw IP address appears in the stored data or any response.
-20. THE Public_Lab SHALL test in JavaScript that a 429 keeps both Levers OFF and shows the Device or IP message for `daily_device_limit` and `daily_ip_limit`, and the site message for `daily_site_limit`.
+20. THE Public_Lab SHALL test in JavaScript that a 429 leaves both Levers OFF and shows the Device or IP message for `daily_device_limit` and `daily_ip_limit`, and the site message for `daily_site_limit`.
+21. THE Public_Lab SHALL test in JavaScript that clicking a Lever sends no request, that at most one Lever is ON, that Start with no Lever ON shows the Start_Hint and sends nothing, that Start with Earthquake ON and with Heat wave ON creates and runs the matching disaster, that the Levers and Start ignore clicks during a run, that both Levers are OFF after the end and after All reset, and that Start acts as Try_Again on an Unfinished_Episode (Requirement 15).
+22. THE Public_Lab SHALL test in JavaScript that the Notice_Area sits inside the Switches_Panel directly after the Levers, that a notice shown outside the viewport is scrolled into view (instantly when reduced motion is requested), and that every earlier notice test still passes (Requirement 16).
+23. THE Public_Lab SHALL test `voices.js` with a fake `speechSynthesis` for the splitting rules, the chunk order and the line end after the last chunk, `resume()` before `speak()` on a paused engine, `resume()` on `visibilitychange` and window focus, the 150 ms gap after `cancel()`, and the Chunk_Watchdog (Requirement 17).
+24. THE Public_Lab SHALL keep the Golden_Master, `ProtectedVersionsTest`, `EpisodeViewBytesTest` and `renderer_earthquake_calls.json` unchanged by Requirements 15 to 17, and SHALL change no file in `src/`, `api/` or `sql/` for them.
+
+---
+
+### Requirement 15: Levers Choose, Start Starts
+
+**User Story:** As a visitor, I want the Levers to choose the disaster and Start to begin the run, so that I can see my choice before anything is sent.
+
+#### Acceptance Criteria
+
+1. WHILE no run has started, WHEN the visitor clicks a Lever, THE Observe SHALL toggle that Lever between ON and OFF and SHALL send no request.
+2. WHEN the visitor turns a Lever ON while the other Lever is ON, THE Observe SHALL turn the other Lever OFF, so that at most one Lever is ON.
+3. IF Start is pressed while no Lever is ON and no Unfinished_Episode is shown, THEN THE Observe SHALL send no request and SHALL show the Start_Hint "Turn on Earthquake or Heat wave, then press Start." in the Notice_Area.
+4. WHEN Start is pressed while a Lever is ON, THE Observe SHALL treat the press as the First_Gesture, create the episode for the disaster of that Lever, and start the run with the existing create and disaster calls.
+5. WHILE a run is in progress (from the press of Start until the run ends or stops with an Unfinished_Episode notice), THE Observe SHALL ignore clicks on the Levers and on Start and SHALL keep the chosen Lever ON.
+6. WHILE an Unfinished_Episode is shown, THE Observe SHALL ignore clicks on the Levers, and WHEN Start is pressed, THE Observe SHALL do what Try_Again does and SHALL NOT create a new episode.
+7. WHEN an episode has ended and its reflection has finished, or WHEN All reset has been accepted, THE Observe SHALL set both Levers OFF.
+8. THE Observe SHALL NOT enter an intermediate state in which an episode exists without a disaster; every episode created by Observe SHALL be created for the disaster of the ON Lever.
+9. THE Observe SHALL keep the Device_Busy_Notice with Notice_Resume, the 429 notices and Try_Again unchanged.
+10. THE Public_Lab SHALL implement this requirement in the browser files only and SHALL change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin of Requirement 1 SHALL stay unchanged.
+
+---
+
+### Requirement 16: Notices Beside the Levers
+
+**User Story:** As a visitor, I want messages to appear next to the Levers and Start, so that I see the reason for a refusal where I just clicked.
+
+#### Acceptance Criteria
+
+1. THE Observe SHALL place the Notice_Area inside the Switches_Panel, directly after the Levers, on wide and on narrow screens.
+2. THE Notice_Area SHALL show the same texts and buttons as before for the Device_Busy_Notice with Notice_Resume, "A turn could not be completed." with Try_Again, the All reset 409 message, the 429 messages, the unreachable-lab message and the Start_Hint, and SHALL remain a polite live region.
+3. WHEN a notice is shown and any part of the Notice_Area lies outside the viewport, THE Observe SHALL scroll the Notice_Area into view.
+4. WHERE the visitor's browser reports `prefers-reduced-motion: reduce`, THE Observe SHALL scroll the Notice_Area into view instantly, without smooth scrolling.
+5. WHEN a notice is shown and the Notice_Area lies fully inside the viewport, THE Observe SHALL NOT scroll.
+6. THE Public_Lab SHALL implement this requirement in `public/index.php`, `public/css/screens.css` and `public/js/observe.js` only and SHALL change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; every protection pin of Requirement 1 SHALL stay unchanged.
+
+---
+
+### Requirement 17: Keeping Chrome's Speech Going
+
+**User Story:** As a visitor using Chrome, I want long lines to be read to the end without the voice stalling, so that the speech keeps up with the bubbles.
+
+#### Acceptance Criteria
+
+1. WHEN a Spoken_Line is spoken, THE Voices_Module SHALL split it into Spoken_Chunks for speaking only, first into sentences by cutting after `.`, `!`, `?` or an ellipsis when it is followed by a space or the end of the line.
+2. WHEN a sentence is longer than 180 characters, THE Voices_Module SHALL split it further after `, ` or `; `, and WHEN a part is still longer than 180 characters with no such separator, THE Voices_Module SHALL split it at the last space before character 180.
+3. THE Voices_Module SHALL speak the Spoken_Chunks of a Spoken_Line in order, each with the voice, pitch and rate of the line's character, and SHALL report 'end' for the line after its last Spoken_Chunk has ended.
+4. THE Speech_Bubble SHALL keep showing the whole Spoken_Line and SHALL keep the timing rule of Requirement 11, criterion 7 (the later of the end of the reading and the Reading_Time, with the per-line safety cap of criterion 9).
+5. WHEN `speechSynthesis.paused` is true before a Spoken_Chunk is spoken, THE Voices_Module SHALL call `resume()` before `speak()`.
+6. THE Voices_Module SHALL NOT call `speak()` less than 150 ms after its own `cancel()` and SHALL wait until 150 ms have passed.
+7. WHILE a Spoken_Chunk is being read, THE Voices_Module SHALL check every 5000 ms whether the engine is paused and SHALL call `resume()` when it is.
+8. WHEN the page becomes visible (`visibilitychange`) or the window receives focus, THE Voices_Module SHALL call `resume()` on the engine.
+9. IF a Spoken_Chunk reports neither 'end' nor 'error' within 2000 ms plus 120 ms per character divided by the rate, THEN THE Voices_Module SHALL, WHEN `speechSynthesis.speaking` is false, treat the Spoken_Chunk as ended and go on with the next one, and SHALL, WHEN `speechSynthesis.speaking` is still true after twice that time, cancel the Spoken_Chunk and go on with the next one, so that the line continues.
+10. IF a Spoken_Chunk reports 'error', THEN THE Voices_Module SHALL report 'error' for the line, as before.
+11. THE Public_Lab SHALL implement this requirement in `public/js/voices.js` only and SHALL change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; every protection pin of Requirement 1 SHALL stay unchanged.

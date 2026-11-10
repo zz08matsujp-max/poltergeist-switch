@@ -70,6 +70,7 @@ global.window.createApiClient = function () { return fakeApi; };
 
 require(path.join(JS, 'observe.js'));
 doc._ready.forEach(function (fn) { fn(); });
+const ctl = global.window.observeController;
 
 function settle() { return new Promise(function (r) { setImmediate(r); }); }
 
@@ -78,14 +79,19 @@ function settle() { return new Promise(function (r) { setImmediate(r); }); }
   for (const id of ['sw-heat', 'sw-earthquake']) {
     calls.length = 0;
     byId.notice.textContent = '';
-    byId[id].click();
+    byId.notice.children.length = 0;
+    ctl.startNewRun();              // back to a fresh idle page for each Lever
+    byId[id].click();               // choose the disaster
+    byId['btn-start'].click();      // Start sends the flip
     await settle();
     await settle();
     assert.ok(calls.indexOf('flip') !== -1, id + ': the flip was sent');
-    assert.strictEqual(byId.notice.textContent, 'This episode already has its disaster.', id + ': notice shown');
+    // Task 18.1 (Req 15.8): the refused disaster call ends in the Unfinished_Episode notice.
+    assert.strictEqual(byId.notice.children[0].textContent, 'A turn could not be completed.', id + ': notice shown');
+    assert.strictEqual(ctl._state().phase, 'unfinished', id + ': Try again is offered');
     assert.strictEqual(byId.notice.hidden, false, id + ': notice visible');
-    assert.strictEqual(byId['sw-heat'].getAttribute('aria-pressed'), 'false', id + ': heat lever unchanged');
-    assert.strictEqual(byId['sw-earthquake'].getAttribute('aria-pressed'), 'false', id + ': earthquake lever unchanged');
+    assert.strictEqual(byId['sw-heat'].getAttribute('aria-pressed'), id === 'sw-heat' ? 'true' : 'false', id + ': heat lever as chosen');
+    assert.strictEqual(byId['sw-earthquake'].getAttribute('aria-pressed'), id === 'sw-earthquake' ? 'true' : 'false', id + ': earthquake lever as chosen');
     assert.ok(calls.indexOf('ask') === -1, id + ': no turn asked');
     console.log('  ok - ' + id);
   }

@@ -43,9 +43,9 @@
     running: false,        // the loop is advancing turns
     ended: false,          // apply reported the episode ended
     disaster: 'earthquake', // the current episode's disaster (view.disaster)
-    // Explicit page phase: idle | starting | staged | running | unfinished |
-    // ended (design "Observe phases"). Exposed through _state(); the
-    // transitions are wired in by the later sub-tasks of task 12.
+    // Explicit page phase: idle | starting | running | unfinished | ended
+    // (design "Observe phases"). Exposed through _state(). Levers only choose
+    // the disaster; Start creates the episode and starts the run (Req 15).
     // phase is an accessor (defined below) so the All_Reset_Button follows it.
     phase: 'idle'
   };
@@ -382,71 +382,37 @@
   var looping = false;
 
   /**
+   * leverChoice() — the disaster of the Lever that is ON, or null (Req 15).
+   */
+  function leverChoice() {
+    if (el.swHeat && el.swHeat.classList.contains('on')) { return 'heat_wave'; }
+    if (el.swEarthquake && el.swEarthquake.classList.contains('on')) { return 'earthquake'; }
+    return null;
+  }
+
+  /**
    * onStart() — the Start button, dispatched on state.phase (design "Observe
-   * phases", Req 9.1-9.5). `starting` is set synchronously here, before any
-   * request, so a second press cannot create a second episode.
-   *   idle      create only, then show the calm turn-0 house (-> staged)
-   *   starting  ignored          staged  ignored          running  ignored
-   *   unfinished  Try-again-style continue, never creates
-   *   ended     clear the client state and start as from idle
+   * phases", Req 9.1-9.5, 15.3-15.6). `starting` is set synchronously here,
+   * before any request, so a second press cannot create a second episode.
+   *   idle / ended  no Lever ON: show the Start_Hint and send nothing;
+   *                 a Lever ON: create the episode for that disaster and flip
+   *   starting / running  ignored
+   *   unfinished  Try again, never creates
    */
   function onStart() {
     primeVoices();
     if (!api) { return; }
-    if (state.phase === 'ended') { startNewRun(); }
-    if (state.phase === 'unfinished') { continueUnfinished(); return; }
-    if (state.phase !== 'idle') { return; }
-    state.phase = 'starting';
-    clearNotice();
-    api.createEpisode().then(function (res) {
-      if (res && res.status === 409) {
-        state.phase = 'idle';
-        handleSlotConflict(res.body);
-        return;
-      }
-      if (res && res.status === 429) {
-        handleDailyLimit(res.body);
-        return;
-      }
-      if (!res || res.status !== 200 || !res.body) {
-        state.phase = 'idle';
-        showNotice('The lab could not start an episode. Please try again.');
-        return;
-      }
-      adoptEpisode(res.body);
-      // Draw the calm turn-0 world. No AI call, no turns running yet (Req 5.1).
-      drawTurnZero(res.body);
-      state.phase = 'staged';
-    }, function () {
-      state.phase = 'idle';
-      showNotice('The lab could not be reached. Please try again.');
-    });
-  }
-
-  // Kept for callers of the old name.
-  var startRun = onStart;
-
-  /**
-   * onLever(disaster) — a Lever flip ('earthquake' or 'heat_wave').
-   *   idle      create (with the disaster) then flip
-   *   staged    flip the waiting turn-0 episode in place
-   *   starting / running  ignored
-   *   unfinished  Try-again-style continue, never creates
-   *   ended     clear the client state and start as from idle
-   */
-  function onLever(disaster) {
-    primeVoices();
-    if (!api) { return; }
-    disaster = (disaster === 'heat_wave') ? 'heat_wave' : 'earthquake';
-    if (state.phase === 'ended') { startNewRun(); }
-    if (state.phase === 'unfinished') { continueUnfinished(); return; }
-    if (state.phase === 'staged') {
-      state.phase = 'starting';
-      clearNotice();
-      flipFor(disaster, state.episodeId);
+    if (state.phase === 'unfinished') { tryAgain(); return; }
+    if (state.phase !== 'idle' && state.phase !== 'ended') { return; }
+    var disaster = leverChoice();
+    if (!disaster) {
+      showNotice('Turn on Earthquake or Heat wave, then press Start.');
       return;
     }
-    if (state.phase !== 'idle') { return; }
+    if (state.phase === 'ended') {
+      startNewRun();
+      if (disaster === 'heat_wave') { setHeatLever(true); } else { setEarthquakeLever(true); }
+    }
     state.phase = 'starting';
     clearNotice();
     api.createEpisode(disaster === 'heat_wave' ? 'heat_wave' : undefined).then(function (res) {
@@ -461,6 +427,8 @@
       }
       if (!res || res.status !== 200 || !res.body) {
         state.phase = 'idle';
+        setEarthquakeLever(false);
+        setHeatLever(false);
         showNotice('The lab could not start an episode. Please try again.');
         return;
       }
@@ -469,8 +437,29 @@
       flipFor(disaster, state.episodeId);
     }, function () {
       state.phase = 'idle';
+      setEarthquakeLever(false);
+      setHeatLever(false);
       showNotice('The lab could not be reached. Please try again.');
     });
+  }
+
+  // Kept for callers of the old name.
+  var startRun = onStart;
+
+  /**
+   * onLever(disaster) — a Lever click ('earthquake' or 'heat_wave'). Only
+   * chooses the disaster; sends no request (Req 15.1, 15.2).
+   *   idle / ended  toggle this Lever, the other goes OFF
+   *   starting / running / unfinished  ignored, the chosen Lever stays ON
+   */
+  function onLever(disaster) {
+    primeVoices();
+    if (!api) { return; }
+    disaster = (disaster === 'heat_wave') ? 'heat_wave' : 'earthquake';
+    if (state.phase !== 'idle' && state.phase !== 'ended') { return; }
+    var wasOn = leverChoice() === disaster;
+    setEarthquakeLever(disaster === 'earthquake' && !wasOn);
+    setHeatLever(disaster === 'heat_wave' && !wasOn);
   }
 
   function flipFor(disaster, episodeId) {
@@ -576,38 +565,41 @@
   }
 
   // A 409 'disaster_already_set' means the episode's disaster is fixed on the
-  // server: show a short notice and leave both levers as they are.
+  // server; the caller ends in the Unfinished_Episode notice (Try again).
   function isDisasterAlreadySet(res) {
     if (res && res.status === 409 && res.body && res.body.error === 'disaster_already_set') {
-      showNotice('This episode already has its disaster.');
       return true;
     }
     return false;
   }
 
+  // A failed or refused disaster call: the episode exists, so the page ends in
+  // the Unfinished_Episode notice with Try again (Req 15.8).
+  function unfinishedAfterFlip() {
+    state.phase = 'unfinished';
+    showUnfinished();
+  }
+
   function doFlip(episodeId) {
     api.flipDisaster(episodeId).then(function (res) {
-      if (isDisasterAlreadySet(res)) { state.phase = 'staged'; return; }
+      if (isDisasterAlreadySet(res)) { unfinishedAfterFlip(); return; }
       if (!res || res.status !== 200 || !res.body) {
-        state.phase = 'staged';
-        showNotice('The earthquake switch did not take. Please try again.');
+        unfinishedAfterFlip();
         return;
       }
       adoptEpisode(res.body);
       setEarthquakeLever(true);
       runLoop();
     }, function () {
-      state.phase = 'staged';
-      showNotice('The earthquake switch did not take. Please try again.');
+      unfinishedAfterFlip();
     });
   }
 
   function doFlipHeat(episodeId) {
     api.flipDisaster(episodeId, 'heat_wave').then(function (res) {
-      if (isDisasterAlreadySet(res)) { state.phase = 'staged'; return; }
+      if (isDisasterAlreadySet(res)) { unfinishedAfterFlip(); return; }
       if (!res || res.status !== 200 || !res.body) {
-        state.phase = 'staged';
-        showNotice('The heat wave switch did not take. Please try again.');
+        unfinishedAfterFlip();
         return;
       }
       adoptEpisode(res.body);
@@ -616,8 +608,7 @@
       setHeatLever(true);
       runLoop();
     }, function () {
-      state.phase = 'staged';
-      showNotice('The heat wave switch did not take. Please try again.');
+      unfinishedAfterFlip();
     });
   }
 

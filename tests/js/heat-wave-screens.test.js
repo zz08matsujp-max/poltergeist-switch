@@ -229,9 +229,10 @@ function roomRow() { return g.byId['meter-room']; }
 function manIn(room) { return { room: room, bodyTemp: 37.2, water: 80, injury: 0, fear: 5 }; }
 
 apiCalls.length = 0;
-g.byId['sw-heat'].click();
+g.byId['sw-heat'].click();      // turn the Heat wave Lever ON (no request)
+g.byId['btn-start'].click();    // Start creates and runs the episode
 const clickDone = new Promise(function (r) { setImmediate(r); }).then(function () {
-  check('clicking Heat wave creates a heat-wave episode and fixes the heat (10.1)', function () {
+  check('turning Heat wave on and pressing Start creates a heat-wave episode and fixes the heat (10.1)', function () {
     assert.deepStrictEqual(apiCalls[0], ['create', 'heat_wave'], 'creates a heat-wave episode');
     assert.deepStrictEqual(apiCalls[1], ['flip', 'e1', 'heat_wave'], 'then fixes the heat');
     assert.strictEqual(apiCalls.length, 2, 'no second episode is created');
@@ -285,6 +286,7 @@ function endCardFor(view) {
   fakeApi.createEpisode = function () {
     return Promise.resolve({ status: 409, body: { error: 'device_already_running', episodeId: view.episodeId } });
   };
+  if (g.byId['sw-earthquake'].getAttribute('aria-pressed') !== 'true') { g.byId['sw-earthquake'].click(); }   // a Lever must be ON
   observe.startRun();
   return new Promise(function (r) { setImmediate(r); }).then(function () {
     const notice = g.byId.notice;

@@ -184,34 +184,38 @@ Observe gets one explicit `state.phase`. It replaces the scattered checks on `st
 ```mermaid
 stateDiagram-v2
   [*] --> idle
-  idle --> starting: Lever or Start
-  starting --> staged: Start, create 200
-  starting --> running: Lever, create+flip 200
+  idle --> idle: Lever click (toggle, no request)
+  idle --> idle: Start with no Lever ON (Start_Hint, no request)
+  idle --> starting: Start with a Lever ON
+  starting --> running: create + disaster 200
   starting --> idle: create 409 / 429 / error
   starting --> running: Notice_Resume ok
-  staged --> starting: Lever
-  staged --> staged: Start (ignored)
   running --> running: Lever or Start (ignored)
   running --> unfinished: ask/apply tries used up or not recoverable
   running --> ended: last turn acted out
-  unfinished --> starting: Try again, Lever or Start
-  ended --> idle: Lever or Start (clear client state first)
+  unfinished --> starting: Try again or Start
+  unfinished --> unfinished: Lever (ignored)
   ended --> idle: reflection finished (levers OFF)
+  ended --> starting: Start with a Lever ON (clear client state first)
   idle --> idle: All reset 200
-  staged --> idle: All reset 200
   ended --> idle: All reset 200
 ```
 
+The `staged` phase (an episode created by Start without a disaster, then flipped by a Lever) no longer exists: Levers choose the disaster before the run and Start is the only way to start (Requirement 15). `state.phase` therefore takes the values `idle`, `starting`, `running`, `unfinished`, `ended`. Because no episode is created without a disaster, "turn 0 drawn, waiting for a flip" is gone, and the C4 case of a staged episode blocking All reset can no longer arise from the UI.
+
 | Phase | Meaning | Lever / Start | All reset button |
 |---|---|---|---|
-| `idle` | No episode known to the page | Lever: create (with disaster) then flip. Start: create only. | enabled |
-| `starting` | A create, flip, resume or Try again request is in flight | **ignored** | disabled |
-| `staged` | Episode created by Start, turn 0 drawn, no disaster set | Lever: flip in place. Start: ignored | enabled (server may answer 409, see C4) |
-| `running` | Run loop active (ask, apply, act out) | **ignored** | disabled |
-| `unfinished` | Stopped after failed tries; turns stay on screen | Both run Try again, never create | enabled (server may answer 409, see C4) |
-| `ended` | Last turn acted out; End_Card shown; reflection in flight, then levers OFF | Both clear client state and start as from `idle` | enabled |
+| `idle` | No run started | Lever: toggle ON/OFF, at most one ON, **no request**. Start: no Lever ON shows the Start_Hint and sends nothing; a Lever ON creates the episode for that disaster and starts the run (First_Gesture). | enabled |
+| `starting` | A create, disaster, resume or Try again request is in flight | **ignored** | disabled |
+| `running` | Run loop active (ask, apply, act out) | **ignored** (chosen Lever stays ON) | disabled |
+| `unfinished` | Stopped after failed tries; turns stay on screen | Lever: ignored (locked). Start: runs Try again, never creates | enabled (server may answer 409, see C4) |
+| `ended` | Last turn acted out; End_Card shown; reflection in flight, then levers OFF | Lever: toggle as in `idle`. Start with a Lever ON: clear client state, then start as from `idle`. | enabled |
 
 `ended` does not wait for the reflection before allowing a new run (Req 9.2); the reflection completion handler is guarded by the episode id it was started for, so it never switches off a newer run's lever or draws into a newer End_Card.
+
+Lever behaviour in detail (Requirements 15 and 16). `onLever(disaster)` calls `voices.gesture()` first (a Lever click is a First_Gesture), then: in `idle` and `ended` it toggles `el.swEarthquake` / `el.swHeat` (`.on`, `aria-pressed`, the `mark` text) with the other turned OFF, and calls the API not at all; in `starting`, `running` and `unfinished` it returns at once. `onStart()` calls `voices.gesture()` first, then: in `unfinished` it runs `tryAgain()`; in `starting` and `running` it returns; in `idle` and `ended` it reads the ON Lever (`earthquake` or `heat_wave`); with none it calls `showNotice('Turn on Earthquake or Heat wave, then press Start.')` and sends nothing; otherwise (after `startNewRun()` from `ended`) it sets `phase = 'starting'` and uses the existing create call with the disaster and the existing disaster call. `doFlip` / `doFlipHeat` failures and `isDisasterAlreadySet` no longer return to a `staged` phase; they fall back to `unfinished` with the Try again notice for the already-created episode. The chosen Lever stays ON until the end and the reflection (`finishClosing`) or All reset set both OFF; a 429 or a failed create sets both OFF.
+
+Notice placement. In `public/index.php` the `<div class="message" id="notice" hidden>` moves inside the Switches_Panel `section.panel`, right after `div.switches`; `renderNoticePanel`, `showNotice` and `clearNotice` keep the same element id, so no other code changes. It keeps `aria-live="polite"` (added to the element, which today has none of its own). `screens.css` gives `#notice` a small top margin inside the panel (the same on narrow screens). After `showNotice` and `renderNoticePanel` set a non-empty notice, `revealNotice()` measures `el.notice.getBoundingClientRect()`; if the top is below 0 or the bottom is above `window.innerHeight` (or `document.documentElement.clientHeight`) it calls `el.notice.scrollIntoView({block:'nearest', behavior})` with `behavior = 'instant'` when `matchMedia('(prefers-reduced-motion: reduce)').matches` and `'smooth'` otherwise; a fully visible notice is not scrolled.
 
 ### Speech sequencer (shared by Observe and Replay)
 
@@ -424,6 +428,20 @@ cancel()                             // stops reading; pending onDone('cancelled
 
 `speak()` returns false (and calls nothing on `speechSynthesis`) when the setting is off, there is no engine, `gesture()` has not run, or the line is blank. The existing `setEnabled/isEnabled/on/off/unlock/stop` remain as aliases. Controllers construct with `{ autoUnlock: false, enabled: true }` so the capture-phase "any click" listener is gone.
 
+**Chunked speaking (Requirement 17; `voices.js` only).** The interface above does not change: one `speak(id, line, onDone)` per Spoken_Line, `onDone` exactly once. Inside, `splitForSpeech(text)` (exported for tests as `Voices.splitForSpeech` / `createVoices.splitForSpeech`) returns the Spoken_Chunks: (1) cut after `.`, `!`, `?` or `…`/`...` when followed by whitespace or the end; (2) any chunk over 180 characters is cut after `, ` or `; ` (the separator stays with the left part, parts are packed greedily up to 180), and a part still over 180 with no separator is cut at the last space before 180 (a hard cut at 180 if there is no space); (3) blanks are dropped and concatenating the chunks (ignoring cut whitespace) gives back the line. The queue is per chunk: an entry is `{line, chunks, index}` and each chunk becomes one `SpeechSynthesisUtterance` with the line's voice, `lang`, pitch and rate. The line reports `'end'` after the last chunk ends, `'error'` if a chunk errors (remaining chunks are dropped), `'cancelled'` on `cancel()`. The bubble is untouched: `speech-sequencer.js` still sees one line and one `onDone`.
+
+Keep-alive rules inside `voices.js` (Chrome stalls long or backgrounded speech):
+
+| Rule | Behaviour |
+|---|---|
+| Resume before speak | Before each `synth.speak(utterance)`: `if (synth.paused) synth.resume()`. |
+| 150 ms after cancel | `cancel()` records `lastCancelAt = now()`. Before a `speak`, if `now() - lastCancelAt < 150` the speak is deferred with a timer for the remainder, then done (still in order, and abandoned if a newer `cancel()` ran meanwhile). |
+| Keep-alive tick | While a chunk is being read, an interval of 5000 ms calls `synth.resume()` if `synth.paused`. It is cleared when the chunk ends, errors or is cancelled. |
+| Visibility and focus | One listener each for `document` `visibilitychange` (when `document.visibilityState === 'visible'`) and `window` `focus` calls `synth.resume()`. Installed once per `createVoices`, only when an engine exists. |
+| Chunk_Watchdog | Per chunk, a timer of `T = 2000 + 120 * chars / rate` ms (the chunk's characters, the line's rate). At `T`, if the chunk has not ended or errored and `synth.speaking === false`, the chunk is treated as ended and the next chunk goes on. If `synth.speaking` is still true, the watchdog waits until `2T` from the chunk's start; then it cancels that chunk (`synth.cancel()`, which starts a new 150 ms gap and drops queued utterances, so the entry re-issues the remaining chunks itself) and goes on with the next chunk. The line continues; it is not reported as an error. |
+
+`timers`, `now`, and the `document`/`window` listeners are injectable through `createVoices` options (defaults: `setTimeout`, `setInterval`, `Date.now`, the real globals), so tests drive them with `fake-clock.js` and a fake `speechSynthesis`.
+
 **`public/js/act-out.js`**: `createActOut(house, voices, sequencer)`. `emitSpeech/showSpoken/speakAloud` are removed. `playTurn` starts the animation timers as today, calls `sequencer.play(linesOfTurn(turn))`, snaps to the recorded world when the animation window ends, and resolves after `Promise.all([animationDone, speechDone])`. `cancel()` also calls `sequencer.cancel()`. Reduced motion still jumps to the world within 100 ms; speech is unaffected.
 
 **`public/js/house-renderer.js`**: heat palette in `sky()`, `ground()` and the hills loop when `S.heat`; `heatSky()` reduced to the sun; new `reset()` that restores the mount-time state, clears bubbles, caption and thinking flags (Req 8.1 "first-load state").
@@ -525,7 +543,7 @@ Notes on the choices:
 
 ### Client state
 
-`state.phase` (`idle`, `starting`, `staged`, `running`, `unfinished`, `ended`) plus the existing `episodeId`, `expectedTurn`, `ended`, `disaster`. `state.paused` is deleted. `localStorage ps:lastEpisodeId` is unchanged (still holds only an episode id). Sequencer line state is internal to `speech-sequencer.js`.
+`state.phase` (`idle`, `starting`, `running`, `unfinished`, `ended`; `staged` was removed by Requirement 15) plus the existing `episodeId`, `expectedTurn`, `ended`, `disaster`. `state.paused` is deleted. `localStorage ps:lastEpisodeId` is unchanged (still holds only an episode id). Sequencer line state is internal to `speech-sequencer.js`.
 
 ### Config in `api/config.local.php` (uncommitted)
 
@@ -663,21 +681,29 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 
 *For any* sequence of events (Lever click, Start click, create 200/409/429/error, flip 200/error, turn success, transient failure, tries exhausted, episode end, reflection done, Try again, All reset 200/409, Notice_Resume) driven against a fake API:
 
-- no more than one `createEpisode` call is in flight or unanswered at a time, and none is made while the phase is `starting`, `running`, `staged` (for Start) or `unfinished`;
-- while the phase is `unfinished`, Lever and Start make no `createEpisode` call and behave as Try again;
-- after an episode ends and its reflection settles, both Levers are OFF, and a later Lever or Start creates a new episode and starts with empty client state and no End_Card;
+- a Lever click sends no request, and at most one Lever is ON at any time;
+- no more than one `createEpisode` call is in flight or unanswered at a time, none is made by a Lever click, and none is made while the phase is `starting`, `running` or `unfinished`; every `createEpisode` is followed by a disaster call for the ON Lever, and the phase `staged` is never reached;
+- Start with no Lever ON sends nothing and shows the Start_Hint;
+- while the phase is `starting` or `running`, Lever and Start clicks change nothing (the chosen Lever stays ON); while it is `unfinished`, Levers are ignored and Start makes no `createEpisode` call and behaves as Try again;
+- after an episode ends and its reflection settles, both Levers are OFF, and a later Lever ON plus Start creates a new episode and starts with empty client state and no End_Card;
 - after an accepted All reset, both Levers are OFF, the stage, meters, log, notice and End_Card are in their first-load state, and the next Lever or Start starts normally;
 - the All reset button is disabled in `starting` and `running`;
 - no notice text ever contains the word "Paused";
 - a 429 leaves both Levers OFF and the stage unchanged.
 
-**Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11**
+**Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8**
 
 ### Property 22: Heat palette only in heat worlds
 
 *For any* earthquake world, the sequence of drawing calls the renderer makes is identical to the sequence recorded from the current renderer before this change and contains none of the Heat_Palette colours or the sun discs; *for any* heat-wave world, the sky gradient runs from rgb(58,14,30) to rgb(196,78,40), hills, ground and ground texture use `#3a1622`, `#2a1a10` and `#3c2614`, and the sun is drawn at (330, 34) with the three discs of Requirement 12.3; and drawing a heat world then an earthquake world gives the same calls as drawing the earthquake world alone.
 
 **Validates: Requirements 12.1, 12.2, 12.3, 12.5, 12.6**
+
+### Property 23: Speech splitting preserves the line and respects the limits
+
+*For any* text, `splitForSpeech(text)` returns non-blank chunks in order whose concatenation, with the whitespace at cut points ignored, equals the trimmed text; no chunk is longer than 180 characters unless it is a single word longer than 180 characters; a cut after a sentence end (`.`, `!`, `?`, ellipsis followed by a space or the end) never leaves a sentence end inside a chunk except at its end; and a text of at most 180 characters with no sentence end inside it gives exactly one chunk.
+
+**Validates: Requirements 17.1, 17.2, 17.3**
 
 ## Error Handling
 
@@ -698,6 +724,11 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 | `limit` out of range | `EpisodeListService` | 400 `limit_out_of_range`, as today. |
 | SQL file not yet applied | any new query | 500 `internal_error`. Accepted by Req 5.3; the header comment tells the maintainer to apply it first. |
 | Voices module missing, throws, or never reports the end | `speech-sequencer.js` | a failed reading falls back to the remaining Reading_Time; per-line safety cap 4000 ms + 100 ms per code point; errors swallowed (speech is best effort). |
+| Start pressed with no Lever ON | `onStart` | Start_Hint in the Notice_Area, no request, phase stays `idle`. |
+| Notice outside the viewport | `revealNotice` | scrolled into view (instant with reduced motion); a missing `scrollIntoView` or `matchMedia` is ignored. |
+| A speech chunk never ends | `voices.js` Chunk_Watchdog | passed over (or cancelled after twice the time); the line continues with the next chunk. |
+| A speech chunk errors | `voices.js` | the line reports `'error'`; the sequencer keeps the bubble for the remaining Reading_Time as today. |
+| Engine paused (Chrome) | `voices.js` | `resume()` before speak, every 5000 ms while reading, and on `visibilitychange` / focus. |
 | `getEpisode` fails during Try again | `tryAgain` | stays `unfinished` with the same notice and button. |
 | Stale reflection result after a new run began | `finishClosing` guard | ignored (episode id mismatch). |
 | `localStorage` unavailable | `rememberLastEpisode` / `readLastEpisode` | ignored; Notice_Resume still works from the 409 body. |
@@ -750,6 +781,9 @@ New or changed JS tests:
 |---|---|
 | `speech-sequencer.test.js` | P16, P17, P18, P19; 11.2, 11.11 (caption uses the same `showBubble` close), 11.16 (Replay controls cancel) |
 | `voices-gesture.test.js` | P20 against the **real** `voices.js` with a fake `speechSynthesis` global: `synth.speak` is never called before `gesture()`; `speak` returns false with the setting off or without an engine; `onDone` fires exactly once; label/setting independent of the engine (11.1, 11.4) |
+| `observe-levers.test.js` (task 18) | 14.21: Lever toggling without requests, one Lever ON, Start hint, Start with each Lever, lock during a run, both OFF after the end and All reset, Start as Try again |
+| `observe-notice-placement.test.js` (task 19) | 14.22: the notice inside the Switches_Panel right after the Levers (static check of `index.php`, DOM shim check), `scrollIntoView` calls and the reduced-motion `instant` behaviour |
+| `voices-chunks.test.js`, `voices-keepalive.test.js` (task 20) | P23, 14.23: splitting rules, chunk order, `resume` rules, 150 ms gap, watchdog, with a fake `speechSynthesis` and `fake-clock.js` |
 | `observe-flow.test.js` | P21, 14.9, 14.15, 14.16, 14.20: random event sequences against `fake-api.js`, plus fixed examples for each exact notice text ("A turn could not be completed." with a Try again button, the two 429 messages, the Device_Busy_Notice with Notice_Resume and its `episodeId` and `localStorage` fallback, the All reset 409 message) |
 | `observe-static.test.js` | 14.10: `index.php` and `observe.js` contain no `btn-pause`, `btn-step`, `btn-resume`, `sw-rain`, `Heavy rain`, `coming later`, `paused`, `stepOnce`; Start and Voices exist; two levers only |
 | `heat-sky.test.js` | P22, 14.12; the earthquake call log is compared with `tests/fixtures/renderer_earthquake_calls.json`, **generated from the current renderer in task 1 before the renderer is edited** and never regenerated |

@@ -70,3 +70,8 @@ check('createActOut is never called with two arguments', function () {
     return !!m && m[1].split(',').length === 2;
   }), 'two-argument createActOut');
 });
+check("observe.js has no 'staged' phase (Levers choose, Start starts)", function () {
+  none(find(function (l) { return l.indexOf("'staged'") !== -1 || l.indexOf('"staged"') !== -1; }, function (r) {
+    return r === 'public/js/observe.js';
+  }), "'staged' in observe.js");
+});

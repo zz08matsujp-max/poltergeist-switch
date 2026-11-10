@@ -159,9 +159,13 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
   });
 
   await check('the First_Gesture runs synchronously before the first request', async function () {
-    byId['sw-heat'].click();
+    byId['sw-heat'].click();                 // the Lever only chooses: a gesture, no request
+    assert.deepStrictEqual(order, ['gesture']);
+    assert.strictEqual(ctl._state().phase, 'idle');
+    byId['btn-start'].click();
     assert.strictEqual(order[0], 'gesture');
-    assert.strictEqual(order[1], 'createEpisode');
+    assert.strictEqual(order[order.length - 2], 'gesture', 'Start runs the gesture first');
+    assert.strictEqual(order[order.length - 1], 'createEpisode');
     assert.strictEqual(ctl._state().phase, 'starting', 'starting is set at click time');
     assert.strictEqual(voices.spoken().length, 0);
     await settle();
@@ -183,8 +187,12 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
   await check('Start after the end creates a new episode with empty client state and no End_Card', async function () {
     assert.ok(byId.log.children.length > 0, 'the finished run left log rows');
     current = createFakeApi({
-      createEpisode: { status: 200, body: view('e2', 'earthquake', [Object.assign({}, turn0, { world: world('earthquake') })]) }
+      createEpisode: { status: 200, body: view('e2', 'earthquake', [Object.assign({}, turn0, { world: world('earthquake') })]) },
+      flipDisaster: { status: 200, body: view('e2', 'earthquake', [turn0]) },
+      ask: new Promise(function () { /* never answers: the run stays in progress */ })
     });
+    byId['sw-earthquake'].click();          // choose the disaster (the old run stays on screen)
+    assert.ok(byId.log.children.length > 0, 'a Lever click clears nothing');
     byId['btn-start'].click();
     const st = ctl._state();
     assert.strictEqual(st.phase, 'starting');
@@ -195,21 +203,23 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
     await settle();
     assert.strictEqual(current.count('createEpisode'), 1);
     assert.strictEqual(st.episodeId, 'e2');
-    assert.strictEqual(st.phase, 'staged');
-    assert.strictEqual(current.count('ask'), 0, 'Start alone runs no turn');
-    assert.deepStrictEqual(marks(), ['OFF', 'OFF']);
+    assert.strictEqual(st.phase, 'running');
+    assert.deepStrictEqual(marks(), ['ON', 'OFF']);
   });
 
-  await check('a Lever flip after the end also starts clean', async function () {
-    // Finish e2 quickly, then flip the Earthquake Lever from the ended phase.
+  await check('a Lever and Start after the end also start clean', async function () {
+    // Finish e2 quickly (Lever, then Start), then choose Heat wave from the ended phase.
+    ctl.startNewRun();
     const t1 = Object.assign({}, turn1, { world: world('earthquake') });
     current = createFakeApi({
+      createEpisode: { status: 200, body: view('e2', 'earthquake', [turn0]) },
       flipDisaster: { status: 200, body: view('e2', 'earthquake', [turn0]) },
       ask: { status: 200, body: {} },
       apply: { status: 200, body: view('e2', 'earthquake', [turn0, t1], true) },
       reflect: { status: 409, body: { error: 'not_reflectable' } }   // reflection "not stored"
     });
     byId['sw-earthquake'].click();
+    byId['btn-start'].click();
     await settle();
     const st = ctl._state();
     assert.strictEqual(st.phase, 'ended');
@@ -221,6 +231,7 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
       ask: new Promise(function () { /* never answers: the run stays in progress */ })
     });
     byId['sw-heat'].click();
+    byId['btn-start'].click();
     assert.strictEqual(st.episodeId, null);
     assert.strictEqual(byId['endcard-host'].children.length, 0);
     assert.strictEqual(byId.log.children.length, 0);
@@ -245,10 +256,11 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
 
   await check('a second press while starting creates only one episode', async function () {
     // Back to a clean page: a fresh Start from idle after forcing the phase.
-    ctl._state().phase = 'idle';
+    ctl.startNewRun();
     current = createFakeApi({
-      createEpisode: { status: 200, body: view('e4', 'earthquake', [turn0]) }
+      createEpisode: new Promise(function () { /* never answers: the page stays starting */ })
     });
+    byId['sw-earthquake'].click();
     byId['btn-start'].click();
     byId['btn-start'].click();
     byId['sw-heat'].click();
@@ -256,7 +268,8 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
     await settle();
     assert.strictEqual(current.count('createEpisode'), 1);
     assert.strictEqual(current.count('flipDisaster'), 0);
-    assert.strictEqual(ctl._state().phase, 'staged');
+    assert.strictEqual(ctl._state().phase, 'starting');
+    assert.deepStrictEqual(marks(), ['ON', 'OFF'], 'the chosen Lever stays ON');
   });
 
   // ── task 13.6: unfinished runs, All reset, daily limits, Notice_Resume ────
@@ -280,9 +293,8 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
       createEpisode: okView(id, [turn0]), flipDisaster: okView(id, [turn0]),
       getEpisode: okView(id, [turn0]), ask: { status: 502, body: null }
     });
-    byId['btn-start'].click();
-    await settle();
     byId['sw-earthquake'].click();
+    byId['btn-start'].click();
     await settle();
     assert.strictEqual(ctl._state().phase, 'unfinished');
     assert.strictEqual(current.count('ask'), 3, 'three tries');
@@ -326,10 +338,15 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
     assert.strictEqual(current.count('createEpisode'), 0);
   });
 
-  await check('a Lever flip and Start while unfinished act as Try again, with no create', async function () {
+  await check('a Lever is ignored and Start acts as Try again while unfinished, with no create', async function () {
     await toUnfinished('u3');
     current = continuingApi('u3');
     byId['sw-heat'].click();
+    await settle();
+    assert.strictEqual(current.calls.length, 0, 'the Lever sent nothing');
+    assert.strictEqual(ctl._state().phase, 'unfinished');
+    assert.deepStrictEqual(marks(), ['ON', 'OFF'], 'the chosen Lever stays ON');
+    byId['btn-start'].click();
     await settle();
     assert.strictEqual(current.count('createEpisode'), 0);
     assert.strictEqual(current.count('flipDisaster'), 0);
@@ -359,6 +376,7 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
       reflect: new Promise(function () {})
     });
     byId['sw-heat'].click();
+    byId['btn-start'].click();
     await settle();
     assert.strictEqual(ctl._state().phase, 'ended');
     assert.deepStrictEqual(marks(), ['OFF', 'ON']);
@@ -395,13 +413,17 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
   });
 
   await check('after All reset the next run starts normally', async function () {
-    current = createFakeApi({ createEpisode: okView('r2', [turn0]) });
+    current = createFakeApi({
+      createEpisode: okView('r2', [turn0]), flipDisaster: okView('r2', [turn0]),
+      ask: new Promise(function () {})
+    });
+    byId['sw-earthquake'].click();
     byId['btn-start'].click();
     await settle();
     assert.strictEqual(current.count('createEpisode'), 1);
     assert.strictEqual(ctl._state().episodeId, 'r2');
-    assert.strictEqual(ctl._state().phase, 'staged');
-    assert.strictEqual(byId['btn-reset-memory'].disabled, false);
+    assert.strictEqual(ctl._state().phase, 'running');
+    assert.strictEqual(byId['btn-reset-memory'].disabled, true, 'running');
   });
 
   await check('the All_Reset_Button is disabled while a run starts or turns run, and enabled otherwise', async function () {
@@ -411,12 +433,10 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
       createEpisode: okView('d1', [turn0]), flipDisaster: okView('d1', [turn0]),
       ask: new Promise(function () {})
     });
+    byId['sw-earthquake'].click();
+    assert.strictEqual(byId['btn-reset-memory'].disabled, false, 'a Lever alone does not disable it');
     byId['btn-start'].click();
     assert.strictEqual(byId['btn-reset-memory'].disabled, true, 'starting');
-    await settle();
-    assert.strictEqual(ctl._state().phase, 'staged');
-    assert.strictEqual(byId['btn-reset-memory'].disabled, false, 'staged');
-    byId['sw-earthquake'].click();
     await settle();
     assert.strictEqual(ctl._state().phase, 'running');
     assert.strictEqual(byId['btn-reset-memory'].disabled, true, 'running');
@@ -455,14 +475,15 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
       ['daily_ip_limit', 'You have run the lab many times today. It opens again tomorrow (UTC).'],
       ['daily_site_limit', 'The lab has had a busy day. It opens again tomorrow (UTC).']
     ];
-    const controls = ['sw-earthquake', 'sw-heat', 'btn-start'];
+    const controls = ['sw-earthquake', 'sw-heat'];
     for (let i = 0; i < cases.length; i++) {
       for (let j = 0; j < controls.length; j++) {
         ctl.startNewRun();
         const worlds = houseCalls.setWorld;
         const resets = houseCalls.reset;
         current = createFakeApi({ createEpisode: { status: 429, body: { error: cases[i][0] } } });
-        byId[controls[j]].click();
+        byId[controls[j]].click();      // choose the disaster
+        byId['btn-start'].click();      // then Start
         await settle();
         assert.strictEqual(current.count('createEpisode'), 1);
         assert.strictEqual(current.count('flipDisaster'), 0);
@@ -478,6 +499,7 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
 
   await check('the Device_Busy_Notice shows Notice_Resume, which resumes the episode named in the 409 body', async function () {
     ctl.startNewRun();
+    byId['sw-earthquake'].click();
     current = createFakeApi({
       createEpisode: { status: 409, body: { error: 'device_already_running', episodeId: 'run1' } },
       getEpisode: okView('run1', [turn0]),
@@ -501,6 +523,7 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
 
   await check('Notice_Resume falls back to the id kept in localStorage when the 409 has none', async function () {
     ctl.startNewRun();
+    byId['sw-earthquake'].click();
     storage['ps:lastEpisodeId'] = 'stored9';
     current = createFakeApi({
       createEpisode: { status: 409, body: { error: 'device_already_running' } },

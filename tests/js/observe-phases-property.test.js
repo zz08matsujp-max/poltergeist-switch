@@ -3,7 +3,8 @@
  * public/js/observe.js with a scripted fake API.
  *
  * Feature: public-lab, Property 21: Observe phase invariants
- * Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11
+ * Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11,
+ *   15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8
  *
  * Run with `node tests/js/observe-phases-property.test.js`. Seeded mulberry32,
  * 150 sequences. No network.
@@ -145,7 +146,9 @@ function noticeButton(label) {
 
 // ── one random sequence ─────────────────────────────────────────────────────
 const LIMITS = ['daily_device_limit', 'daily_ip_limit', 'daily_site_limit'];
-const BLOCKED_FOR_CREATE = ['starting', 'running', 'unfinished', 'staged'];
+const BLOCKED_FOR_CREATE = ['starting', 'running', 'unfinished'];
+const PHASES = ['idle', 'starting', 'running', 'unfinished', 'ended'];
+const START_HINT = 'Turn on Earthquake or Heat wave, then press Start.';
 
 async function runSequence(seed) {
   const rng = mulberry32(seed);
@@ -154,6 +157,9 @@ async function runSequence(seed) {
   const gates = [];
   const cfg = { ask: 'ok', getEpisode: 'ended', reset: 200 };
   let currentId = null;
+  // True once a Lever was clicked in `ended`: the run is over but the page may
+  // show the user's next choice, so the OFF-after-end check no longer applies.
+  let touchedInEnded = false;
 
   function setApi() {
     current = createFakeApi({
@@ -199,6 +205,8 @@ async function runSequence(seed) {
   }
   function everyTime(where) {
     const ph = ctl._state().phase;
+    assert.ok(PHASES.indexOf(ph) >= 0, tag + where + ': unknown phase ' + ph + ' (staged is never reached)');
+    assert.ok(marks().filter(function (m) { return m === 'ON'; }).length <= 1, tag + where + ': two Levers ON');
     assert.ok(!/paused/i.test(byId.notice.textContent), tag + where + ': a notice says Paused');
     if (ph === 'starting' || ph === 'running') {
       assert.strictEqual(byId['btn-reset-memory'].disabled, true, tag + where + ': All reset enabled in ' + ph);
@@ -209,7 +217,7 @@ async function runSequence(seed) {
     await settle();
     everyTime(where);
     const st = ctl._state();
-    if (st.phase === 'ended') {
+    if (st.phase === 'ended' && !touchedInEnded) {
       assert.deepStrictEqual(marks(), ['OFF', 'OFF'], tag + where + ': Levers OFF after the end and reflection');
     }
   }
@@ -218,6 +226,10 @@ async function runSequence(seed) {
   function press(id, where) {
     const st = ctl._state();
     const before = st.phase;
+    const isLever = id !== 'btn-start';
+    const marksBefore = marks();
+    const onBefore = marksBefore.indexOf('ON');
+    const total = METHODS.reduce(function (a, m) { return a + current.count(m); }, 0);
     const creates = current.count('createEpisode');
     const gets = current.count('getEpisode');
     const flips = current.count('flipDisaster');
@@ -229,6 +241,31 @@ async function runSequence(seed) {
       assert.strictEqual(madeCreate, 0, tag + where + ': create while ' + before);
     }
     assert.ok(madeCreate <= 1, tag + where + ': more than one create from one press');
+    const after = METHODS.reduce(function (a, m) { return a + current.count(m); }, 0);
+    if (isLever) {
+      assert.strictEqual(after, total, tag + where + ': a Lever click called the API');
+      const open = before === 'idle' || before === 'ended';
+      const want = id === 'sw-heat' ? 1 : 0;
+      const expected = !open ? marksBefore : (onBefore === want ? ['OFF', 'OFF'] : (want === 1 ? ['OFF', 'ON'] : ['ON', 'OFF']));
+      assert.deepStrictEqual(marks(), expected, tag + where + ': Lever toggle in ' + before);
+      assert.strictEqual(ctl._state().phase, before, tag + where + ': Lever changed the phase');
+      if (before === 'ended') { touchedInEnded = true; }
+      return { before: before, madeCreate: 0 };
+    }
+    if (before === 'starting' || before === 'running') {
+      assert.strictEqual(after, total, tag + where + ': Start called the API in ' + before);
+      assert.deepStrictEqual(marks(), marksBefore, tag + where + ': Start changed the Levers in ' + before);
+    }
+    if ((before === 'idle' || before === 'ended') && onBefore < 0) {
+      assert.strictEqual(after, total, tag + where + ': Start with no Lever ON sent a request');
+      assert.strictEqual(byId.notice.textContent, START_HINT, tag + where + ': Start_Hint');
+      assert.strictEqual(ctl._state().phase, before, tag + where + ': hint changed the phase');
+    }
+    if ((before === 'idle' || before === 'ended') && onBefore >= 0) {
+      assert.strictEqual(madeCreate, 1, tag + where + ': Start with a Lever ON did not create');
+      const arg = current.callsOf('createEpisode')[creates].args[0];
+      assert.strictEqual(arg === 'heat_wave', onBefore === 1, tag + where + ': createEpisode carries the ON Lever');
+    }
     if (before === 'unfinished') {
       assert.strictEqual(madeCreate, 0, tag + where + ': Try again created an episode');
       assert.strictEqual(current.count('getEpisode') - gets, 1, tag + where + ': acts as Try again');
@@ -236,14 +273,15 @@ async function runSequence(seed) {
       assert.strictEqual(current.count('flipDisaster'), flips);
       assert.strictEqual(ctl._state().episodeId, epBefore, tag + where + ': same episode');
     }
-    if (before === 'ended') {
+    if (before === 'ended' && madeCreate === 1) {
+      touchedInEnded = false;
       emptyClient(where + ' (later run)');
     }
-    return { before: before, madeCreate: madeCreate };
+    return { before: before, madeCreate: madeCreate, flipsBefore: flips, onBefore: onBefore };
   }
 
   async function startOrLever(where) {
-    const id = pick(rng, ['btn-start', 'sw-earthquake', 'sw-heat']);
+    const id = pick(rng, ['btn-start', 'btn-start', 'sw-earthquake', 'sw-heat']);
     const r = press(id, where + ':' + id);
     const snapshot = { setWorld: houseCalls.setWorld, reset: houseCalls.reset };
     if (r.madeCreate === 1) {
@@ -252,12 +290,19 @@ async function runSequence(seed) {
       const extra = bool(rng, 0.4) ? int(rng, 1, 3) : 0;
       for (let i = 0; i < extra; i++) {
         const before = current.count('createEpisode');
+        const marksNow = marks();
         byId[pick(rng, ['btn-start', 'sw-earthquake', 'sw-heat'])].click();
         assert.strictEqual(current.count('createEpisode'), before, tag + where + ': second create while starting');
+        assert.deepStrictEqual(marks(), marksNow, tag + where + ': extra press changed the Levers');
         everyTime(where + ': extra press');
       }
       await settle();
       everyTime(where);
+      if (lastCreateStatus === 200) {
+        const flipped = current.callsOf('flipDisaster');
+        assert.ok(flipped.length > r.flipsBefore, tag + where + ': no disaster call after createEpisode');
+        assert.strictEqual(flipped[flipped.length - 1].args[1] === 'heat_wave', r.onBefore === 1, tag + where + ': disaster call matches the Lever');
+      }
       if (lastCreateStatus === 429) {
         assert.deepStrictEqual(marks(), ['OFF', 'OFF'], tag + where + ': 429 leaves Levers OFF');
         assert.strictEqual(ctl._state().phase, 'idle', tag + where + ': 429 returns to idle');
@@ -292,6 +337,7 @@ async function runSequence(seed) {
     if (cfg.reset === 200 && lastBefore !== 'starting' && lastBefore !== 'running') {
       assert.deepStrictEqual(marks(), ['OFF', 'OFF'], tag + where + ': reset Levers');
       assert.strictEqual(ctl._state().phase, 'idle', tag + where + ': reset phase');
+      touchedInEnded = false;
       emptyClient(where + ' (All reset)');
       assert.strictEqual(byId.notice.hidden, true, tag + where + ': reset notice cleared');
     } else if (cfg.reset === 409) {

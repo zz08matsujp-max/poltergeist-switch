@@ -122,7 +122,8 @@ async function run(disaster, script) {
   require(OBSERVE);
   doc._ready.forEach(function (fn) { fn(); });
 
-  byId[disaster === 'heat_wave' ? 'sw-heat' : 'sw-earthquake'].click();
+  byId[disaster === 'heat_wave' ? 'sw-heat' : 'sw-earthquake'].click();   // choose the disaster
+  byId['btn-start'].click();                                              // then start the run
   await settleMany();
 
   return { log: log, waits: waits, notice: byId.notice, counts: counts };

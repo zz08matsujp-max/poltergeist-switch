@@ -37,6 +37,6 @@ const { createFakeApi } = require('./helpers/fake-api.js');
   require(path.join(__dirname, '..', '..', 'public', 'js', 'observe.js'));
   const st = global.window.observeController._state();
   assert.strictEqual(st.phase, 'idle');
-  assert.ok(['idle', 'starting', 'staged', 'running', 'unfinished', 'ended'].indexOf(st.phase) >= 0);
+  assert.ok(['idle', 'starting', 'running', 'unfinished', 'ended'].indexOf(st.phase) >= 0);
   console.log('  ok - _state().phase starts at idle');
 })().catch(function (e) { console.error(e); process.exit(1); });

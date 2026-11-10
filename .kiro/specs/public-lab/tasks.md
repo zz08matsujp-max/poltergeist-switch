@@ -4,6 +4,8 @@
 
 This plan makes PoltergeistSwitch ready for a public audience: memory and "All reset" belong to a Device, the replay list has a Featured group and a "Your runs" group, new episodes are limited per UTC day, Observe gets its fixes (speech sequencing, levers after the end, Try again, removed controls), and the heat-wave sky is redrawn. The engine, the house rules, the robots' input texts and every recorded episode stay byte-identical (Requirement 1).
 
+Tasks 18 to 20 were added after task 17 (front end only, no change to `src/`, `api/`, `sql/`, the engine or any robot text): 18 Levers choose the disaster and Start starts the run, 19 notices beside the levers, 20 keeping Chrome's speech going. They sit after the final checkpoint on purpose and add no new checkpoint.
+
 Order of work: (1) capture the protection pins on unmodified code, (2) the additive SQL file, (3) `Config` and pure classes, (4-5) Device-scoped memory with its tests and properties, (6-7) daily limits, `EpisodeStarter` and the API layer, (8-9) the episode list groups and direct replay links, (10) Voices, the speech sequencer and act-out, (11-13) Observe, (14) Replay, (15) the heat sky, (16) an audit of existing tests, (17) the final checkpoint.
 
 Tasks 4 and 5 are split by purpose, not by safety: task 4 changes the repository interface and every caller in one commit so the suite stays green; task 5 adds the new tests and properties.
@@ -374,10 +376,59 @@ Steering constraints that apply to every task:
     - Review `git diff` of every existing test changed by this spec. Only these were changed on purpose: the memory tests (design C2, C3), the list tests (C5), the 409 body tests (C6), `heat-wave-screens.test.js` (C7) and `ask-apply-recovery.test.js` (C8). Confirm `tests/fixtures/earthquake_golden_master.json`, `tests/fixtures/renderer_earthquake_calls.json`, `ProtectedVersionsTest` and `EpisodeViewBytesTest` are byte-for-byte unchanged since task 1, and the `earthquake_golden_master.json` SHA-256 still starts with `c2aba50f87c22fe6`. Report any other changed expected value to the maintainer instead of editing it.
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 14.13_
 
-- [~] 17. Final checkpoint - Ensure all tests pass
+- [x] 17. Final checkpoint - Ensure all tests pass
   - [x] 17.1 Run the full verification
     - Run `php -l` on every PHP file changed by this spec (`git diff --name-only` against the first commit of this spec), the full PHPUnit suite (including `EarthquakeGoldenMasterTest`) and `node tests/js/run-all.js`. Confirm that no file in `sql/` was executed, no secret or Device_Id appears in the changed files (grep), `sql/2026-11-10_add_public_lab.sql` is the only new file in `sql/`, and list the gated PDO tests that were skipped so the maintainer can run them with `PS_TEST_MYSQL_DSN` (including `testPdoTwoPerTripleCommitsSerializeToExactlySix` on MariaDB 10.11). Ask the user if questions arise.
     - _Requirements: 1.1, 1.6, 1.7, 1.8, 14.13_
+
+- [ ] 18. Levers choose the disaster, Start starts the run
+  - [x] 18.1 Rework the Lever and Start behaviour in `observe.js` and `index.php`
+    - Front end only. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin (`ProtectedVersionsTest`, `EpisodeViewBytesTest`, `renderer_earthquake_calls.json`) stay unchanged.
+    - `public/js/observe.js` `onLever(disaster)`: after `voices.gesture()`, in `idle` and `ended` toggle `el.swEarthquake` (`#sw-earthquake`) or `el.swHeat` (`#sw-heat`) ON/OFF (`.on`, `aria-pressed`, the `.mark` text) and turn the other OFF, with no API call; in `starting`, `running` and `unfinished` return at once (the chosen Lever stays ON).
+    - `onStart()`: after `voices.gesture()` (the First_Gesture): `unfinished` runs `tryAgain()`; `starting` and `running` return; in `idle` and `ended` with no Lever ON call `showNotice('Turn on Earthquake or Heat wave, then press Start.')` and send nothing; with a Lever ON (from `ended`, first `startNewRun()`) set `phase = 'starting'` synchronously and use the existing `api.createEpisode` with the disaster and the existing `api.flipDisaster` / `doFlip` / `doFlipHeat` path to start the run.
+    - Remove the `staged` phase: no assignment of `'staged'` remains in `onStart`, `doFlip`, `doFlipHeat` or `isDisasterAlreadySet` handling (a failed disaster call or an already-set disaster for the episode just created ends in the `unfinished` notice with Try again); drop `staged` from the `state.phase` comment and keep `_state().phase` values `idle`, `starting`, `running`, `unfinished`, `ended`. Set both Levers OFF after the end and its reflection (`finishClosing`), after All reset (`clientResetToFirstLoad`), and on a 429 or failed create (unchanged). The Device_Busy_Notice with Notice_Resume, the 429 notices and Try again keep their texts and behaviour.
+    - Update the stale comments in `public/index.php` ("the levers also start one in the run loop") and in `observe.js`.
+    - Before committing run `php -l public/index.php`, the full PHPUnit suite (including `EarthquakeGoldenMasterTest`) and `node tests/js/run-all.js`. Commit with `task 18: Levers choose the disaster, Start starts the run`. Never push.
+    - _Requirements: 9.2, 9.5, 9.8, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 15.10, 8.4, 13.11_
+  - [x] 18.2 Write `observe-levers.test.js` and update the tests that used `staged`
+    - Create `tests/js/observe-levers.test.js` in the style of `observe-flow.test.js` (same DOM shim, `helpers/fake-api.js`, `helpers/fake-clock.js`): clicking `#sw-earthquake` or `#sw-heat` sends no request and toggles ON/OFF; at most one Lever ON; Start with none ON shows "Turn on Earthquake or Heat wave, then press Start." in `#notice` and `fake-api` records no call; Start with Earthquake ON and with Heat wave ON creates the episode for the right disaster and runs it (the `createEpisode` and disaster calls carry that disaster); Levers and Start ignore clicks while `starting` and `running` and the chosen Lever stays ON; both Levers are OFF after the end and its reflection and after All reset; Start on an `unfinished` episode acts as Try again (no `createEpisode`) and Levers are ignored there.
+    - Update `tests/js/observe-flow.test.js` (the Start-alone and `staged` assertions around lines 190-260 and 395-425), `tests/js/observe-phase.test.js` (drop `staged` from the allowed phases) and any other test that clicks a Lever to start a run, so each now turns a Lever ON and then presses Start. Change only these flow steps and phase names, never an expected API call log, wait or notice text. Add a stale-reference check to `tests/js/no-stale-references.test.js` that `observe.js` has no `'staged'`.
+    - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 14.9, 14.16, 14.21_
+  - [x] 18.3 Update the Observe phase property test
+    - Update `tests/js/observe-phases-property.test.js` (**Property 21: Observe phase invariants**, tag `Feature: public-lab, Property 21: Observe phase invariants`) to the extended Property 21 in `design.md`: events become Lever toggle and Start; a Lever click never calls the API; at most one Lever ON; Start with none ON sends nothing; no `createEpisode` while `starting`, `running` or `unfinished`; `staged` never reached; Start acts as Try again while `unfinished`. Remove `staged` from `BLOCKED_FOR_CREATE`. At least 100 seeded cases.
+    - **Property 21: Observe phase invariants**
+    - **Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8**
+    - _Requirements: 15.1, 15.2, 15.3, 15.5, 15.6, 15.8, 14.9_
+
+- [ ] 19. Notices next to the levers
+  - [~] 19.1 Move the Notice_Area into the Switches_Panel and reveal it
+    - Front end only. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
+    - `public/index.php`: move `<div class="message" id="notice" hidden>` from the bottom of `.wrap` into the "Breaker switches" `section.panel` (`aria-label="Disaster switches"`), directly after `div.switches`; add `aria-live="polite"` to it; keep `id="notice"` so `showNotice`, `clearNotice` and `renderNoticePanel` need no change in what they write. Fix the stale comment above it.
+    - `public/css/screens.css`: a small top margin for `#notice` inside the panel, identical on wide and narrow screens; no new colours.
+    - `public/js/observe.js`: add `revealNotice()` called at the end of `showNotice` and `renderNoticePanel` when the notice is non-empty: if `el.notice.getBoundingClientRect()` is not fully inside the viewport (top below 0, bottom above `window.innerHeight`), call `el.notice.scrollIntoView({block: 'nearest', behavior})` with `behavior = 'instant'` when `matchMedia('(prefers-reduced-motion: reduce)').matches` and `'smooth'` otherwise; a fully visible notice is not scrolled; a missing `scrollIntoView` or `matchMedia` is ignored. The texts and buttons stay as they are.
+    - Before committing run `php -l public/index.php`, the full PHPUnit suite and `node tests/js/run-all.js`. Commit with `task 19: Notices next to the levers`. Never push.
+    - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6_
+  - [~] 19.2 Write `observe-notice-placement.test.js`
+    - Create `tests/js/observe-notice-placement.test.js`: a static check that in `public/index.php` the `#notice` element lies inside the "Breaker switches" `section.panel` and right after `div.switches` (and nowhere else in `.wrap`), with `aria-live="polite"`; with the DOM shim, a notice shown while its `getBoundingClientRect()` is off-screen calls `scrollIntoView` once with `block: 'nearest'` and `behavior: 'smooth'`, and with `matchMedia` reporting reduced motion with `behavior: 'instant'`; a notice fully inside the viewport does not scroll; an empty notice does not scroll. Confirm every existing notice test (`ask-apply-recovery`, `observe-flow`, `heat-wave-screens`, `disaster-already-set` and friends) still passes unchanged.
+    - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 14.22_
+
+- [ ] 20. Keep Chrome's speech going
+  - [~] 20.1 Chunk the speech and add the keep-alive rules in `voices.js`
+    - Front end only, in `public/js/voices.js`; the `speak(id, line, onDone)` interface, `speech-sequencer.js` and the Reading_Time and safety-cap rules stay as they are. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
+    - Add `splitForSpeech(text)` (exported on `createVoices` and `Voices`): split after `.`, `!`, `?` or an ellipsis followed by a space or the end; split any chunk over 180 characters after `, ` or `; `, else at the last space before 180. `speak` queues one entry per line with its chunks; each chunk is one utterance with the line's voice, `lang`, pitch and rate; the line reports `'end'` after the last chunk ends, `'error'` if a chunk errors, `'cancelled'` on `cancel()`.
+    - Before each `synth.speak`: if `synth.paused`, call `synth.resume()`; never call `speak` within 150 ms of our own `cancel()` (defer until 150 ms have passed, in order, dropped if a newer `cancel()` ran). While a chunk is read, an interval of 5000 ms calls `resume()` if paused. Call `resume()` on `visibilitychange` to visible and on window `focus`.
+    - Chunk_Watchdog per chunk: after `2000 + 120 * chars / rate` ms without `end` or `error`, if `synth.speaking` is false treat the chunk as ended and go on; if it is still speaking after twice that time, cancel it and go on with the next chunk (the line continues). Make timers, `now` and the document/window listeners injectable through `createVoices` options (defaults: the real ones).
+    - Before committing run the full PHPUnit suite and `node tests/js/run-all.js`. Commit with `task 20: Keep Chrome's speech going`. Never push.
+    - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9, 17.10, 17.11, 11.7, 11.9_
+  - [~] 20.2 Write `voices-chunks.test.js` and `voices-keepalive.test.js`
+    - Create `tests/js/voices-chunks.test.js` against the real `voices.js` with a fake `speechSynthesis` (as in `voices-gesture.test.js`): fixed splitting examples (sentence ends, ellipsis, a 300-character sentence cut at `, ` or `; `, a long text with no separator cut at the last space before 180); chunks are spoken in order with the line's voice, pitch and rate; the line reports `'end'` exactly once after the last chunk ends; an error in a chunk reports `'error'` for the line; `cancel()` reports `'cancelled'`.
+    - Create `tests/js/voices-keepalive.test.js` with `helpers/fake-clock.js` and a fake `speechSynthesis` that records `speak`, `cancel` and `resume` with virtual time: a paused engine is resumed before `speak`; `resume()` on `visibilitychange` to visible and on window `focus`; the 5000 ms check resumes a paused engine while a chunk is read and stops after the chunk ends; no `speak` within 150 ms after our own `cancel()` (the speak happens at 150 ms); a chunk that never ends with `speaking === false` is passed at `2000 + 120 * chars / rate` ms and the next chunk is spoken; with `speaking === true` it is cancelled at twice that time and the next chunk is spoken, the line continuing.
+    - _Requirements: 17.1, 17.2, 17.3, 17.5, 17.6, 17.7, 17.8, 17.9, 17.10, 14.23_
+  - [~] 20.3 Write the property test for speech splitting
+    - **Property 23: Speech splitting preserves the line and respects the limits**
+    - **Validates: Requirements 17.1, 17.2, 17.3**
+    - Create `tests/js/voices-split-property.test.js` (seeded `mulberry32`, at least 100 cases, tag `Feature: public-lab, Property 23: Speech splitting preserves the line and respects the limits`): random texts with sentence ends, ellipses, commas, semicolons, long words and Japanese text; chunks are non-blank, in order, rejoin to the trimmed text (cut whitespace ignored), none over 180 characters unless a single word, and a short text with no inner sentence end gives one chunk.
+    - _Requirements: 17.1, 17.2, 17.3_
 
 ## Notes
 
@@ -441,7 +492,14 @@ Steering constraints that apply to every task:
     { "id": 45, "tasks": ["15.2", "15.3"] },
     { "id": 46, "tasks": ["16.1"] },
     { "id": 47, "tasks": ["16.2"] },
-    { "id": 48, "tasks": ["17.1"] }
+    { "id": 48, "tasks": ["17.1"] },
+    { "id": 49, "tasks": ["18.1"] },
+    { "id": 50, "tasks": ["18.2"] },
+    { "id": 51, "tasks": ["18.3"] },
+    { "id": 52, "tasks": ["19.1"] },
+    { "id": 53, "tasks": ["19.2"] },
+    { "id": 54, "tasks": ["20.1"] },
+    { "id": 55, "tasks": ["20.2", "20.3"] }
   ]
 }
 ```
