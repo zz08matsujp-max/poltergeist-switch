@@ -381,7 +381,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every PHP file changed by this spec (`git diff --name-only` against the first commit of this spec), the full PHPUnit suite (including `EarthquakeGoldenMasterTest`) and `node tests/js/run-all.js`. Confirm that no file in `sql/` was executed, no secret or Device_Id appears in the changed files (grep), `sql/2026-11-10_add_public_lab.sql` is the only new file in `sql/`, and list the gated PDO tests that were skipped so the maintainer can run them with `PS_TEST_MYSQL_DSN` (including `testPdoTwoPerTripleCommitsSerializeToExactlySix` on MariaDB 10.11). Ask the user if questions arise.
     - _Requirements: 1.1, 1.6, 1.7, 1.8, 14.13_
 
-- [ ] 18. Levers choose the disaster, Start starts the run
+- [x] 18. Levers choose the disaster, Start starts the run
   - [x] 18.1 Rework the Lever and Start behaviour in `observe.js` and `index.php`
     - Front end only. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin (`ProtectedVersionsTest`, `EpisodeViewBytesTest`, `renderer_earthquake_calls.json`) stay unchanged.
     - `public/js/observe.js` `onLever(disaster)`: after `voices.gesture()`, in `idle` and `ended` toggle `el.swEarthquake` (`#sw-earthquake`) or `el.swHeat` (`#sw-heat`) ON/OFF (`.on`, `aria-pressed`, the `.mark` text) and turn the other OFF, with no API call; in `starting`, `running` and `unfinished` return at once (the chosen Lever stays ON).
@@ -400,7 +400,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8**
     - _Requirements: 15.1, 15.2, 15.3, 15.5, 15.6, 15.8, 14.9_
 
-- [ ] 19. Notices next to the levers
+- [x] 19. Notices next to the levers
   - [x] 19.1 Move the Notice_Area into the Switches_Panel and reveal it
     - Front end only. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
     - `public/index.php`: move `<div class="message" id="notice" hidden>` from the bottom of `.wrap` into the "Breaker switches" `section.panel` (`aria-label="Disaster switches"`), directly after `div.switches`; add `aria-live="polite"` to it; keep `id="notice"` so `showNotice`, `clearNotice` and `renderNoticePanel` need no change in what they write. Fix the stale comment above it.
@@ -412,7 +412,7 @@ Steering constraints that apply to every task:
     - Create `tests/js/observe-notice-placement.test.js`: a static check that in `public/index.php` the `#notice` element lies inside the "Breaker switches" `section.panel` and right after `div.switches` (and nowhere else in `.wrap`), with `aria-live="polite"`; with the DOM shim, a notice shown while its `getBoundingClientRect()` is off-screen calls `scrollIntoView` once with `block: 'nearest'` and `behavior: 'smooth'`, and with `matchMedia` reporting reduced motion with `behavior: 'instant'`; a notice fully inside the viewport does not scroll; an empty notice does not scroll. Confirm every existing notice test (`ask-apply-recovery`, `observe-flow`, `heat-wave-screens`, `disaster-already-set` and friends) still passes unchanged.
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 14.22_
 
-- [ ] 20. Keep Chrome's speech going
+- [x] 20. Keep Chrome's speech going
   - [x] 20.1 Chunk the speech and add the keep-alive rules in `voices.js`
     - Front end only, in `public/js/voices.js`; the `speak(id, line, onDone)` interface, `speech-sequencer.js` and the Reading_Time and safety-cap rules stay as they are. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
     - Add `splitForSpeech(text)` (exported on `createVoices` and `Voices`): split after `.`, `!`, `?` or an ellipsis followed by a space or the end; split any chunk over 180 characters after `, ` or `; `, else at the last space before 180. `speak` queues one entry per line with its chunks; each chunk is one utterance with the line's voice, `lang`, pitch and rate; the line reports `'end'` after the last chunk ends, `'error'` if a chunk errors, `'cancelled'` on `cancel()`.

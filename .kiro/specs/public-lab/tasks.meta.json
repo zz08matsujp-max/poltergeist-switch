@@ -1,0 +1,717 @@
+{
+  "pbtResults": {
+    "5.6 Write the property test for the per-Device cap and retirement": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283340700
+    },
+    "5.4 Write the property test for ownership and isolation": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283343099
+    },
+    "5.5 Write the property test for snapshot order and cap": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283354177
+    },
+    "5.10 Write the property test that nothing is deleted": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283431234
+    },
+    "5.11 Write the property test for frozen snapshots": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283434309
+    },
+    "5.9 Write the property test for the reset gate": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283434409
+    },
+    "5.8 Write the property test for late reflections": {
+      "status": "passed",
+      "lastRunTimestamp": 1794283436869
+    },
+    "6.8 Write the property test for 409 before any limit": {
+      "status": "passed",
+      "lastRunTimestamp": 1794284606485
+    },
+    "7.7 Write the property test for IP privacy and hash stability": {
+      "status": "passed",
+      "lastRunTimestamp": 1794285392182
+    },
+    "8.8 Write the property test for list grouping": {
+      "status": "passed",
+      "lastRunTimestamp": 1794285933637
+    },
+    "8.9 Write the property test that only starting is limited": {
+      "status": "passed",
+      "lastRunTimestamp": 1794286084787
+    }
+  },
+  "executionHistory": {
+    "1. Capture the protection pins before any code change": [
+      {
+        "executionId": "211014fa-45fc-4834-a1c6-7366dbf55531",
+        "chatSessionId": "sess_13478a87-3e26-45e2-b618-22f6d358f53a",
+        "timestamp": 1794280725422
+      },
+      {
+        "executionId": "211014fa-45fc-4834-a1c6-7366dbf55531",
+        "chatSessionId": "sess_13478a87-3e26-45e2-b618-22f6d358f53a",
+        "timestamp": 1794281263765
+      }
+    ],
+    "2.1 Create `sql/2026-11-10_add_public_lab.sql`": [
+      {
+        "executionId": "be80a41b-1083-40ad-9fc9-9b519fbfd31f",
+        "chatSessionId": "sess_5060518e-b38d-45b1-92b4-50e832b8cbd0",
+        "timestamp": 1794281485022
+      }
+    ],
+    "2.2 Write `PublicLabMigrationFileTest`": [
+      {
+        "executionId": "be80a41b-1083-40ad-9fc9-9b519fbfd31f",
+        "chatSessionId": "sess_5060518e-b38d-45b1-92b4-50e832b8cbd0",
+        "timestamp": 1794281532699
+      }
+    ],
+    "3. Add Config values and the pure limit and IP classes": [
+      {
+        "executionId": "d2ae6741-fa49-4da2-991b-c3ccb5522db3",
+        "chatSessionId": "sess_6d1fbd8b-2939-4816-8144-89bc9fbe09ce",
+        "timestamp": 1794281724825
+      },
+      {
+        "executionId": "d2ae6741-fa49-4da2-991b-c3ccb5522db3",
+        "chatSessionId": "sess_6d1fbd8b-2939-4816-8144-89bc9fbe09ce",
+        "timestamp": 1794281887986
+      }
+    ],
+    "3.1 Add the public-lab parameters to `Config`": [
+      {
+        "executionId": "d2ae6741-fa49-4da2-991b-c3ccb5522db3",
+        "chatSessionId": "sess_6d1fbd8b-2939-4816-8144-89bc9fbe09ce",
+        "timestamp": 1794281728296
+      }
+    ],
+    "4.1 Extend `MemoryRow` and the `EpisodeRepository` interface": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282006212
+      }
+    ],
+    "4.2 Implement the Device methods in `InMemoryEpisodeRepository`": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282046545
+      }
+    ],
+    "4.3 Implement the Device methods in `PdoEpisodeRepository` (with the retire-order fix)": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282047065
+      }
+    ],
+    "4.4 Make `MemoryService` Device-scoped": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282313011
+      }
+    ],
+    "4.5 Make `ReflectService` Device-scoped": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282313730
+      }
+    ],
+    "4.6 Thread the Device through `api/`": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282361548
+      }
+    ],
+    "4.7 Update the existing unit tests for the new signatures": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282391725
+      }
+    ],
+    "4.8 Update the existing Memory property tests to per-Device behaviour": [
+      {
+        "executionId": "80757c53-29da-4ebf-ba9e-d6566df34270",
+        "chatSessionId": "sess_2f733478-62c5-4cfb-8d48-88a7a0424f7c",
+        "timestamp": 1794282761372
+      }
+    ],
+    "5.1 Write the gated `DeviceRepositoryPdoTest`": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283122459
+      }
+    ],
+    "5.2 Write `DeviceRetirementTest`": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283205957
+      }
+    ],
+    "5.3 Write `LegacyMemoryTest`": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283288312
+      }
+    ],
+    "5.4 Write the property test for ownership and isolation": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283288497
+      }
+    ],
+    "5.5 Write the property test for snapshot order and cap": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283288587
+      }
+    ],
+    "5.6 Write the property test for the per-Device cap and retirement": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283289305
+      }
+    ],
+    "5.7 Write the property test for reset": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283289986
+      }
+    ],
+    "5.8 Write the property test for late reflections": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283377820
+      }
+    ],
+    "5.9 Write the property test for the reset gate": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283378536
+      }
+    ],
+    "5.10 Write the property test that nothing is deleted": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283379336
+      }
+    ],
+    "5.11 Write the property test for frozen snapshots": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283380021
+      }
+    ],
+    "5.12 Write the routing tests for the memory routes": [
+      {
+        "executionId": "b9720df0-4a52-4efb-9f29-f2c0f22a92b3",
+        "chatSessionId": "sess_deebbd4d-80b6-4e46-9bd8-975186793f61",
+        "timestamp": 1794283392392
+      }
+    ],
+    "6.1 Create `UsageRepository` with its PDO and in-memory implementations": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284139557
+      }
+    ],
+    "6.3 Add `ApiError::tooManyRequests` and the optional conflict `episodeId`": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284139738
+      }
+    ],
+    "6.2 Add `TurnService::assertCanStart` and the `episodeId` on the running-episode 409": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284247250
+      }
+    ],
+    "6.4 Create `EpisodeStarter`": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284345841
+      }
+    ],
+    "6.5 Write `EpisodeStarterTest`": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284527174
+      }
+    ],
+    "6.6 Write the gated `UsageRepositoryPdoTest`": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284527722
+      }
+    ],
+    "6.7 Write the property test for daily counting": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284528468
+      }
+    ],
+    "6.8 Write the property test for 409 before any limit": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284529346
+      }
+    ],
+    "6.9 Write the property test for denied or failed starts": [
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284529887
+      },
+      {
+        "executionId": "c93578fe-07a2-4fd6-ae01-b95ad8f60322",
+        "chatSessionId": "sess_5100b553-3746-437f-998f-8367e34a955f",
+        "timestamp": 1794284690993
+      }
+    ],
+    "7. Wire the API layer for limits, IP and salt": [
+      {
+        "executionId": "40c74563-6349-49fe-af38-14ec2bc9039f",
+        "chatSessionId": "sess_6e7f8aea-88f1-421f-b2db-e2b07b315a8e",
+        "timestamp": 1794285009802
+      },
+      {
+        "executionId": "40c74563-6349-49fe-af38-14ec2bc9039f",
+        "chatSessionId": "sess_6e7f8aea-88f1-421f-b2db-e2b07b315a8e",
+        "timestamp": 1794285461126
+      }
+    ],
+    "8.1 Add the list queries to both repositories": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285613062
+      }
+    ],
+    "8.2 Group the list in `EpisodeListService` and `episodes_list.php`": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285740511
+      }
+    ],
+    "8.3 Show the two groups on Replay": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285740652
+      }
+    ],
+    "8.4 Update `live-records.md`": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285740746
+      }
+    ],
+    "8.5 Update the existing list tests": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285850179
+      }
+    ],
+    "8.6 Write `replay-groups.test.js`": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285850411
+      }
+    ],
+    "8.7 Write the gated list query test": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285850553
+      }
+    ],
+    "8.8 Write the property test for list grouping": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794285850634
+      }
+    ],
+    "8.9 Write the property test that only starting is limited": [
+      {
+        "executionId": "0b74695c-b470-409b-902c-66807c6b29eb",
+        "chatSessionId": "sess_96a61fce-fe05-48e5-9ca6-f6d18b3f9080",
+        "timestamp": 1794286019564
+      }
+    ],
+    "9.1 Write `DirectAccessTest` and fix `replay.php` only if it fails": [
+      {
+        "executionId": "a9e9b124-3fd6-4a93-a863-0aa3c03ebc7d",
+        "chatSessionId": "sess_88550884-0286-46fe-838a-a1c6fee89fb5",
+        "timestamp": 1794286286302
+      }
+    ],
+    "9.2 Write the property test for caller-independent access": [
+      {
+        "executionId": "a9e9b124-3fd6-4a93-a863-0aa3c03ebc7d",
+        "chatSessionId": "sess_88550884-0286-46fe-838a-a1c6fee89fb5",
+        "timestamp": 1794287888599
+      }
+    ],
+    "10.1 Add the JS test helpers for speech": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794288320282
+      }
+    ],
+    "10.2 Update `public/js/voices.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794289219435
+      }
+    ],
+    "10.3 Create `public/js/speech-sequencer.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794289219635
+      }
+    ],
+    "10.4 Make `act-out.js` use the sequencer": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794289685066
+      }
+    ],
+    "10.5 Write `voices-gesture.test.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794290031284
+      }
+    ],
+    "10.6 Write `speech-reading-time.test.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794290032312
+      }
+    ],
+    "10.7 Write `speech-lines.test.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794290033173
+      }
+    ],
+    "10.8 Write `speech-sequencer-order.test.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794290033838
+      }
+    ],
+    "10.9 Write `speech-voices-toggle.test.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794290034341
+      }
+    ],
+    "10.10 Write `act-out-speech.test.js`": [
+      {
+        "executionId": "86199649-334c-4a05-8286-06dc0856a9fa",
+        "chatSessionId": "sess_2ef85a02-75d5-43c7-abc3-9928140c1491",
+        "timestamp": 1794290142749
+      }
+    ],
+    "11.1 Remove the controls and the lever": [
+      {
+        "executionId": "87ad76ba-eb22-42be-b3a0-adfdfab2bec9",
+        "chatSessionId": "sess_e6459357-5371-403d-8eae-d19ca70f09cf",
+        "timestamp": 1794290346546
+      }
+    ],
+    "12.1 Add the fake API helper and expose the phase": [
+      {
+        "executionId": "50aab73f-e055-433c-bec9-ed64d5ab8cd6",
+        "chatSessionId": "sess_844e363c-6cd9-408a-b0eb-5b5ab987218b",
+        "timestamp": 1794290759508
+      }
+    ],
+    "12.2 Implement the phases and the run guards": [
+      {
+        "executionId": "50aab73f-e055-433c-bec9-ed64d5ab8cd6",
+        "chatSessionId": "sess_844e363c-6cd9-408a-b0eb-5b5ab987218b",
+        "timestamp": 1794290858106
+      }
+    ],
+    "12.3 Wire Voices into Observe": [
+      {
+        "executionId": "50aab73f-e055-433c-bec9-ed64d5ab8cd6",
+        "chatSessionId": "sess_844e363c-6cd9-408a-b0eb-5b5ab987218b",
+        "timestamp": 1794291134674
+      }
+    ],
+    "12.4 Write the Observe flow examples": [
+      {
+        "executionId": "50aab73f-e055-433c-bec9-ed64d5ab8cd6",
+        "chatSessionId": "sess_844e363c-6cd9-408a-b0eb-5b5ab987218b",
+        "timestamp": 1794291236903
+      }
+    ],
+    "13.1 Add `house.reset()` to the renderer": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794291446102
+      }
+    ],
+    "13.2 Implement All reset on Observe": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794291532647
+      }
+    ],
+    "13.3 Implement the Unfinished_Episode notice and Try again": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794291631982
+      }
+    ],
+    "13.4 Implement the 409 and 429 create notices": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794291808442
+      }
+    ],
+    "13.5 Update `ask-apply-recovery.test.js`": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794291935648
+      }
+    ],
+    "13.6 Extend the Observe flow examples": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794291935835
+      }
+    ],
+    "13.7 Write the Observe phase invariants property test": [
+      {
+        "executionId": "425a0574-d689-4af1-b298-90f31c69d917",
+        "chatSessionId": "sess_05f6ea33-055c-43c7-a031-04e7e0c7f9f3",
+        "timestamp": 1794292157120
+      }
+    ],
+    "14.1 Wire Voices, the sequencer and cancel-on-control into Replay": [
+      {
+        "executionId": "e686f2be-054d-4ff3-b1ee-249d0683abb8",
+        "chatSessionId": "sess_b53db39a-d37f-44da-ae9e-ed79c61ff8e4",
+        "timestamp": 1794292458562
+      }
+    ],
+    "14.2 Write `replay-voices.test.js`": [
+      {
+        "executionId": "e686f2be-054d-4ff3-b1ee-249d0683abb8",
+        "chatSessionId": "sess_b53db39a-d37f-44da-ae9e-ed79c61ff8e4",
+        "timestamp": 1794292563297
+      }
+    ],
+    "10.11 Speech timing fix": [
+      {
+        "executionId": "78091647-a9a5-48dd-8893-f5bbb70c20bc",
+        "chatSessionId": "sess_b53db39a-d37f-44da-ae9e-ed79c61ff8e4",
+        "timestamp": 1794294297377
+      }
+    ],
+    "15.1 Update the heat palette in `house-renderer.js`": [
+      {
+        "executionId": "db90d6bf-1cea-4936-971b-30f592d66606",
+        "chatSessionId": "sess_63b4e0e8-48c8-4188-a833-3dec2c264de6",
+        "timestamp": 1794294822605
+      }
+    ],
+    "15.2 Write `heat-sky.test.js` examples": [
+      {
+        "executionId": "db90d6bf-1cea-4936-971b-30f592d66606",
+        "chatSessionId": "sess_63b4e0e8-48c8-4188-a833-3dec2c264de6",
+        "timestamp": 1794294936158
+      }
+    ],
+    "15.3 Write the property test for the heat palette": [
+      {
+        "executionId": "db90d6bf-1cea-4936-971b-30f592d66606",
+        "chatSessionId": "sess_63b4e0e8-48c8-4188-a833-3dec2c264de6",
+        "timestamp": 1794294936736
+      }
+    ],
+    "15. Draw the heat-wave sky": [
+      {
+        "executionId": "db90d6bf-1cea-4936-971b-30f592d66606",
+        "chatSessionId": "sess_63b4e0e8-48c8-4188-a833-3dec2c264de6",
+        "timestamp": 1794295152187
+      },
+      {
+        "executionId": "db90d6bf-1cea-4936-971b-30f592d66606",
+        "chatSessionId": "sess_63b4e0e8-48c8-4188-a833-3dec2c264de6",
+        "timestamp": 1794295203784
+      }
+    ],
+    "16.1 Write a stale-reference check": [
+      {
+        "executionId": "3792f1ae-5d0c-4cb8-9903-fe1e8e56f14d",
+        "chatSessionId": "sess_9e0062f1-1d63-4a51-8a71-d23caa09ae98",
+        "timestamp": 1794295356498
+      }
+    ],
+    "16.2 Review the test changes for protected edits": [
+      {
+        "executionId": "3792f1ae-5d0c-4cb8-9903-fe1e8e56f14d",
+        "chatSessionId": "sess_9e0062f1-1d63-4a51-8a71-d23caa09ae98",
+        "timestamp": 1794295456207
+      }
+    ],
+    "17.1 Run the full verification": [
+      {
+        "executionId": "b58ec57f-6351-404a-b1e3-0d8db9cc4fda",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794295620408
+      }
+    ],
+    "18.1 Rework the Lever and Start behaviour in `observe.js` and `index.php`": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298498614
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298504212
+      }
+    ],
+    "18.2 Write `observe-levers.test.js` and update the tests that used `staged`": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298498966
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298648616
+      }
+    ],
+    "18.3 Update the Observe phase property test": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298499106
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298999101
+      }
+    ],
+    "19.1 Move the Notice_Area into the Switches_Panel and reveal it": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298499237
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794299295979
+      }
+    ],
+    "19.2 Write `observe-notice-placement.test.js`": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298499377
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794299368387
+      }
+    ],
+    "20.1 Chunk the speech and add the keep-alive rules in `voices.js`": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298499682
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794299478879
+      }
+    ],
+    "20.2 Write `voices-chunks.test.js` and `voices-keepalive.test.js`": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298499816
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794299669709
+      }
+    ],
+    "20.3 Write the property test for speech splitting": [
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794298499964
+      },
+      {
+        "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794299803678
+      }
+    ]
+  }
+}
