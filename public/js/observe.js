@@ -4,13 +4,13 @@
  * THIS TASK (9.2) is the LAYOUT + SETUP portion only:
  *   - construct the API client, House_Renderer (mounted to the stage), Voices,
  *     and the Act_Out driver, and keep references for the run loop;
- *   - wire the UI setup: the Voices on/off toggle, the inert disabled Heavy
- *     rain / Heat wave switches, and the first-load state (no episode in
+ *   - wire the UI setup: the Voices on/off toggle, the Earthquake / Heat wave
+ *     switches, and the first-load state (no episode in
  *     progress, Earthquake lever OFF, empty log, empty meters) (Req 4.5);
  *   - provide the helpers the run loop will call: updateMeters(man),
  *     appendLog(turnNumber, entries), setEarthquakeLever(on);
  *   - leave clearly-marked STUBS for the run loop (9.3) and the End_Card / 409
- *     handling (9.4): startRun(), pause(), step(), resume(). This file does NOT
+ *     handling (9.4): startRun(). This file does NOT
  *     create an episode or call any API on load, and does NOT implement the
  *     ask/apply loop (that is 9.3).
  *
@@ -41,7 +41,6 @@
     episodeId: null,       // current episode id, or null when none in progress
     expectedTurn: 0,       // the next expected turn number
     running: false,        // the loop is advancing turns
-    paused: false,         // Pause was pressed
     ended: false,          // apply reported the episode ended
     disaster: 'earthquake' // the current episode's disaster (view.disaster)
   };
@@ -359,13 +358,10 @@
 
   // The single in-flight prefetched ask: { turn, promise } or null.
   var pendingAsk = null;
-  // The acting-out promise for the turn currently animating, so Pause can let it
-  // finish before the loop stops (the apply already happened — Req 5.8).
+  // The acting-out promise for the turn currently animating.
   var actingOut = null;
-  // Guards a single run of the loop body so Start/Resume/Step cannot double-run.
+  // Guards a single run of the loop body so Start cannot double-run.
   var looping = false;
-  // Set by Step: play exactly one more turn, then stop (Req 5.9).
-  var stepOnce = false;
 
   /**
    * startRun() — the Start button. Create one episode (unless one is already in
@@ -395,37 +391,6 @@
     }, function () {
       showNotice('The lab could not be reached. Please try again.');
     });
-  }
-
-  /**
-   * pause() — stop advancing to new turns AFTER the current turn finishes acting
-   * out, leaving the current turn's stored result and any already-sent next
-   * `ask` unchanged (Req 5.8). It does not abort a turn mid-apply: the apply has
-   * already happened (or will complete) and the loop simply stops before
-   * starting the next turn's advance.
-   */
-  function pause() {
-    state.paused = true;
-  }
-
-  /**
-   * step() — while paused, play exactly one more turn, then stop advancing
-   * (Req 5.9). Does nothing when not paused or when there is no live episode.
-   */
-  function step() {
-    if (!state.paused) { return; }
-    if (!state.episodeId || state.ended) { return; }
-    stepOnce = true;
-    runLoop();
-  }
-
-  /**
-   * resume() — continue advancing from the current expected turn (Req 5.8).
-   */
-  function resume() {
-    if (!state.paused) { return; }
-    state.paused = false;
-    runLoop();
   }
 
   // ── run-loop internals ──────────────────────────────────────────────────────
@@ -610,7 +575,6 @@
   function runLoop() {
     if (looping) { return; }
     if (!state.episodeId || state.ended) { return; }
-    if (state.paused && !stepOnce) { return; }
 
     looping = true;
     state.running = true;
@@ -624,9 +588,6 @@
 
   function runOneTurn() {
     if (!state.episodeId || state.ended) { stopLoop(); return; }
-    // Pause takes effect between turns (after the previous turn's acting-out),
-    // unless a single Step was requested (Req 5.8, 5.9).
-    if (state.paused && !stepOnce) { stopLoop(); return; }
 
     askAndApply(state.expectedTurn, 0);
   }
@@ -770,13 +731,6 @@
       // Advance to the next expected turn.
       state.expectedTurn = nextTurn;
 
-      // Honour a single Step: play exactly one turn, then stop (Req 5.9).
-      if (stepOnce) {
-        stepOnce = false;
-        stopLoop();
-        return;
-      }
-      if (state.paused) { stopLoop(); return; }
 
       // Continue the loop with the next turn.
       runOneTurn();
@@ -1534,9 +1488,7 @@
 
   function wireSwitches() {
     // Earthquake: in 9.2 this only reflects the lever; 9.3 replaces/extends the
-    // handler to flip the earthquake and run the turns. The disabled Heavy rain
-    // and Heat wave switches do nothing (the `disabled` attribute already
-    // rejects activation — Req 4.4), so no handler is attached to them.
+    // handler to flip the earthquake and run the turns.
     if (el.swEarthquake) {
       el.swEarthquake.addEventListener('click', function () {
         // Raise the Earthquake lever: flip the earthquake and run the turns,
@@ -1553,8 +1505,7 @@
       });
     }
     // Heat wave (heat-wave Req 10.1): create-or-convert, one-way like the
-    // Earthquake lever. Heavy rain has no handler: its `disabled` attribute
-    // rejects activation and it stays labelled "coming later".
+    // Earthquake lever.
     if (el.swHeat) {
       el.swHeat.addEventListener('click', function () {
         if (state.running || (el.swHeat.getAttribute('aria-pressed') === 'true')) {
@@ -1568,9 +1519,6 @@
 
   function wireControls() {
     if (el.btnStart) { el.btnStart.addEventListener('click', startRun); }
-    if (el.btnPause) { el.btnPause.addEventListener('click', pause); }
-    if (el.btnStep) { el.btnStep.addEventListener('click', step); }
-    if (el.btnResume) { el.btnResume.addEventListener('click', resume); }
   }
 
   // Put the screen in its first-load state: no episode in progress, Earthquake
@@ -1581,7 +1529,6 @@
     state.episodeId = null;
     state.expectedTurn = 0;
     state.running = false;
-    state.paused = false;
     state.ended = false;
     setEarthquakeLever(false);
     setHeatLever(false);
@@ -1596,7 +1543,6 @@
     el.canvas = document.getElementById('house');
     el.overlay = document.getElementById('overlay');
     el.swEarthquake = document.getElementById('sw-earthquake');
-    el.swRain = document.getElementById('sw-rain');
     el.swHeat = document.getElementById('sw-heat');
     el.meter_temp = document.getElementById('meter-temp');
     el.meter_water = document.getElementById('meter-water');
@@ -1605,9 +1551,6 @@
     el.meter_room = document.getElementById('meter-room');
     el.log = document.getElementById('log');
     el.btnStart = document.getElementById('btn-start');
-    el.btnPause = document.getElementById('btn-pause');
-    el.btnStep = document.getElementById('btn-step');
-    el.btnResume = document.getElementById('btn-resume');
     el.btnVoices = document.getElementById('btn-voices');
     el.notice = document.getElementById('notice');
     el.endcardHost = document.getElementById('endcard-host');
@@ -1668,9 +1611,6 @@
     appendLog: appendLog,
     setEarthquakeLever: setEarthquakeLever,
     startRun: startRun,
-    pause: pause,
-    step: step,
-    resume: resume,
     // Robot memory (task 11.1): the status-line refresh, the in-page All-reset
     // confirm flow, and the missed-reflection catch-up, exposed so task 12.1
     // (the End_Card reflect-and-show) and a headless check can drive them.

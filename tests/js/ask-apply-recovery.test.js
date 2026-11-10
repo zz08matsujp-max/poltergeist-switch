@@ -96,7 +96,7 @@ async function run(disaster, script) {
     }
   };
 
-  ['sw-earthquake', 'sw-rain', 'sw-heat'].forEach(function (id) {
+  ['sw-earthquake', 'sw-heat'].forEach(function (id) {
     const b = doc.getElementById(id);
     b._subs['.mark'] = makeElement();
     b.setAttribute('aria-pressed', 'false');

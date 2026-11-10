@@ -56,7 +56,7 @@ const fakeApi = {
   ask: function () { calls.push('ask'); return new Promise(function () { /* never resolves */ }); }
 };
 
-['sw-earthquake', 'sw-rain', 'sw-heat'].forEach(function (id) {
+['sw-earthquake', 'sw-heat'].forEach(function (id) {
   const b = doc.getElementById(id);
   b._subs['.mark'] = makeElement();
   b.setAttribute('aria-pressed', 'false');

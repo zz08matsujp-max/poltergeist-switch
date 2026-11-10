@@ -8,8 +8,7 @@
  * a recorder) and names the robots only Amber and Jade.
  *
  * What is asserted:
- *   10.1  the Heat wave lever is enabled and wired, Heavy rain stays disabled
- *         and "coming later" (index.php), and a click on Heat wave creates a
+ *   10.1  the Heat wave lever is enabled and wired (index.php), and a click on Heat wave creates a
  *         heat-wave episode through the API client;
  *   10.2  the world's heat fields drive heat drawing only when `disaster` is
  *         heat wave, and the fan is drawn in the room it is in;
@@ -154,16 +153,13 @@ function buttonTag(src, id) {
   return m[0];
 }
 
-check('Heat wave lever is enabled; Heavy rain stays disabled and "coming later" (10.1)', function () {
+check('Heat wave lever is enabled (10.1)', function () {
   const heat = buttonTag(indexSrc, 'sw-heat');
   assert.ok(!/\bdisabled\b/.test(heat), 'Heat wave button is not disabled');
   assert.ok(/Heat wave/.test(heat), 'it is labelled Heat wave');
   assert.ok(!/coming later/.test(heat), 'it is not marked "coming later"');
   assert.ok(/aria-pressed="false"/.test(heat), 'it starts OFF');
 
-  const rain = buttonTag(indexSrc, 'sw-rain');
-  assert.ok(/\bdisabled\b/.test(rain), 'Heavy rain stays disabled');
-  assert.ok(/coming later/.test(rain), 'Heavy rain says "coming later"');
 
   const eq = buttonTag(indexSrc, 'sw-earthquake');
   assert.ok(!/\bdisabled\b/.test(eq), 'Earthquake stays enabled');
@@ -213,7 +209,7 @@ const fakeApi = {
   ask: function () { return new Promise(function () { /* never resolves */ }); }
 };
 g.doc.getElementById('sw-heat');   // make sure the element exists before init
-['sw-earthquake', 'sw-rain', 'sw-heat'].forEach(function (id) {
+['sw-earthquake', 'sw-heat'].forEach(function (id) {
   g.byId[id] = g.byId[id] || makeElement('button');
   g.byId[id]._subs['.mark'] = makeElement('span');
   g.byId[id].setAttribute('aria-pressed', 'false');
@@ -245,9 +241,6 @@ const clickDone = new Promise(function (r) { setImmediate(r); }).then(function (
   });
 });
 
-check('Heavy rain has no click handler (10.1)', function () {
-  assert.strictEqual((g.byId['sw-rain'].listeners.click || []).length, 0);
-});
 
 check('room temperature is hidden for an earthquake world (10.3)', function () {
   roomRow().hidden = false;

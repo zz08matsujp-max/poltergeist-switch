@@ -303,14 +303,12 @@ canvas {
 }
 .sw .mark { font-size: 11px; color: var(--mute); }
 .sw.on .mark { color: var(--lantern); }
-/* Disabled switches ("coming later" — Heavy rain, Heat wave) reject activation
-   (Req 4.4). */
+/* Disabled switches reject activation. */
 .sw[disabled],
 .sw.disabled {
   opacity: .5;
   cursor: not-allowed;
 }
-.sw .later { font-size: 10px; color: var(--mute); }
 
 /* ── resident meters (Req 4.10) ───────────────────────────────────────────── */
 .meters { display: grid; gap: 8px; }
@@ -341,7 +339,7 @@ canvas {
 .log .entry .who { color: var(--amber); }
 .log .entry .who.jade { color: var(--jade); }
 
-/* ── controls: Start / Pause / Step / Resume / Voices (Req 4.12, 9.1) ─────── */
+/* ── controls: Start / Voices (Req 4.12, 9.1) ─────── */
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 /* "Turn N of M" position counter sitting in the Replay controls row (Req 9.1,
    9.8-9.11). Plain live-updating text; empty until playback renders a turn. */

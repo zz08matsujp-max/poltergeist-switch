@@ -11,10 +11,8 @@ declare(strict_types=1);
  * a static HTML document whose only PHP is the no-store header below. All
  * episode work happens in the browser against api/index.php (see public/js/).
  *
- * This task (9.2) builds the LAYOUT and SETUP only; the run loop lives in
- * observe.js task 9.3 and the End_Card / 409 handling in task 9.4. The markup
- * leaves the hooks those tasks fill in (the End_Card container, the resume /
- * busy message slots) so they only add behaviour, not structure.
+ * The markup leaves the hooks observe.js fills in (the End_Card container,
+ * the resume / busy message slots).
  *
  * Caching: nginx sits in front of PHP, so every page MUST be uncacheable. The
  * no-store header is the FIRST thing this script does, before any output
@@ -84,10 +82,8 @@ header('Cache-Control: no-store');
     </section>
 
     <div class="board observe">
-      <!-- Breaker switches: exactly three; lever-up = ON, lever-down = OFF.
-           Earthquake and Heat wave are live; Heavy rain stays disabled and
-           labelled "coming later" (Req 4.3, 4.4; heat-wave Req 10.1). On first load the Earthquake
-           lever is OFF (no .on class) (Req 4.5). -->
+      <!-- Breaker switches: exactly two (Earthquake, Heat wave); lever-up = ON,
+           lever-down = OFF. On first load both levers are OFF (no .on class). -->
       <section class="panel" aria-label="Disaster switches">
         <h2>Breaker switches</h2>
         <div class="switches">
@@ -95,11 +91,6 @@ header('Cache-Control: no-store');
             <span class="lever" aria-hidden="true"></span>
             <span>Earthquake</span>
             <span class="mark">OFF</span>
-          </button>
-          <button type="button" class="sw" id="sw-rain" disabled aria-disabled="true">
-            <span class="lever" aria-hidden="true"></span>
-            <span>Heavy rain</span>
-            <span class="later">coming later</span>
           </button>
           <button type="button" class="sw" id="sw-heat" aria-pressed="false">
             <span class="lever" aria-hidden="true"></span>
@@ -153,14 +144,10 @@ header('Cache-Control: no-store');
       </section>
     </div>
 
-    <!-- Controls: Pause, Step, Resume, Voices on/off. A Start affordance is
-         included (the design shows Start creating the episode; the Earthquake
-         switch doubles as start in the run loop). -->
+    <!-- Controls: Start and Voices on/off. Start creates the episode; the
+         levers also start one in the run loop. -->
     <div class="controls">
       <button type="button" class="btn primary" id="btn-start">Start</button>
-      <button type="button" class="btn" id="btn-pause">Pause</button>
-      <button type="button" class="btn" id="btn-step">Step</button>
-      <button type="button" class="btn" id="btn-resume">Resume</button>
       <button type="button" class="btn" id="btn-voices" aria-pressed="false">Voices: off</button>
     </div>
 

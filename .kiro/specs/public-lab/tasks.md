@@ -254,7 +254,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 7.3**
     - Create `tests/TurnLoop/Properties/DirectAccessPropertyTest.php` (tag `Feature: public-lab, Property 10: Direct access does not depend on the caller`): same status and bytes for no cookie, the owner's cookie and another Device's cookie.
 
-- [~] 10. Add Voices, the speech sequencer and act-out sequencing
+- [x] 10. Add Voices, the speech sequencer and act-out sequencing
   - [x] 10.1 Add the JS test helpers for speech
     - Create `tests/js/helpers/fake-clock.js` (`setTimeout`, `clearTimeout`, `now` driven by `advance(ms)`), `fake-voices.js` (the fake Voices_Module: `speak(id, line, onDone) -> boolean`, `setOn/isOn`, `gesture`, `cancel`, `available`; records calls with virtual time; `finish('end'|'error')`; options `startsReading:false` and never-finish) and `fake-house.js` (records `showBubble(id, text, seconds)` and exposes the open bubbles).
     - _Requirements: 14.11_
@@ -291,14 +291,14 @@ Steering constraints that apply to every task:
     - Create `tests/js/act-out-speech.test.js`: `playTurn` resolves only after animation and speech are both done; a turn with no Spoken_Line waits 0 ms for speech; `cancel()` closes the bubble and resolves the pending turn; reduced motion jumps within 100 ms; no speech before the First_Gesture.
     - _Requirements: 11.3, 11.10, 11.12, 11.16, 14.11_
 
-- [ ] 11. Remove Pause, Step, Resume and Heavy rain from Observe
-  - [ ] 11.1 Remove the controls and the lever
+- [~] 11. Remove Pause, Step, Resume and Heavy rain from Observe
+  - [x] 11.1 Remove the controls and the lever
     - In `public/index.php` delete `#btn-pause`, `#btn-step`, `#btn-resume`, `#sw-rain` and the "coming later" text, and fix the stale comments. In `public/js/observe.js` remove `pause/step/resume`, `state.paused`, `stepOnce`, the three `el.btn*` lookups, their `wireControls` handlers, `el.swRain` and their exports. Remove the `.later` and any Pause/Step/Resume-only CSS from `public/css/screens.css`. Keep Start, Voices, Notice_Resume and "Watch a past episode".
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.7_
-  - [ ] 11.2 Write `observe-static.test.js`
+  - [x] 11.2 Write `observe-static.test.js`
     - Create `tests/js/observe-static.test.js`: `index.php` and `observe.js` contain none of `btn-pause`, `btn-step`, `btn-resume`, `sw-rain`, `Heavy rain`, `coming later`, `stepOnce`; two Levers only (Earthquake and Heat wave); Start and Voices exist; Replay's own Play, Pause, Step back and Step forward controls are unchanged in `replay.php`.
     - _Requirements: 10.1, 10.2, 10.5, 10.6, 14.10_
-  - [ ] 11.3 Update the existing JS tests that used the removed controls
+  - [x] 11.3 Update the existing JS tests that used the removed controls
     - Update `tests/js/heat-wave-screens.test.js` (remove the Heavy rain disabled and "coming later" assertions; everything else stays) and any of `end-card-reflection.test.js`, `memory-ui.test.js`, `disaster-already-set.test.js`, `ask-apply-recovery.test.js` that reference removed exports or elements.
     - _Requirements: 10.1, 10.5, 14.13_
 
