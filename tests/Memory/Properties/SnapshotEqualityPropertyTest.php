@@ -28,7 +28,7 @@ use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 use PoltergeistSwitch\TurnLoop\Values\TurnStateValue;
 
 /**
- * Feature: robot-memory, Property 4: The snapshot is the generation's active
+ * Feature: robot-memory (Device-scoped by public-lab), Property 4: The snapshot is the Device generation's active
  * memories, and every turn — live and rebuilt — uses the same block.
  *
  * For any memory store and a new episode, each robot's stored Memory_Snapshot
@@ -72,6 +72,9 @@ final class SnapshotEqualityPropertyTest extends TestCase
     /** The snapshot cap MemoryService applies when taking a new episode's snapshot (Req 6.1). */
     private const SNAPSHOT_CAP = 18;
 
+    /** The single Device under test. */
+    private const DEVICE = 'device_snapshot';
+
     /**
      * The fixed Appendix A Memories_Block heading (Req 6.3). Kept as a literal
      * here — SituationTextGenerator's constant is private — so the empty-
@@ -109,15 +112,15 @@ final class SnapshotEqualityPropertyTest extends TestCase
                 // generations; only the current generation's active rows, over
                 // all disasters, belong in a new episode's snapshot.
                 $repo = new InMemoryEpisodeRepository();
-                $currentGeneration = $repo->currentGeneration();
+                $currentGeneration = $repo->deviceGeneration(self::DEVICE);
                 $this->seedMemories($repo, $currentGeneration, $seedValue, $memoryCount);
 
                 // --- The snapshot MemoryService would freeze on the episode --
                 // Exactly activeMemories($robot, currentGeneration, 18): the
                 // current generation's active bodies across all disasters,
                 // oldest first, capped at 18 (Req 6.1).
-                $snapshotA = $repo->activeMemories('robot_a', $currentGeneration, self::SNAPSHOT_CAP);
-                $snapshotB = $repo->activeMemories('robot_b', $currentGeneration, self::SNAPSHOT_CAP);
+                $snapshotA = $repo->activeMemories(self::DEVICE, 'robot_a', $currentGeneration, self::SNAPSHOT_CAP);
+                $snapshotB = $repo->activeMemories(self::DEVICE, 'robot_b', $currentGeneration, self::SNAPSHOT_CAP);
 
                 // The snapshot equals the current generation's active bodies,
                 // oldest first, capped at 18 — assert the shape the property
@@ -141,7 +144,7 @@ final class SnapshotEqualityPropertyTest extends TestCase
                 $now = date('Y-m-d H:i:s');
                 $episodeId = $repo->createEpisode(new EpisodeRow(
                     id: 'ep_snapshot',
-                    deviceId: 'device_snapshot',
+                    deviceId: self::DEVICE,
                     disaster: 'earthquake',
                     seed: $seedValue,
                     currentExpectedTurn: $playedTurns + 1,
@@ -267,7 +270,7 @@ final class SnapshotEqualityPropertyTest extends TestCase
         // with an uncapped read, then apply the cap here, so a bug in the cap
         // on the service path (which uses 18) is still catchable: the two reads
         // use different caps and must agree after this slice.
-        $uncapped = $repo->activeMemories($robotId, $generation, PHP_INT_MAX)->bodies;
+        $uncapped = $repo->activeMemories(self::DEVICE, $robotId, $generation, PHP_INT_MAX)->bodies;
         if (count($uncapped) > self::SNAPSHOT_CAP) {
             $uncapped = array_slice($uncapped, count($uncapped) - self::SNAPSHOT_CAP);
         }
@@ -336,6 +339,7 @@ final class SnapshotEqualityPropertyTest extends TestCase
                 body: "Memory {$i} for {$robot} ({$disaster}, gen {$generation}).",
                 status: 'active',
                 createdAt: date('Y-m-d H:i:s'),
+                deviceId: self::DEVICE,
             ));
         }
     }

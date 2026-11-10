@@ -301,7 +301,7 @@ class ReflectIdempotencyPropertyTest extends TestCase
 
         // Freeze an empty snapshot so episodeHasSnapshot() is true: the episode
         // is post-feature and reflectable (Requirement 2.2).
-        $repo->storeEpisodeMemory($episodeId, $repo->currentGeneration(), new MemorySnapshot([]), new MemorySnapshot([]));
+        $repo->storeEpisodeMemory($episodeId, $repo->deviceGeneration('device_reflect'), new MemorySnapshot([]), new MemorySnapshot([]));
 
         // A single quiet applied turn 0 so ReplayEngineFactory can rebuild the
         // engine and world (it replays applied turns, including turn 0).

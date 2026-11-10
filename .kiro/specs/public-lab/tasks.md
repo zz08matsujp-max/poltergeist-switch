@@ -56,7 +56,7 @@ Steering constraints that apply to every task:
     - Create `tests/Memory/PublicLabMigrationFileTest.php` in the style of `MigrationFileTest`: the file exists with the dated name; the header says to apply it before deploying and that it is never run by tasks; only `CREATE TABLE`, `ADD COLUMN ... NULL` and `ADD KEY` appear; no `DROP`, `UPDATE`, `DELETE`, `TRUNCATE`; utf8mb4; no secret-like text.
     - _Requirements: 1.6, 1.7, 5.1, 5.3, 13.17_
 
-- [-] 3. Add Config values and the pure limit and IP classes
+- [x] 3. Add Config values and the pure limit and IP classes
   - [x] 3.1 Add the public-lab parameters to `Config`
     - In `src/TurnLoop/Config.php` append promoted parameters with defaults: `dailyDeviceLimit` 10, `dailyIpLimit` 30, `dailySiteLimit` 100, and `featuredEpisodeIds` (the eight ids of Requirement 6.1, in that order).
     - Extend `assertInvariants()`: each limit is at least 1 and each featured id matches the UUID pattern. Existing `new Config()` callers are unaffected.
@@ -77,34 +77,34 @@ Steering constraints that apply to every task:
     - Create `tests/TurnLoop/ClientIpTest.php` and `tests/TurnLoop/IpHasherTest.php`: normalisation examples (public v4, public v6 in one /64, mapped v4, 127.0.0.1, 10.x, 192.168.x, ::1, garbage), hash determinism, 64 lowercase hex, different salt gives a different hash, device and ip scopes never collide.
     - _Requirements: 13.14, 14.19_
 
-- [ ] 4. Make memory Device-scoped in the repositories, services and routes
-  - [ ] 4.1 Extend `MemoryRow` and the `EpisodeRepository` interface
+- [~] 4. Make memory Device-scoped in the repositories, services and routes
+  - [x] 4.1 Extend `MemoryRow` and the `EpisodeRepository` interface
     - Add trailing `public ?string $deviceId = null` to `MemoryRow`.
     - Add to the interface: `deviceGeneration`, `recordDeviceReset`, `latestDeviceResetAt`; change `activeMemories` and `activeCount` to take a leading `string $deviceId`; `appendMemory` and `commitReflectionAnswer` cap on `(device, robot, disaster, generation)`.
     - Mark `currentGeneration()` and `advanceGeneration()` `@deprecated` and leave them in place and uncalled.
     - _Requirements: 2.1, 2.2, 2.10, 4.1, 5.5_
-  - [ ] 4.2 Implement the Device methods in `InMemoryEpisodeRepository`
+  - [x] 4.2 Implement the Device methods in `InMemoryEpisodeRepository`
     - In `tests/TurnLoop/InMemoryEpisodeRepository.php`: the same semantics as the SQL, including retiring the oldest surplus (`ORDER BY id DESC OFFSET 6` meaning) per `(device, robot, disaster, generation)`, `device_id IS NULL` rows ignored by every read, an injectable clock, and no row ever deleted.
     - _Requirements: 2.2, 2.6, 2.10, 2.11, 4.3, 5.2, 5.5_
-  - [ ] 4.3 Implement the Device methods in `PdoEpisodeRepository` (with the retire-order fix)
+  - [x] 4.3 Implement the Device methods in `PdoEpisodeRepository` (with the retire-order fix)
     - In `src/TurnLoop/Repository/PdoEpisodeRepository.php`: all new reads filter `device_id = :device`; `recordDeviceReset` inserts one row into `device_resets` and returns the new generation; the cap triple includes `device_id`.
     - Fix C1: retire the oldest surplus with `ORDER BY id DESC LIMIT 1000 OFFSET 6` inside the existing `SELECT ... FOR UPDATE` serialisation, in both `appendMemory` and `commitReflectionAnswer`.
     - _Requirements: 2.2, 2.10, 2.11, 4.1, 4.3, 5.5_
-  - [ ] 4.4 Make `MemoryService` Device-scoped
+  - [x] 4.4 Make `MemoryService` Device-scoped
     - `snapshotForNewEpisode(string $episodeId, string $deviceId)` reads `deviceGeneration`, then `activeMemories(device, robot, generation, 18)` for both robots and stores the frozen snapshot.
     - `status(?string $deviceId)`: a null Device reports generation 1 and zeros. `reset(?string $deviceId)`: a null Device is a no-op; a running episode of the Device throws `ApiError::conflict('episode_running')`; otherwise `recordDeviceReset` (every accepted reset is recorded).
     - _Requirements: 2.2, 2.3, 2.4, 2.6, 2.7, 2.13, 3.1, 3.2, 4.1, 4.4, 4.5, 4.6, 4.7_
-  - [ ] 4.5 Make `ReflectService` Device-scoped
+  - [x] 4.5 Make `ReflectService` Device-scoped
     - Read `$episode->deviceId` once; pass it to every `activeCount(...)`; tag the stored `MemoryRow` with it; keep the generation from `episodeGeneration($episodeId)`. No change to the reflection text builder or any version constant.
     - _Requirements: 2.1, 2.12, 4.8_
-  - [ ] 4.6 Thread the Device through `api/`
+  - [x] 4.6 Thread the Device through `api/`
     - `api/memory_get.php`, `api/memory_reset.php` and `api/router.php` pass the nullable cookie Device to the service (no cookie: 200 with an empty status, nothing recorded, no cookie minted); `api/episodes_create.php` passes the Device to `snapshotForNewEpisode`. The reset 409 is the service's `ApiError`, mapped by the router's existing catch. Every response keeps `Cache-Control: no-store` and carries no Device_Id.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.4, 4.6, 4.9_
-  - [ ] 4.7 Update the existing unit tests for the new signatures
+  - [x] 4.7 Update the existing unit tests for the new signatures
     - Update `tests/Memory/Repository/EpisodeRepositoryTest.php` (new signatures; keep `testPdoTwoPerTripleCommitsSerializeToExactlySix` and make it Device-aware), `tests/Memory/MemoryServiceTest.php`, `tests/Memory/ReflectServiceTest.php`, `tests/Memory/ApiRoutingTest.php` and any `tests/TurnLoop/*` test that calls a changed method. These assert the old global behaviour, which this spec replaces on purpose (design C2).
     - Do not touch any protected expected value.
     - _Requirements: 2.2, 2.10, 5.5, 14.13_
-  - [ ] 4.8 Update the existing Memory property tests to per-Device behaviour
+  - [x] 4.8 Update the existing Memory property tests to per-Device behaviour
     - Rewrite `tests/Memory/Properties/ResetZeroPropertyTest.php`, `CapRetirementPropertyTest.php`, `SnapshotEqualityPropertyTest.php`, `StatusCountsPropertyTest.php` and `ReflectIdempotencyPropertyTest.php` for a single Device (global reset replaced by Device reset); `NoLeakPropertyTest.php` and `NoStorePropertyTest.php` keep their routes and assertions.
     - _Requirements: 2.10, 3.1, 4.1, 14.13_
 

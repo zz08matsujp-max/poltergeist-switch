@@ -973,6 +973,14 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
      */
     private int $currentGeneration = 1;
 
+    /**
+     * Append-only Device reset log (the `device_resets` table): one entry per
+     * accepted reset, in insertion order. Never updated or deleted.
+     *
+     * @var list<array{deviceId:string, resetAt:string}>
+     */
+    private array $deviceResets = [];
+
     /** The finish-order sequence shared by appended memories (the auto-increment id). */
     private int $nextMemorySeq = 1;
 
@@ -1001,6 +1009,40 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
     public function currentGeneration(): int
     {
         return $this->currentGeneration;
+    }
+
+    public function deviceGeneration(string $deviceId): int
+    {
+        // 1 + the number of reset rows recorded for this Device (Req 2.2).
+        $count = 0;
+        foreach ($this->deviceResets as $reset) {
+            if ($reset['deviceId'] === $deviceId) {
+                $count++;
+            }
+        }
+
+        return 1 + $count;
+    }
+
+    public function recordDeviceReset(string $deviceId, string $now): int
+    {
+        // Append-only: one new row, nothing updated or deleted (Req 2.10).
+        $this->deviceResets[] = ['deviceId' => $deviceId, 'resetAt' => $now];
+
+        return $this->deviceGeneration($deviceId);
+    }
+
+    public function latestDeviceResetAt(string $deviceId): ?string
+    {
+        // The most recently appended reset of this Device (highest id).
+        $latest = null;
+        foreach ($this->deviceResets as $reset) {
+            if ($reset['deviceId'] === $deviceId) {
+                $latest = $reset['resetAt'];
+            }
+        }
+
+        return $latest;
     }
 
     public function advanceGeneration(): int
@@ -1063,7 +1105,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
 
     // --- Memories: read --------------------------------------------------
 
-    public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
+    public function activeMemories(string $deviceId, string $robotId, int $generation, int $cap): MemorySnapshot
     {
         // Active rows of (robot, generation) across ALL disasters, oldest first
         // by finish-order seq, excluding retired and other-generation rows
@@ -1072,7 +1114,10 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         // store) — the snapshot still reads oldest first.
         $rows = [];
         foreach ($this->memories as $memory) {
-            if ($memory->robotId === $robotId
+            // device_id = :device never matches a NULL (legacy) row.
+            if ($memory->deviceId !== null
+                && $memory->deviceId === $deviceId
+                && $memory->robotId === $robotId
                 && $memory->generation === $generation
                 && $memory->status === 'active'
             ) {
@@ -1095,13 +1140,16 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         return new MemorySnapshot($bodies);
     }
 
-    public function activeCount(string $robotId, int $generation, string $disaster): int
+    public function activeCount(string $deviceId, string $robotId, int $generation, string $disaster): int
     {
-        // Active rows of the (robot, disaster, generation) triple, excluding
-        // retired and other-generation rows (Req 3.3). The per-triple cap is 6.
+        // Active rows of the (device, robot, disaster, generation) group,
+        // excluding retired, other-generation and legacy (no owner) rows. The
+        // per-group cap is 6.
         $count = 0;
         foreach ($this->memories as $memory) {
-            if ($memory->robotId === $robotId
+            if ($memory->deviceId !== null
+                && $memory->deviceId === $deviceId
+                && $memory->robotId === $robotId
                 && $memory->generation === $generation
                 && $memory->disaster === $disaster
                 && $memory->status === 'active'
@@ -1141,6 +1189,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
             createdAt: $memory->createdAt,
             seq: $this->nextMemorySeq++,
             retiredAt: null,
+            deviceId: $memory->deviceId,
         );
 
         // Retire oldest-active rows of this triple down to at most 6 (Req 3.3,
@@ -1151,7 +1200,11 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         // kept in the store (status flipped, retired_at set), never deleted
         // (Req 3.5), and only this triple is touched so no other-generation or
         // other-disaster memory is retired.
-        $this->retireSurplus($memory->robotId, $memory->disaster, $memory->generation);
+        // A row with no owner belongs to no group (device_id = :device never
+        // matches NULL), so it retires nothing.
+        if ($memory->deviceId !== null) {
+            $this->retireSurplus($memory->deviceId, $memory->robotId, $memory->disaster, $memory->generation);
+        }
     }
 
     /**
@@ -1159,14 +1212,17 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
      * at most 6 remain active, oldest first by finish-order seq (Req 3.4, 8.4).
      * Flips status to 'retired' and sets retired_at in place; never deletes.
      */
-    private function retireSurplus(string $robotId, string $disaster, int $generation): void
+    private function retireSurplus(string $deviceId, string $robotId, string $disaster, int $generation): void
     {
         $cap = 6;
 
-        // Indexes of this triple's active rows, oldest first by seq.
+        // Indexes of this group's active rows, oldest first by seq. The oldest
+        // surplus is retired and the newest 6 stay active (the SQL's
+        // ORDER BY id DESC OFFSET 6).
         $activeIndexes = [];
         foreach ($this->memories as $index => $existing) {
-            if ($existing->robotId === $robotId
+            if ($existing->deviceId === $deviceId
+                && $existing->robotId === $robotId
                 && $existing->disaster === $disaster
                 && $existing->generation === $generation
                 && $existing->status === 'active'
@@ -1199,6 +1255,7 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
                 createdAt: $row->createdAt,
                 seq: $row->seq,
                 retiredAt: $retiredAt,
+                deviceId: $row->deviceId,
             );
         }
     }

@@ -50,6 +50,9 @@ class CapRetirementPropertyTest extends TestCase
     /** The cross-disaster snapshot cap used by activeMemories (Requirement 3.8). */
     private const SNAPSHOT_CAP = 18;
 
+    /** The single Device under test. */
+    private const DEVICE = 'device_cap_prop';
+
     private const ROBOTS = ['robot_a', 'robot_b'];
 
     private const DISASTERS = ['earthquake', 'heavy_rain', 'heat_wave'];
@@ -203,9 +206,9 @@ class CapRetirementPropertyTest extends TestCase
                         $body,
                         $createdAt,
                     );
-                    $before = $repo->activeCount($robotId, $generation, $disaster);
+                    $before = $repo->activeCount(self::DEVICE, $robotId, $generation, $disaster);
                     $repo->commitReflectionAnswer($episodeId, $robotId, $memory);
-                    $after = $repo->activeCount($robotId, $generation, $disaster);
+                    $after = $repo->activeCount(self::DEVICE, $robotId, $generation, $disaster);
 
                     // Exactly one memory appended per committed answer.
                     $this->assertSame(
@@ -220,7 +223,7 @@ class CapRetirementPropertyTest extends TestCase
                 // Read back: the active bodies of this (robot, generation)
                 // across all disasters, oldest first, must equal the bodies in
                 // the exact finish order they were committed, byte-for-byte.
-                $snapshot = $repo->activeMemories($robotId, $generation, self::SNAPSHOT_CAP);
+                $snapshot = $repo->activeMemories(self::DEVICE, $robotId, $generation, self::SNAPSHOT_CAP);
                 $this->assertSame(
                     $stored,
                     $snapshot->bodies,
@@ -276,7 +279,7 @@ class CapRetirementPropertyTest extends TestCase
         foreach ($touched as $pairKey => [$robotId, $generation]) {
             // At most 6 active per triple, for every disaster.
             foreach (self::DISASTERS as $disaster) {
-                $count = $repo->activeCount($robotId, $generation, $disaster);
+                $count = $repo->activeCount(self::DEVICE, $robotId, $generation, $disaster);
                 $this->assertLessThanOrEqual(
                     self::TRIPLE_CAP,
                     $count,
@@ -287,7 +290,7 @@ class CapRetirementPropertyTest extends TestCase
 
             // The cross-disaster snapshot, oldest first, excluding retired and
             // other-generation rows.
-            $snapshot = $repo->activeMemories($robotId, $generation, self::SNAPSHOT_CAP);
+            $snapshot = $repo->activeMemories(self::DEVICE, $robotId, $generation, self::SNAPSHOT_CAP);
             $bodies = $snapshot->bodies;
 
             // The expected active bodies: the appended bodies of this pair that
@@ -385,6 +388,7 @@ class CapRetirementPropertyTest extends TestCase
             body: $body,
             status: 'active',
             createdAt: $createdAt,
+            deviceId: self::DEVICE,
         );
     }
 }

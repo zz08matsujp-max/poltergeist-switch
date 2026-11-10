@@ -24,9 +24,10 @@ use PoltergeistSwitch\Memory\Values\MemoryStatus;
  * Handle the status request: report the current generation and per-robot
  * counts and lengths.
  */
-function ps_handle_memory_get(MemoryService $service): PsApiResponse
+function ps_handle_memory_get(MemoryService $service, ?string $deviceId = null): PsApiResponse
 {
-    return ps_json_response(200, ps_memory_status_to_array($service->status()));
+    // A null Device (no cookie) gets the empty status; no cookie is minted.
+    return ps_json_response(200, ps_memory_status_to_array($service->status($deviceId)));
 }
 
 /**

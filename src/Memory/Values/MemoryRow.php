@@ -28,5 +28,6 @@ readonly class MemoryRow
         public string $createdAt,       // ISO-8601
         public ?int $seq = null,        // finish-order sequence; set by the store (Req 3.7)
         public ?string $retiredAt = null, // set when retired; null while active
+        public ?string $deviceId = null,  // owning Device (public-lab Req 2.1); null for legacy rows
     ) {}
 }

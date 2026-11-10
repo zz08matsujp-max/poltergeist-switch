@@ -56,7 +56,7 @@ function ps_handle_create(
     // pre-feature episode. Part of the create flow, over the same repository the
     // episode was created in.
     if ($memoryService !== null) {
-        $memoryService->snapshotForNewEpisode($view->episodeId);
+        $memoryService->snapshotForNewEpisode($view->episodeId, $deviceId);
     }
 
     return ps_json_response(200, ps_episode_view_to_array($view), $setDeviceId);

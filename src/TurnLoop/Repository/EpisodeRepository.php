@@ -263,14 +263,36 @@ interface EpisodeRepository
      * Return the current memory generation (robot-memory Requirement 4.1). The
      * generation partitions every robot's memories: a reset advances it so new
      * episodes start with none, while older memories are kept but excluded.
+     *
+     * @deprecated Memory is Device-scoped (public-lab Req 2.1); use deviceGeneration().
      */
     public function currentGeneration(): int;
+
+    /**
+     * Return a Device's current memory generation: 1 + the number of resets
+     * recorded for it (public-lab Req 2.1, 2.2).
+     */
+    public function deviceGeneration(string $deviceId): int;
+
+    /**
+     * Append one reset row for the Device and return its new generation
+     * (public-lab Req 2.2, 2.10). No memory row is deleted.
+     */
+    public function recordDeviceReset(string $deviceId, string $now): int;
+
+    /**
+     * Return the time of the Device's latest reset, or null if it never reset
+     * (public-lab Req 4.1, 5.5).
+     */
+    public function latestDeviceResetAt(string $deviceId): ?string;
 
     /**
      * Advance the current memory generation to a new, higher integer and return
      * it (robot-memory Requirement 4.2). No memory row is ever deleted; a reset
      * only moves the current generation forward so later episodes see none of
      * the earlier generation's memories.
+     *
+     * @deprecated Memory is Device-scoped (public-lab Req 2.2); use recordDeviceReset().
      */
     public function advanceGeneration(): int;
 
@@ -336,20 +358,20 @@ interface EpisodeRepository
      * generation are excluded. This is the list frozen into an episode's
      * snapshot at creation (draft cap 18).
      */
-    public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot;
+    public function activeMemories(string $deviceId, string $robotId, int $generation, int $cap): MemorySnapshot;
 
     /**
      * Return how many active memories ($robotId, $generation) currently has for
      * one $disaster (robot-memory Requirement 3.3), excluding retired and
      * other-generation rows. The per-triple active cap is 6.
      */
-    public function activeCount(string $robotId, int $generation, string $disaster): int;
+    public function activeCount(string $deviceId, string $robotId, int $generation, string $disaster): int;
 
     // --- Memories: write with cap + retirement, atomic -------------------
 
     /**
      * Store one memory and retire oldest-active rows for its
-     * ($robotId, $disaster, $generation) triple until at most 6 remain active
+     * ($memory->deviceId, $robotId, $disaster, $generation) group until at most 6 remain active
      * (robot-memory Requirements 3.3, 3.4, 8.4). The whole operation runs in a
      * single transaction that FIRST takes a locking read (SELECT ... FOR
      * UPDATE) over that triple's active rows, so two interleaved commits for
@@ -383,7 +405,7 @@ interface EpisodeRepository
     /**
      * Commit a non-empty reflection answer in a short transaction (robot-memory
      * Requirements 2.6, 8.4): append the memory with the cap/retirement applied
-     * in the same transaction (serialized per robot/disaster/generation) and
+     * in the same transaction (serialized per device/robot/disaster/generation) and
      * mark the slot 'answered'. Idempotent with appendMemory per source episode
      * + robot, so a repeated commit of an already-stored answer creates no
      * duplicate memory.

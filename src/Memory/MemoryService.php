@@ -6,6 +6,7 @@ namespace PoltergeistSwitch\Memory;
 
 use PoltergeistSwitch\Memory\Values\MemorySnapshot;
 use PoltergeistSwitch\Memory\Values\MemoryStatus;
+use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\Repository\EpisodeRepository;
 
 /**
@@ -39,7 +40,16 @@ final class MemoryService
     private const ROBOT_A = 'robot_a';
     private const ROBOT_B = 'robot_b';
 
-    public function __construct(private readonly EpisodeRepository $repo) {}
+    /** @var callable():string returns 'Y-m-d H:i:s' (injectable for tests) */
+    private $clock;
+
+    /**
+     * @param callable():string|null $clock returns 'Y-m-d H:i:s'; defaults to date()
+     */
+    public function __construct(private readonly EpisodeRepository $repo, ?callable $clock = null)
+    {
+        $this->clock = $clock ?? static fn (): string => date('Y-m-d H:i:s');
+    }
 
     /**
      * Take and store the per-robot memory snapshot and the episode's
@@ -58,12 +68,12 @@ final class MemoryService
      * so a freshly reset generation's robots start with zero memories
      * (Requirements 4.2, 4.3).
      */
-    public function snapshotForNewEpisode(string $episodeId): void
+    public function snapshotForNewEpisode(string $episodeId, string $deviceId): void
     {
-        $generation = $this->repo->currentGeneration();
+        $generation = $this->repo->deviceGeneration($deviceId);
 
-        $robotA = $this->repo->activeMemories(self::ROBOT_A, $generation, self::SNAPSHOT_CAP);
-        $robotB = $this->repo->activeMemories(self::ROBOT_B, $generation, self::SNAPSHOT_CAP);
+        $robotA = $this->repo->activeMemories($deviceId, self::ROBOT_A, $generation, self::SNAPSHOT_CAP);
+        $robotB = $this->repo->activeMemories($deviceId, self::ROBOT_B, $generation, self::SNAPSHOT_CAP);
 
         $this->repo->storeEpisodeMemory($episodeId, $generation, $robotA, $robotB);
     }
@@ -81,11 +91,22 @@ final class MemoryService
      * the new generation and its later reflections store under its own
      * generation (Requirement 4.4).
      */
-    public function reset(): MemoryStatus
+    public function reset(?string $deviceId): MemoryStatus
     {
-        $this->repo->advanceGeneration();
+        // No Device: nothing to reset (public-lab Req 2.13).
+        if ($deviceId === null) {
+            return $this->status(null);
+        }
 
-        return $this->status();
+        // A running episode of this Device blocks the reset (Req 2.6, 2.7).
+        if ($this->repo->findRunningEpisodeForDevice($deviceId) !== null) {
+            throw ApiError::conflict('episode_running');
+        }
+
+        // Every accepted reset is recorded; nothing is deleted (Req 2.2, 2.10).
+        $this->repo->recordDeviceReset($deviceId, ($this->clock)());
+
+        return $this->status($deviceId);
     }
 
     /**
@@ -99,12 +120,23 @@ final class MemoryService
      * excluded (Requirement 5.3). The result carries no device id, API key,
      * database credential, or AI company/model name (Requirement 5.4).
      */
-    public function status(): MemoryStatus
+    public function status(?string $deviceId): MemoryStatus
     {
-        $generation = $this->repo->currentGeneration();
+        // No Device: generation 1 and zeros (public-lab Req 2.3, 2.4).
+        if ($deviceId === null) {
+            return new MemoryStatus(
+                generation: 1,
+                amberActiveCount: 0,
+                amberLengths: [],
+                jadeActiveCount: 0,
+                jadeLengths: [],
+            );
+        }
 
-        $amberBodies = $this->repo->activeMemories(self::ROBOT_A, $generation, self::SNAPSHOT_CAP)->bodies;
-        $jadeBodies = $this->repo->activeMemories(self::ROBOT_B, $generation, self::SNAPSHOT_CAP)->bodies;
+        $generation = $this->repo->deviceGeneration($deviceId);
+
+        $amberBodies = $this->repo->activeMemories($deviceId, self::ROBOT_A, $generation, self::SNAPSHOT_CAP)->bodies;
+        $jadeBodies = $this->repo->activeMemories($deviceId, self::ROBOT_B, $generation, self::SNAPSHOT_CAP)->bodies;
 
         return new MemoryStatus(
             generation: $generation,

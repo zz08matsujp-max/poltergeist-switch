@@ -1265,6 +1265,87 @@ final class PdoEpisodeRepository implements EpisodeRepository
         return $next;
     }
 
+    public function deviceGeneration(string $deviceId): int
+    {
+        // 1 + the number of Reset_Points recorded for the Device (public-lab
+        // Req 2.2). A Device that never reset is in generation 1.
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM device_resets WHERE device_id = :device'
+        );
+        $stmt->bindValue(':device', $deviceId);
+        $stmt->execute();
+
+        return 1 + (int) $stmt->fetchColumn();
+    }
+
+    public function recordDeviceReset(string $deviceId, string $now): int
+    {
+        // Append exactly one row; nothing is updated or deleted (Req 2.10).
+        // The new generation is read back in the same transaction.
+        $this->pdo->beginTransaction();
+        try {
+            $insert = $this->pdo->prepare(
+                'INSERT INTO device_resets (device_id, reset_at) VALUES (:device, :reset_at)'
+            );
+            $insert->bindValue(':device', $deviceId);
+            $insert->bindValue(':reset_at', $now);
+            $insert->execute();
+
+            $generation = $this->deviceGeneration($deviceId);
+
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw new RuntimeException('recordDeviceReset failed; rolled back', 0, $e);
+        }
+
+        return $generation;
+    }
+
+    public function latestDeviceResetAt(string $deviceId): ?string
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT MAX(reset_at) FROM device_resets WHERE device_id = :device'
+        );
+        $stmt->bindValue(':device', $deviceId);
+        $stmt->execute();
+
+        $value = $stmt->fetchColumn();
+        if ($value === false || $value === null) {
+            return null;
+        }
+
+        return (string) $value;
+    }
+
+    // --- Internal: memory owner predicate --------------------------------
+
+    private function deviceClause(?string $deviceId): string
+    {
+        // A legacy row (null owner) is only ever written by a null-device
+        // MemoryRow; keep its cap group separate with IS NULL.
+        return $deviceId === null ? 'device_id IS NULL' : 'device_id = :device';
+    }
+
+    private function bindDevice(\PDOStatement $stmt, ?string $deviceId): void
+    {
+        if ($deviceId !== null) {
+            $stmt->bindValue(':device', $deviceId);
+        }
+    }
+
+    private function bindDeviceValue(\PDOStatement $stmt, ?string $deviceId): void
+    {
+        if ($deviceId === null) {
+            $stmt->bindValue(':device', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue(':device', $deviceId);
+        }
+    }
+
     // --- Per-episode snapshot + generation -------------------------------
 
     public function storeEpisodeMemory(
@@ -1356,7 +1437,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
 
     // --- Memories: read --------------------------------------------------
 
-    public function activeMemories(string $robotId, int $generation, int $cap): MemorySnapshot
+    public function activeMemories(string $deviceId, string $robotId, int $generation, int $cap): MemorySnapshot
     {
         // Active memories of (robot, generation) across ALL disasters, oldest
         // first by finish-order sequence (id ASC), capped at $cap (Requirements
@@ -1370,11 +1451,12 @@ final class PdoEpisodeRepository implements EpisodeRepository
 
         $stmt = $this->pdo->prepare(
             'SELECT body FROM memories '
-            . 'WHERE robot_id = :robot_id AND generation = :generation '
+            . 'WHERE device_id = :device AND robot_id = :robot_id AND generation = :generation '
             . "AND status = 'active' "
             . 'ORDER BY id ASC '
             . 'LIMIT :cap'
         );
+        $stmt->bindValue(':device', $deviceId);
         $stmt->bindValue(':robot_id', $robotId);
         $stmt->bindValue(':generation', $generation, PDO::PARAM_INT);
         $stmt->bindValue(':cap', $cap, PDO::PARAM_INT);
@@ -1392,16 +1474,17 @@ final class PdoEpisodeRepository implements EpisodeRepository
         return new MemorySnapshot($bodies);
     }
 
-    public function activeCount(string $robotId, int $generation, string $disaster): int
+    public function activeCount(string $deviceId, string $robotId, int $generation, string $disaster): int
     {
         // How many active memories (robot, generation) has for one disaster
         // (Requirement 3.3), excluding retired and other-generation rows,
         // served by idx_active_pick.
         $stmt = $this->pdo->prepare(
             'SELECT COUNT(*) FROM memories '
-            . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+            . 'WHERE device_id = :device AND robot_id = :robot_id AND disaster = :disaster '
             . "AND generation = :generation AND status = 'active'"
         );
+        $stmt->bindValue(':device', $deviceId);
         $stmt->bindValue(':robot_id', $robotId);
         $stmt->bindValue(':disaster', $disaster);
         $stmt->bindValue(':generation', $generation, PDO::PARAM_INT);
@@ -1415,7 +1498,7 @@ final class PdoEpisodeRepository implements EpisodeRepository
     public function appendMemory(MemoryRow $memory): void
     {
         // Store one memory and retire oldest-active rows for its
-        // (robot, disaster, generation) triple down to at most 6 active
+        // (device, robot, disaster, generation) triple down to at most 6 active
         // (Requirements 3.3, 3.4, 8.4). The whole operation is ONE transaction
         // that first takes a locking read over that triple's active rows, so
         // two interleaved commits for the same triple — even from two different
@@ -1438,10 +1521,11 @@ final class PdoEpisodeRepository implements EpisodeRepository
             //    from a stale snapshot (design step 1).
             $lock = $this->pdo->prepare(
                 'SELECT id FROM memories '
-                . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                . 'WHERE ' . $this->deviceClause($memory->deviceId) . ' AND robot_id = :robot_id AND disaster = :disaster '
                 . "AND generation = :generation AND status = 'active' "
                 . 'FOR UPDATE'
             );
+            $this->bindDevice($lock, $memory->deviceId);
             $lock->bindValue(':robot_id', $memory->robotId);
             $lock->bindValue(':disaster', $memory->disaster);
             $lock->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
@@ -1453,9 +1537,10 @@ final class PdoEpisodeRepository implements EpisodeRepository
             //    higher id and oldest-first is id ASC.
             $insert = $this->pdo->prepare(
                 'INSERT INTO memories '
-                . '(robot_id, generation, disaster, source_episode_id, body, status, created_at) '
-                . "VALUES (:robot_id, :generation, :disaster, :source_episode_id, :body, 'active', :created_at)"
+                . '(device_id, robot_id, generation, disaster, source_episode_id, body, status, created_at) '
+                . "VALUES (:device, :robot_id, :generation, :disaster, :source_episode_id, :body, 'active', :created_at)"
             );
+            $this->bindDeviceValue($insert, $memory->deviceId);
             $insert->bindValue(':robot_id', $memory->robotId);
             $insert->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
             $insert->bindValue(':disaster', $memory->disaster);
@@ -1476,14 +1561,15 @@ final class PdoEpisodeRepository implements EpisodeRepository
                 . 'WHERE id IN ( '
                 . 'SELECT id FROM ( '
                 . 'SELECT id FROM memories '
-                . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                . 'WHERE ' . $this->deviceClause($memory->deviceId) . ' AND robot_id = :robot_id AND disaster = :disaster '
                 . "AND generation = :generation AND status = 'active' "
-                . 'ORDER BY id ASC '
+                . 'ORDER BY id DESC '
                 . 'LIMIT 1000 OFFSET ' . self::MEMORY_ACTIVE_CAP . ' '
                 . ') AS surplus '
                 . ')'
             );
             $retire->bindValue(':retired_at', $this->now());
+            $this->bindDevice($retire, $memory->deviceId);
             $retire->bindValue(':robot_id', $memory->robotId);
             $retire->bindValue(':disaster', $memory->disaster);
             $retire->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
@@ -1613,10 +1699,11 @@ final class PdoEpisodeRepository implements EpisodeRepository
                 // 1. SERIALISE this triple's active rows (design step 1).
                 $lock = $this->pdo->prepare(
                     'SELECT id FROM memories '
-                    . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                    . 'WHERE ' . $this->deviceClause($memory->deviceId) . ' AND robot_id = :robot_id AND disaster = :disaster '
                     . "AND generation = :generation AND status = 'active' "
                     . 'FOR UPDATE'
                 );
+                $this->bindDevice($lock, $memory->deviceId);
                 $lock->bindValue(':robot_id', $memory->robotId);
                 $lock->bindValue(':disaster', $memory->disaster);
                 $lock->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
@@ -1626,9 +1713,10 @@ final class PdoEpisodeRepository implements EpisodeRepository
                 // 2. Append the new memory (finish-order seq = auto-increment id).
                 $insert = $this->pdo->prepare(
                     'INSERT INTO memories '
-                    . '(robot_id, generation, disaster, source_episode_id, body, status, created_at) '
-                    . "VALUES (:robot_id, :generation, :disaster, :source_episode_id, :body, 'active', :created_at)"
+                    . '(device_id, robot_id, generation, disaster, source_episode_id, body, status, created_at) '
+                    . "VALUES (:device, :robot_id, :generation, :disaster, :source_episode_id, :body, 'active', :created_at)"
                 );
+                $this->bindDeviceValue($insert, $memory->deviceId);
                 $insert->bindValue(':robot_id', $memory->robotId);
                 $insert->bindValue(':generation', $memory->generation, PDO::PARAM_INT);
                 $insert->bindValue(':disaster', $memory->disaster);
@@ -1645,14 +1733,16 @@ final class PdoEpisodeRepository implements EpisodeRepository
                     . 'WHERE id IN ( '
                     . 'SELECT id FROM ( '
                     . 'SELECT id FROM memories '
-                    . 'WHERE robot_id = :robot_id AND disaster = :disaster '
+                    . 'WHERE ' . $this->deviceClause($memory->deviceId) . ' AND robot_id = :robot_id AND disaster = :disaster '
                     . "AND generation = :generation AND status = 'active' "
-                    . 'ORDER BY id ASC '
+                    . 'ORDER BY id DESC '
                     . 'LIMIT 1000 OFFSET ' . self::MEMORY_ACTIVE_CAP . ' '
                     . ') AS surplus '
                     . ')'
                 );
                 $retire->bindValue(':retired_at', $this->now());
+                $this->bindDevice($retire, $memory->deviceId);
+            $this->bindDevice($retire, $memory->deviceId);
                 $retire->bindValue(':robot_id', $memory->robotId);
                 $retire->bindValue(':disaster', $memory->disaster);
                 $retire->bindValue(':generation', $memory->generation, PDO::PARAM_INT);

@@ -137,6 +137,9 @@ final class ReflectService
 
         $generation = $this->repo->episodeGeneration($episodeId);
         $disaster = $episode->disaster;
+        // The Device that owns the episode: memory is scoped to it
+        // (public-lab Requirements 2.1, 4.8). Read once, never sent to a robot.
+        $deviceId = $episode->deviceId;
 
         // 3. Per robot, claim a slot. A claim is one of: reuse (already
         //    answered — reuse the stored body, no call), skip (a fresh
@@ -160,7 +163,7 @@ final class ReflectService
                 $reflections[$robotId] = new RobotReflection(
                     answered: true,
                     memory: $claim->reusedBody,
-                    activeCount: $this->repo->activeCount($robotId, $generation, $disaster),
+                    activeCount: $this->repo->activeCount($deviceId, $robotId, $generation, $disaster),
                     reason: null,
                 );
 
@@ -172,7 +175,7 @@ final class ReflectService
                 // (Requirement 2.9). Report this robot's current answered state
                 // without a call: if it has a stored answer reuse it, else it is
                 // still being asked and has no memory yet.
-                $reflections[$robotId] = $this->skippedReflection($episodeId, $robotId, $generation, $disaster);
+                $reflections[$robotId] = $this->skippedReflection($episodeId, $robotId, $deviceId, $generation, $disaster);
 
                 continue;
             }
@@ -223,6 +226,7 @@ final class ReflectService
             $reflections[$robotId] = $this->commit(
                 $episodeId,
                 $robotId,
+                $deviceId,
                 $generation,
                 $disaster,
                 $record,
@@ -252,6 +256,7 @@ final class ReflectService
     private function commit(
         string $episodeId,
         string $robotId,
+        string $deviceId,
         int $generation,
         string $disaster,
         ReplyRecord $record,
@@ -264,7 +269,7 @@ final class ReflectService
             return new RobotReflection(
                 answered: false,
                 memory: null,
-                activeCount: $this->repo->activeCount($robotId, $generation, $disaster),
+                activeCount: $this->repo->activeCount($deviceId, $robotId, $generation, $disaster),
                 reason: $reason,
             );
         }
@@ -278,7 +283,7 @@ final class ReflectService
             return new RobotReflection(
                 answered: false,
                 memory: null,
-                activeCount: $this->repo->activeCount($robotId, $generation, $disaster),
+                activeCount: $this->repo->activeCount($deviceId, $robotId, $generation, $disaster),
                 reason: 'empty_answer',
             );
         }
@@ -297,13 +302,14 @@ final class ReflectService
             body: $record->reply,
             status: 'active',
             createdAt: ($this->clock)(),
+            deviceId: $deviceId,
         );
         $this->repo->commitReflectionAnswer($episodeId, $robotId, $memory);
 
         return new RobotReflection(
             answered: true,
             memory: $record->reply,
-            activeCount: $this->repo->activeCount($robotId, $generation, $disaster),
+            activeCount: $this->repo->activeCount($deviceId, $robotId, $generation, $disaster),
             reason: null,
         );
     }
@@ -318,6 +324,7 @@ final class ReflectService
     private function skippedReflection(
         string $episodeId,
         string $robotId,
+        string $deviceId,
         int $generation,
         string $disaster,
     ): RobotReflection {
@@ -326,7 +333,7 @@ final class ReflectService
             return new RobotReflection(
                 answered: true,
                 memory: $stored->body,
-                activeCount: $this->repo->activeCount($robotId, $generation, $disaster),
+                activeCount: $this->repo->activeCount($deviceId, $robotId, $generation, $disaster),
                 reason: null,
             );
         }
@@ -334,7 +341,7 @@ final class ReflectService
         return new RobotReflection(
             answered: false,
             memory: null,
-            activeCount: $this->repo->activeCount($robotId, $generation, $disaster),
+            activeCount: $this->repo->activeCount($deviceId, $robotId, $generation, $disaster),
             reason: null,
         );
     }

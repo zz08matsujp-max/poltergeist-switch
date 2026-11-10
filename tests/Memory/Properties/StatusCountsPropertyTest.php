@@ -12,8 +12,8 @@ use PoltergeistSwitch\Memory\Values\MemoryRow;
 use PoltergeistSwitch\Tests\TurnLoop\InMemoryEpisodeRepository;
 
 /**
- * Feature: robot-memory, Property 8: Status reports exactly the current
- * generation's active counts and lengths.
+ * Feature: robot-memory (Device-scoped by public-lab), Property 8: Status reports
+ * exactly the Device's current generation's active counts and lengths.
  *
  * For any memory store, {@see MemoryService::status} reports the current
  * generation and, per robot reported by its screen name Amber (robot_a) and
@@ -50,6 +50,9 @@ use PoltergeistSwitch\Tests\TurnLoop\InMemoryEpisodeRepository;
 class StatusCountsPropertyTest extends TestCase
 {
     use TestTrait;
+
+    /** The single Device under test. */
+    private const DEVICE = 'device_status_prop';
 
     private const ROBOTS = ['robot_a', 'robot_b'];
 
@@ -91,13 +94,13 @@ class StatusCountsPropertyTest extends TestCase
                 $repo = new InMemoryEpisodeRepository();
                 $service = new MemoryService($repo);
 
-                $currentGeneration = $repo->currentGeneration();
+                $currentGeneration = $repo->deviceGeneration(self::DEVICE);
 
                 // Seed the store, routing some rows to an OLDER generation so
                 // the older-generation exclusion is exercised (Req 5.3).
                 $this->seedMemories($repo, $currentGeneration, $spread, $memoryCount);
 
-                $status = $service->status();
+                $status = $service->status(self::DEVICE);
 
                 // The reported generation is the store's current generation.
                 $this->assertSame(
@@ -110,8 +113,8 @@ class StatusCountsPropertyTest extends TestCase
                 // Independently expected active bodies per robot: the current
                 // generation's active rows across all disasters, oldest first,
                 // excluding retired and older-generation rows.
-                $expectedA = $repo->activeMemories('robot_a', $currentGeneration, PHP_INT_MAX)->bodies;
-                $expectedB = $repo->activeMemories('robot_b', $currentGeneration, PHP_INT_MAX)->bodies;
+                $expectedA = $repo->activeMemories(self::DEVICE, 'robot_a', $currentGeneration, PHP_INT_MAX)->bodies;
+                $expectedB = $repo->activeMemories(self::DEVICE, 'robot_b', $currentGeneration, PHP_INT_MAX)->bodies;
 
                 // Count = number of those active bodies.
                 $this->assertSame(
@@ -195,6 +198,7 @@ class StatusCountsPropertyTest extends TestCase
                 body: $body,
                 status: 'active',
                 createdAt: date('Y-m-d H:i:s'),
+                deviceId: self::DEVICE,
             ));
         }
     }

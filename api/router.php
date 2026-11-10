@@ -108,13 +108,13 @@ function ps_dispatch(
         // GET /api/memory — the current generation and per-robot active-memory
         // counts and lengths (robot-memory Requirement 5.1).
         if ($method === 'GET' && $segments === ['memory'] && $memoryService !== null) {
-            return ps_handle_memory_get($memoryService);
+            return ps_handle_memory_get($memoryService, ps_device_id_from_cookies($cookies));
         }
 
         // POST /api/memory/reset — advance the current generation, delete
         // nothing (robot-memory Requirement 4.5).
         if ($method === 'POST' && $segments === ['memory', 'reset'] && $memoryService !== null) {
-            return ps_handle_memory_reset($memoryService);
+            return ps_handle_memory_reset($memoryService, ps_device_id_from_cookies($cookies));
         }
 
         // Everything else is /episodes/{id}/...

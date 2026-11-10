@@ -33,6 +33,12 @@ class EpisodeRepositoryTest extends TestCase
     /** The per-(robot, disaster, generation) active cap (Requirements 3.3, 8.4). */
     private const TRIPLE_CAP = 6;
 
+    /** The Device that owns every memory these tests write (public-lab Req 2.1). */
+    private const DEVICE = 'dev_a';
+
+    /** A second Device, used to prove the cap is per Device (public-lab Req 2.10). */
+    private const OTHER_DEVICE = 'dev_b';
+
     /** A claim at least this many seconds old is stale and re-claimable (Req 2.10). */
     private const STALE_SECONDS = 120;
 
@@ -42,7 +48,7 @@ class EpisodeRepositoryTest extends TestCase
 
     /**
      * The atomic store commits only after insert + retire: once a seventh
-     * memory for one (robot, disaster, generation) triple is stored the active
+     * memory for one (device, robot, disaster, generation) group is stored the active
      * count settles at exactly the cap of 6, the oldest active row is retired
      * (not deleted), and the retired body never appears in any read
      * (Requirements 8.4, 3.4, 3.5).
@@ -63,7 +69,7 @@ class EpisodeRepositoryTest extends TestCase
             // cap: the store has both inserted and retired before returning.
             $this->assertLessThanOrEqual(
                 self::TRIPLE_CAP,
-                $repo->activeCount('robot_a', 1, 'earthquake'),
+                $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'),
                 'the active count must never exceed the cap after a committed store'
             );
         }
@@ -71,13 +77,13 @@ class EpisodeRepositoryTest extends TestCase
         // The committed state is exactly the cap: 7 stored, 1 retired.
         $this->assertSame(
             self::TRIPLE_CAP,
-            $repo->activeCount('robot_a', 1, 'earthquake'),
+            $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'),
             'a seventh store must leave exactly the cap active'
         );
 
         // The surviving active bodies are the newest 6, oldest first; the very
         // first (oldest) body was retired and no longer reads back.
-        $snapshot = $repo->activeMemories('robot_a', 1, 18);
+        $snapshot = $repo->activeMemories(self::DEVICE, 'robot_a', 1, 18);
         $this->assertSame(
             [
                 'memory number 2',
@@ -110,20 +116,20 @@ class EpisodeRepositoryTest extends TestCase
         $memory = $this->row(sourceEpisodeId: 'ep_dup', body: 'remember the kettle');
 
         $repo->appendMemory($memory);
-        $this->assertSame(1, $repo->activeCount('robot_a', 1, 'earthquake'));
+        $this->assertSame(1, $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'));
 
         // A second store of the SAME source episode + robot is a no-op.
         $repo->appendMemory($memory);
         $this->assertSame(
             1,
-            $repo->activeCount('robot_a', 1, 'earthquake'),
+            $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'),
             'a duplicate store for the same source episode + robot must create no duplicate'
         );
 
         // A re-store with a different body but the same source+robot is still a
         // no-op: the first stored body is kept verbatim.
         $repo->appendMemory($this->row(sourceEpisodeId: 'ep_dup', body: 'a different body'));
-        $snapshot = $repo->activeMemories('robot_a', 1, 18);
+        $snapshot = $repo->activeMemories(self::DEVICE, 'robot_a', 1, 18);
         $this->assertSame(
             ['remember the kettle'],
             $snapshot->bodies,
@@ -138,9 +144,63 @@ class EpisodeRepositoryTest extends TestCase
         ));
         $this->assertSame(
             1,
-            $repo->activeCount('robot_b', 1, 'earthquake'),
+            $repo->activeCount(self::DEVICE, 'robot_b', 1, 'earthquake'),
             'the same source episode for the other robot is a separate store'
         );
+    }
+
+    /**
+     * The cap is per (device, robot, disaster, generation): a second Device's
+     * memories never count toward, and are never retired by, the first
+     * Device's cap, and a legacy row with no owner is ignored by every read
+     * (public-lab Requirements 2.2, 2.10).
+     */
+    public function testCapAndReadsAreScopedToTheDevice(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+
+        for ($i = 1; $i <= self::TRIPLE_CAP + 1; $i++) {
+            $repo->appendMemory($this->row(sourceEpisodeId: "ep_a_{$i}", body: "a {$i}"));
+        }
+        $repo->appendMemory($this->row(
+            sourceEpisodeId: 'ep_b_1',
+            body: 'b 1',
+            deviceId: self::OTHER_DEVICE,
+        ));
+        $repo->appendMemory($this->row(sourceEpisodeId: 'ep_legacy', body: 'legacy', deviceId: null));
+
+        $this->assertSame(self::TRIPLE_CAP, $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'));
+        $this->assertSame(1, $repo->activeCount(self::OTHER_DEVICE, 'robot_a', 1, 'earthquake'));
+        $this->assertSame(
+            ['b 1'],
+            $repo->activeMemories(self::OTHER_DEVICE, 'robot_a', 1, 18)->bodies,
+            'the other Device sees only its own memory, not the legacy row'
+        );
+        $this->assertNotContains(
+            'legacy',
+            $repo->activeMemories(self::DEVICE, 'robot_a', 1, 18)->bodies,
+            'a row with no owner is ignored by every read'
+        );
+    }
+
+    /**
+     * A Device reset appends one row and raises only that Device's generation;
+     * the latest reset time is reported per Device (public-lab Req 2.2, 2.10).
+     */
+    public function testDeviceResetRaisesOnlyThatDevicesGeneration(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+
+        $this->assertSame(1, $repo->deviceGeneration(self::DEVICE));
+        $this->assertNull($repo->latestDeviceResetAt(self::DEVICE));
+
+        $this->assertSame(2, $repo->recordDeviceReset(self::DEVICE, '2026-11-10 10:00:00'));
+        $this->assertSame(3, $repo->recordDeviceReset(self::DEVICE, '2026-11-10 11:00:00'));
+
+        $this->assertSame(3, $repo->deviceGeneration(self::DEVICE));
+        $this->assertSame(1, $repo->deviceGeneration(self::OTHER_DEVICE));
+        $this->assertSame('2026-11-10 11:00:00', $repo->latestDeviceResetAt(self::DEVICE));
+        $this->assertNull($repo->latestDeviceResetAt(self::OTHER_DEVICE));
     }
 
     /**
@@ -261,7 +321,7 @@ class EpisodeRepositoryTest extends TestCase
         }
         $this->assertSame(
             self::TRIPLE_CAP,
-            $repo->activeCount('robot_a', 1, 'earthquake'),
+            $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'),
             'the triple must start at the cap'
         );
 
@@ -273,25 +333,36 @@ class EpisodeRepositoryTest extends TestCase
         $repo->appendMemory($this->row(sourceEpisodeId: 'ep_x', body: 'x'));
         $this->assertSame(
             self::TRIPLE_CAP,
-            $repo->activeCount('robot_a', 1, 'earthquake'),
+            $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'),
             'after the first further commit the active count must be exactly the cap'
         );
 
         $repo->appendMemory($this->row(sourceEpisodeId: 'ep_y', body: 'y'));
         $this->assertSame(
             self::TRIPLE_CAP,
-            $repo->activeCount('robot_a', 1, 'earthquake'),
+            $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'),
             'two interleaved per-triple commits must serialise to exactly the cap, never 7'
         );
 
         // The surviving active bodies are the newest 6 in finish order; the two
         // oldest seeds were retired.
-        $snapshot = $repo->activeMemories('robot_a', 1, 18);
+        $snapshot = $repo->activeMemories(self::DEVICE, 'robot_a', 1, 18);
         $this->assertSame(
             ['seed 3', 'seed 4', 'seed 5', 'seed 6', 'x', 'y'],
             $snapshot->bodies,
             'the two oldest seeds must be retired, leaving the newest 6 oldest first'
         );
+
+        // The cap is per Device: another Device's commit for the same robot,
+        // disaster and generation neither counts toward nor retires this
+        // Device's six (public-lab Req 2.10).
+        $repo->appendMemory($this->row(
+            sourceEpisodeId: 'ep_other',
+            body: 'other device',
+            deviceId: self::OTHER_DEVICE,
+        ));
+        $this->assertSame(self::TRIPLE_CAP, $repo->activeCount(self::DEVICE, 'robot_a', 1, 'earthquake'));
+        $this->assertSame(1, $repo->activeCount(self::OTHER_DEVICE, 'robot_a', 1, 'earthquake'));
     }
 
     // =====================================================================
@@ -336,6 +407,7 @@ class EpisodeRepositoryTest extends TestCase
         $pdo->exec('DROP TABLE IF EXISTS reflections');
         $pdo->exec('DROP TABLE IF EXISTS memories');
         $pdo->exec('DROP TABLE IF EXISTS memory_generation');
+        $pdo->exec('DROP TABLE IF EXISTS device_resets');
 
         $pdo->exec(
             'CREATE TABLE memories ('
@@ -348,9 +420,12 @@ class EpisodeRepositoryTest extends TestCase
             . "status VARCHAR(8) NOT NULL DEFAULT 'active', "
             . 'created_at DATETIME NOT NULL, '
             . 'retired_at DATETIME NULL, '
+            . 'device_id VARCHAR(64) NULL, '
             . 'PRIMARY KEY (id), '
             . 'KEY idx_active_pick (robot_id, disaster, generation, status, id), '
             . 'KEY idx_snapshot (robot_id, generation, status, id), '
+            . 'KEY idx_device_snapshot (device_id, robot_id, generation, status, id), '
+            . 'KEY idx_device_pick (device_id, robot_id, disaster, generation, status, id), '
             . 'UNIQUE KEY uq_source (source_episode_id, robot_id)'
             . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
@@ -368,6 +443,15 @@ class EpisodeRepositoryTest extends TestCase
             . 'VALUES (1, 1, UTC_TIMESTAMP())'
         );
 
+        $pdo->exec(
+            'CREATE TABLE device_resets ('
+            . 'id BIGINT NOT NULL AUTO_INCREMENT, '
+            . 'device_id VARCHAR(64) NOT NULL, '
+            . 'reset_at DATETIME NOT NULL, '
+            . 'PRIMARY KEY (id), '
+            . 'KEY idx_device (device_id, id)'
+            . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
         $pdo->exec(
             'CREATE TABLE reflections ('
             . 'episode_id CHAR(36) NOT NULL, '
@@ -389,6 +473,7 @@ class EpisodeRepositoryTest extends TestCase
         int $generation = 1,
         string $disaster = 'earthquake',
         string $createdAt = '2026-11-09 12:00:00',
+        ?string $deviceId = self::DEVICE,
     ): MemoryRow {
         return new MemoryRow(
             robotId: $robotId,
@@ -398,6 +483,7 @@ class EpisodeRepositoryTest extends TestCase
             body: $body,
             status: 'active',
             createdAt: $createdAt,
+            deviceId: $deviceId,
         );
     }
 }

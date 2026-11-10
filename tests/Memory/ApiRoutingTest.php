@@ -56,6 +56,9 @@ final class ApiRoutingTest extends TestCase
      */
     private int $now = 1_700_000_000;
 
+    /** The Device named by the cookie in the memory-route tests. */
+    private const DEVICE = 'dev_a';
+
     /**
      * Provider words, model names, and secret/credential/path shapes that must
      * never appear in any API response body (the leak check in assertSafeJson).
@@ -136,18 +139,17 @@ final class ApiRoutingTest extends TestCase
         $this->assertSame(1, $robotB->callCount());
     }
 
-    public function testMemoryResetRouteResolvesToMemoryServiceAndAdvancesGeneration(): void
+    public function testMemoryResetRouteResolvesToMemoryServiceAndAdvancesTheCookieDevicesGeneration(): void
     {
         $repo = new InMemoryEpisodeRepository();
         $memoryService = new MemoryService($repo);
-
-        $this->assertSame(1, $repo->currentGeneration(), 'the store starts at generation 1');
+        $this->assertSame(1, $repo->deviceGeneration(self::DEVICE), 'the Device starts at generation 1');
 
         $response = ps_dispatch(
             $this->turnService($repo),
             'POST',
             'memory/reset',
-            [],
+            [PS_DEVICE_COOKIE => self::DEVICE],
             [],
             null,
             $memoryService,
@@ -156,26 +158,42 @@ final class ApiRoutingTest extends TestCase
         $this->assertSame(200, $response->status);
         $body = $this->assertSafeJson($response);
 
-        // MemoryService::reset advanced the generation and the body reports it.
+        // MemoryService::reset recorded a reset for the cookie Device and the
+        // body reports its new generation (public-lab Req 2.2, 3.1).
         $this->assertSame(2, $body['generation'] ?? null);
-        $this->assertSame(2, $repo->currentGeneration(), 'reset advanced the current generation');
+        $this->assertSame(2, $repo->deviceGeneration(self::DEVICE));
+        $this->assertSame(1, $repo->deviceGeneration('dev_other'), 'another Device is unaffected');
     }
 
-    public function testMemoryStatusRouteResolvesToMemoryServiceAndReportsCounts(): void
+    public function testMemoryResetRouteWithoutDeviceCookieRecordsNothing(): void
     {
         $repo = new InMemoryEpisodeRepository();
         $memoryService = new MemoryService($repo);
 
-        // Seed a couple of generation-1 active memories so status has something
-        // to report.
+        $response = ps_dispatch($this->turnService($repo), 'POST', 'memory/reset', [], [], null, $memoryService);
+
+        $this->assertSame(200, $response->status);
+        $body = $this->assertSafeJson($response);
+        $this->assertSame(1, $body['generation'] ?? null, 'no Device: generation 1, nothing recorded (Req 2.13)');
+        $this->assertNull($repo->latestDeviceResetAt(self::DEVICE));
+    }
+
+    public function testMemoryStatusRouteResolvesToMemoryServiceAndReportsTheCookieDevicesCounts(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $memoryService = new MemoryService($repo);
+
+        // Seed a couple of generation-1 active memories for the Device, plus
+        // one for another Device that must not be counted.
         $repo->appendMemory($this->memoryRow('robot_a', 'seed_a1', 'Amber remembers the kettle'));
         $repo->appendMemory($this->memoryRow('robot_b', 'seed_b1', 'Jade remembers the dishes'));
+        $repo->appendMemory($this->memoryRow('robot_a', 'seed_x1', 'Someone else remembers', 'dev_other'));
 
         $response = ps_dispatch(
             $this->turnService($repo),
             'GET',
             'memory',
-            [],
+            [PS_DEVICE_COOKIE => self::DEVICE],
             [],
             null,
             $memoryService,
@@ -184,10 +202,25 @@ final class ApiRoutingTest extends TestCase
         $this->assertSame(200, $response->status);
         $body = $this->assertSafeJson($response);
 
-        // MemoryService::status reported the generation and per-robot counts.
+        // MemoryService::status reported the Device's generation and counts.
         $this->assertSame(1, $body['generation'] ?? null);
         $this->assertSame(1, $body['robots']['amber']['activeCount'] ?? null);
         $this->assertSame(1, $body['robots']['jade']['activeCount'] ?? null);
+    }
+
+    public function testMemoryStatusRouteWithoutDeviceCookieReportsAnEmptyStatus(): void
+    {
+        $repo = new InMemoryEpisodeRepository();
+        $memoryService = new MemoryService($repo);
+        $repo->appendMemory($this->memoryRow('robot_a', 'seed_a1', 'Amber remembers the kettle'));
+
+        $response = ps_dispatch($this->turnService($repo), 'GET', 'memory', [], [], null, $memoryService);
+
+        $this->assertSame(200, $response->status);
+        $body = $this->assertSafeJson($response);
+        $this->assertSame(1, $body['generation'] ?? null);
+        $this->assertSame(0, $body['robots']['amber']['activeCount'] ?? null);
+        $this->assertSame(0, $body['robots']['jade']['activeCount'] ?? null);
     }
 
     // =====================================================================
@@ -413,7 +446,7 @@ final class ApiRoutingTest extends TestCase
      * MemoryServiceTest::row — robot/generation/disaster/source-episode/body
      * with the shared deterministic clock for created time.
      */
-    private function memoryRow(string $robotId, string $sourceEpisodeId, string $body): \PoltergeistSwitch\Memory\Values\MemoryRow
+    private function memoryRow(string $robotId, string $sourceEpisodeId, string $body, string $deviceId = self::DEVICE): \PoltergeistSwitch\Memory\Values\MemoryRow
     {
         return new \PoltergeistSwitch\Memory\Values\MemoryRow(
             robotId: $robotId,
@@ -423,6 +456,7 @@ final class ApiRoutingTest extends TestCase
             body: $body,
             status: 'active',
             createdAt: date('Y-m-d H:i:s', $this->now),
+            deviceId: $deviceId,
         );
     }
 }

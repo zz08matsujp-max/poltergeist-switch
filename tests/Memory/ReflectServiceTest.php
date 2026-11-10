@@ -288,6 +288,26 @@ final class ReflectServiceTest extends TestCase
         $this->assertSame(1, $result->robots['robot_b']->activeCount);
     }
 
+    public function testStoredReflectionBelongsToTheEpisodesDeviceOnly(): void
+    {
+        $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);
+        $robotA = new FakeRobotClient(new ReplyRecord('', 'Amber remembers the kettle', 10, 8, 0.2, 0.0, false, false));
+        $robotB = new FakeRobotClient(new ReplyRecord('', 'Jade remembers the dishes', 10, 8, 0.2, 0.0, false, false));
+        $episodeId = $this->endedEpisodeWithSnapshot($repo, $robotA, $robotB);
+
+        $this->reflectService($repo, $robotA, $robotB)->reflect($episodeId);
+
+        // The episode was created by 'dev_reflect' (see createEpisode); the
+        // memory is tagged with it (public-lab Req 2.1, 2.12).
+        $this->assertSame(
+            ['Amber remembers the kettle'],
+            $repo->activeMemories('dev_reflect', 'robot_a', 1, 18)->bodies
+        );
+        $this->assertSame(1, $repo->activeCount('dev_reflect', 'robot_b', 1, 'earthquake'));
+        $this->assertSame([], $repo->activeMemories('dev_other', 'robot_a', 1, 18)->bodies);
+        $this->assertSame(0, $repo->activeCount('dev_other', 'robot_b', 1, 'earthquake'));
+    }
+
     public function testFailedCallReportsNoReplyAndTimedOutCallReportsTimeout(): void
     {
         $repo = new InMemoryEpisodeRepository(new Config(), fn (): int => $this->now);

@@ -472,6 +472,21 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         return $this->inner->currentGeneration();
     }
 
+    public function deviceGeneration(string $deviceId): int
+    {
+        return $this->inner->deviceGeneration($deviceId);
+    }
+
+    public function recordDeviceReset(string $deviceId, string $now): int
+    {
+        return $this->inner->recordDeviceReset($deviceId, $now);
+    }
+
+    public function latestDeviceResetAt(string $deviceId): ?string
+    {
+        return $this->inner->latestDeviceResetAt($deviceId);
+    }
+
     public function advanceGeneration(): int
     {
         return $this->inner->advanceGeneration();
@@ -501,14 +516,14 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         return $this->inner->episodeHasSnapshot($episodeId);
     }
 
-    public function activeMemories(string $robotId, int $generation, int $cap): \PoltergeistSwitch\Memory\Values\MemorySnapshot
+    public function activeMemories(string $deviceId, string $robotId, int $generation, int $cap): \PoltergeistSwitch\Memory\Values\MemorySnapshot
     {
-        return $this->inner->activeMemories($robotId, $generation, $cap);
+        return $this->inner->activeMemories($deviceId, $robotId, $generation, $cap);
     }
 
-    public function activeCount(string $robotId, int $generation, string $disaster): int
+    public function activeCount(string $deviceId, string $robotId, int $generation, string $disaster): int
     {
-        return $this->inner->activeCount($robotId, $generation, $disaster);
+        return $this->inner->activeCount($deviceId, $robotId, $generation, $disaster);
     }
 
     public function appendMemory(\PoltergeistSwitch\Memory\Values\MemoryRow $memory): void

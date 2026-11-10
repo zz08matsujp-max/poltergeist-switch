@@ -21,9 +21,12 @@ use PoltergeistSwitch\Memory\MemoryService;
 /**
  * Handle the reset request: advance the current generation and report it.
  */
-function ps_handle_memory_reset(MemoryService $service): PsApiResponse
+function ps_handle_memory_reset(MemoryService $service, ?string $deviceId = null): PsApiResponse
 {
-    $status = $service->reset();
+    // A null Device (no cookie) is a no-op in the service: nothing is recorded
+    // and no cookie is minted. A running episode of the Device raises the
+    // service's 409 ApiError, which the router's catch maps.
+    $status = $service->reset($deviceId);
 
     return ps_json_response(200, ['generation' => $status->generation]);
 }

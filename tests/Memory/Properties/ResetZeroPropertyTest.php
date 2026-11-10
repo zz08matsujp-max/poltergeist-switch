@@ -12,11 +12,11 @@ use PoltergeistSwitch\Memory\Values\MemoryRow;
 use PoltergeistSwitch\Tests\TurnLoop\InMemoryEpisodeRepository;
 
 /**
- * Feature: robot-memory, Property 3: Reset starts a fresh generation with zero
- * memories and deletes nothing.
+ * Feature: robot-memory (Device-scoped by public-lab), Property 3: A Device reset
+ * starts a fresh generation with zero memories and deletes nothing.
  *
  * For any state of the memory store, calling {@see MemoryService::reset}
- * advances the Current_Generation and removes no memory row, and an episode
+ * for one Device advances that Device's generation and removes no memory row, and an episode
  * created immediately after the reset receives an empty Memory_Snapshot for
  * both robots.
  *
@@ -43,6 +43,11 @@ use PoltergeistSwitch\Tests\TurnLoop\InMemoryEpisodeRepository;
 class ResetZeroPropertyTest extends TestCase
 {
     use TestTrait;
+
+    /** The single Device under test, and a second one that must stay untouched. */
+    private const DEVICE = 'device_reset_prop';
+
+    private const OTHER_DEVICE = 'device_other_prop';
 
     private const ROBOTS = ['robot_a', 'robot_b'];
 
@@ -71,24 +76,27 @@ class ResetZeroPropertyTest extends TestCase
                 $repo = new InMemoryEpisodeRepository();
                 $service = new MemoryService($repo);
 
-                $generationBefore = $repo->currentGeneration();
+                $generationBefore = $repo->deviceGeneration(self::DEVICE);
 
                 // --- Seed an arbitrary memory store in the current generation.
-                $this->seedMemories($repo, $generationBefore, $spread, $memoryCount);
+                $this->seedMemories($repo, self::DEVICE, $generationBefore, $spread, $memoryCount);
+                // Another Device holds memories of its own; reset must not touch them.
+                $this->seedMemories($repo, self::OTHER_DEVICE, 1, $spread, 3);
+                $otherBefore = $repo->activeMemories(self::OTHER_DEVICE, 'robot_a', 1, PHP_INT_MAX)->bodies;
 
                 // The active bodies of the current generation, per robot, as
                 // they stand before the reset. After the reset these exact rows
                 // must still be readable from the old generation — proving
                 // reset removed no row.
-                $beforeA = $repo->activeMemories('robot_a', $generationBefore, PHP_INT_MAX)->bodies;
-                $beforeB = $repo->activeMemories('robot_b', $generationBefore, PHP_INT_MAX)->bodies;
+                $beforeA = $repo->activeMemories(self::DEVICE, 'robot_a', $generationBefore, PHP_INT_MAX)->bodies;
+                $beforeB = $repo->activeMemories(self::DEVICE, 'robot_b', $generationBefore, PHP_INT_MAX)->bodies;
 
                 // --- Reset ----------------------------------------------------
-                $status = $service->reset();
+                $status = $service->reset(self::DEVICE);
 
                 // The current generation advanced to a new, higher integer
                 // (Req 4.2).
-                $generationAfter = $repo->currentGeneration();
+                $generationAfter = $repo->deviceGeneration(self::DEVICE);
                 $this->assertGreaterThan(
                     $generationBefore,
                     $generationAfter,
@@ -106,15 +114,23 @@ class ResetZeroPropertyTest extends TestCase
                 // after it, byte-for-byte unchanged (Req 4.2).
                 $this->assertSame(
                     $beforeA,
-                    $repo->activeMemories('robot_a', $generationBefore, PHP_INT_MAX)->bodies,
+                    $repo->activeMemories(self::DEVICE, 'robot_a', $generationBefore, PHP_INT_MAX)->bodies,
                     "reset must delete no robot_a memory of the old generation "
                         . "(count {$memoryCount}, spread {$spread})"
                 );
                 $this->assertSame(
                     $beforeB,
-                    $repo->activeMemories('robot_b', $generationBefore, PHP_INT_MAX)->bodies,
+                    $repo->activeMemories(self::DEVICE, 'robot_b', $generationBefore, PHP_INT_MAX)->bodies,
                     "reset must delete no robot_b memory of the old generation "
                         . "(count {$memoryCount}, spread {$spread})"
+                );
+
+                // Another Device's generation and memories are unchanged.
+                $this->assertSame(1, $repo->deviceGeneration(self::OTHER_DEVICE));
+                $this->assertSame(
+                    $otherBefore,
+                    $repo->activeMemories(self::OTHER_DEVICE, 'robot_a', 1, PHP_INT_MAX)->bodies,
+                    'a reset must not touch another Device'
                 );
 
                 // --- An episode created immediately after the reset ----------
@@ -122,7 +138,7 @@ class ResetZeroPropertyTest extends TestCase
                 // the current generation (now the fresh one) and freezes each
                 // robot's active bodies onto the episode. The fresh generation
                 // holds no active memory, so both snapshots are empty (Req 4.3).
-                $service->snapshotForNewEpisode('ep_after_reset');
+                $service->snapshotForNewEpisode('ep_after_reset', self::DEVICE);
 
                 $snapshotA = $repo->episodeSnapshot('ep_after_reset', 'robot_a');
                 $snapshotB = $repo->episodeSnapshot('ep_after_reset', 'robot_b');
@@ -142,7 +158,7 @@ class ResetZeroPropertyTest extends TestCase
 
                 // And the status right after the reset reports zero active
                 // memories for both robots in the fresh generation (Req 4.3).
-                $afterStatus = $service->status();
+                $afterStatus = $service->status(self::DEVICE);
                 $this->assertSame(0, $afterStatus->amberActiveCount);
                 $this->assertSame([], $afterStatus->amberLengths);
                 $this->assertSame(0, $afterStatus->jadeActiveCount);
@@ -159,6 +175,7 @@ class ResetZeroPropertyTest extends TestCase
      */
     private function seedMemories(
         InMemoryEpisodeRepository $repo,
+        string $deviceId,
         int $generation,
         int $spread,
         int $memoryCount
@@ -171,10 +188,11 @@ class ResetZeroPropertyTest extends TestCase
                 robotId: $robot,
                 generation: $generation,
                 disaster: $disaster,
-                sourceEpisodeId: 'src_' . $i,
+                sourceEpisodeId: $deviceId . '_src_' . $i,
                 body: "Memory {$i} for {$robot} ({$disaster}, gen {$generation}).",
                 status: 'active',
                 createdAt: date('Y-m-d H:i:s'),
+                deviceId: $deviceId,
             ));
         }
     }
