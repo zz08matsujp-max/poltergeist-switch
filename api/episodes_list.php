@@ -24,7 +24,7 @@ use PoltergeistSwitch\TurnLoop\EpisodeListService;
 /**
  * @param array<string,mixed> $query the request query parameters ($_GET)
  */
-function ps_handle_list(EpisodeListService $listService, array $query): PsApiResponse
+function ps_handle_list(EpisodeListService $listService, array $query, ?string $deviceId = null): PsApiResponse
 {
     // Pass the raw `limit` value straight through: the service validates it
     // (an integer 1–100, default 20 when absent) and throws on anything else,
@@ -32,11 +32,12 @@ function ps_handle_list(EpisodeListService $listService, array $query): PsApiRes
     // service already returns ended episodes only.
     $rawLimit = $query['limit'] ?? null;
 
-    $list = $listService->list($rawLimit);
+    // The Device is the nullable cookie value (never minted here); without it
+    // the "yours" group is empty. The Device_Id never appears in the body.
+    $list = $listService->list($rawLimit, $deviceId);
 
-    // The list body is a bare JSON array of {id, createdDate, turns,
-    // startingSituation} items (design "Ended-episode list endpoint"). It is
-    // already a plain array, so ps_json_response serialises it directly and
-    // sets Cache-Control: no-store (Requirement 11.9).
+    // The list body is {featured: [...], yours: [...]}, each item
+    // {id, createdDate, turns, startingSituation[, disaster]}.
+    // ps_json_response sets Cache-Control: no-store (Requirement 11.9).
     return ps_json_response(200, $list);
 }

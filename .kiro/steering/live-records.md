@@ -9,8 +9,8 @@ Setup: the server is `mcp-server-fetch==2026.11.4` in a Python venv at `~/.venvs
 
 ## The only two read-only URLs
 
-- `https://kiro.pyol.net/api/index.php?route=episodes&ended=1&limit=20` — the list of ended episodes.
-- `https://kiro.pyol.net/api/index.php?route=episodes/{id}` — one episode. `{id}` is the full UUID from the list; the 8-character short form returns 404.
+- `https://kiro.pyol.net/api/index.php?route=episodes&ended=1&limit=20` — the list of ended episodes. The reply is `{featured, yours}`. Without a cookie (the fetch tool sends none) only the `featured` group is filled and `yours` is empty, so read the `featured` group.
+- `https://kiro.pyol.net/api/index.php?route=episodes/{id}` — one episode. `{id}` is the full UUID from the `featured` group (or known from elsewhere); the 8-character short form returns 404.
 
 ## How to read
 

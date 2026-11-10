@@ -188,7 +188,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 13.9**
     - Create `tests/TurnLoop/Properties/StartReleasePropertyTest.php` (tag `Feature: public-lab, Property 13: Denied or failed starts count nothing`).
 
-- [-] 7. Wire the API layer for limits, IP and salt
+- [x] 7. Wire the API layer for limits, IP and salt
   - [x] 7.1 Validate the Device cookie and share one PDO in `bootstrap.php`
     - `ps_device_id_from_cookies` accepts only `/^[0-9a-f]{32}$/`; anything else is treated as absent. Builders share one memoized `ps_build_pdo()`. Add `ps_build_episode_starter()` and `ps_build_usage_repository()`.
     - _Requirements: 13.1, 13.14_
@@ -214,33 +214,33 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 13.14, 13.18, 1.7, 3.3, 6.10**
     - Create `tests/TurnLoop/Properties/IpPrivacyPropertyTest.php` (tag `Feature: public-lab, Property 15: IP privacy and hash stability`): includes the check that the raw IP and the Device_Id appear in no `daily_usage` fake row, no response body and no `error_log` message of the create path.
 
-- [ ] 8. Return the episode list in two groups
-  - [ ] 8.1 Add the list queries to both repositories
+- [~] 8. Return the episode list in two groups
+  - [x] 8.1 Add the list queries to both repositories
     - Add `listEndedEpisodesByIds(array $ids)` (ended episodes among the ids, in `$ids` order) and `listEndedEpisodesForDevice(string $deviceId, ?string $sinceCreatedAt, array $excludeIds, int $limit)` (newest first, Featured ids excluded in the query) to the interface, `PdoEpisodeRepository` and `InMemoryEpisodeRepository`.
     - _Requirements: 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8_
-  - [ ] 8.2 Group the list in `EpisodeListService` and `episodes_list.php`
+  - [x] 8.2 Group the list in `EpisodeListService` and `episodes_list.php`
     - Constructor takes `Config`; `list(mixed $rawLimit, ?string $deviceId)` returns `['featured' => [...], 'yours' => [...]]`; item building moves to a private `buildItem(EpisodeRow)` with the same fields as today. Featured is returned in full; "Your runs" uses the unchanged limit validation (1 to 100, default 20) and the latest Reset_Point. No cookie: `yours` is empty. `api/episodes_list.php` and the router pass the Device. `Cache-Control: no-store`, no Device_Id.
     - _Requirements: 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.10_
-  - [ ] 8.3 Show the two groups on Replay
+  - [x] 8.3 Show the two groups on Replay
     - In `public/js/replay.js` `renderList(body)` reads `body.featured` and `body.yours` (an object, not an array) and builds two sections headed "Featured" and "Your runs", with a short empty-state line under "Your runs". This is done here so Replay does not break between commits. Voices and the sequencer come in task 14.
     - _Requirements: 6.9_
-  - [ ] 8.4 Update `live-records.md`
+  - [x] 8.4 Update `live-records.md`
     - Edit `.kiro/steering/live-records.md` minimally: the list URL now returns `{featured, yours}`; without a cookie only the Featured group is returned, so read the Featured group of `episodes&ended=1`, or fetch an episode by its full UUID. The read-only rules and cite format stay.
     - _Requirements: 6.2_
-  - [ ] 8.5 Update the existing list tests
+  - [x] 8.5 Update the existing list tests
     - Update `tests/TurnLoop/EpisodeListServiceTest.php` and `tests/TurnLoop/Properties/EpisodeListPropertyTest.php` for the new shape and constructor (each item's bytes stay as today); extend the no-store test to the list route.
     - _Requirements: 6.2, 6.3, 6.8, 6.10, 14.13_
-  - [ ] 8.6 Write `replay-groups.test.js`
+  - [x] 8.6 Write `replay-groups.test.js`
     - Create `tests/js/replay-groups.test.js`: the headings "Featured" and "Your runs", the empty-state line when `yours` is empty, an object (not array) response, and a Featured episode appearing only once.
     - _Requirements: 6.9, 14.7_
-  - [ ] 8.7 Write the gated list query test
+  - [x] 8.7 Write the gated list query test
     - Create `tests/TurnLoop/Repository/EpisodeListPdoTest.php` (skipped without `PS_TEST_MYSQL_DSN`): the same cases as the fake for both list queries.
     - _Requirements: 6.2, 6.3, 6.5, 6.7_
-  - [ ] 8.8 Write the property test for list grouping
+  - [x] 8.8 Write the property test for list grouping
     - **Property 9: Episode list grouping**
     - **Validates: Requirements 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8**
     - Create `tests/TurnLoop/Properties/EpisodeListGroupsPropertyTest.php` (tag `Feature: public-lab, Property 9: Episode list grouping`): Featured order, missing or unended ids omitted, no other Device's runs, no duplicates, "Your runs" after a reset, and an episode removed from "Your runs" still returned by `GET /api/episodes/{id}`.
-  - [ ] 8.9 Write the property test that only starting is limited
+  - [x] 8.9 Write the property test that only starting is limited
     - **Property 14: Only starting an episode is counted or limited**
     - **Validates: Requirements 13.1, 13.2**
     - Create `tests/TurnLoop/Properties/OnlyStartIsLimitedPropertyTest.php` (tag `Feature: public-lab, Property 14: Only starting an episode is counted or limited`): with Device, IP and site at their limits, `ask`, `apply`, `reflect`, `GET /api/episodes/{id}`, the list and `GET /api/memory` behave as if no limit existed and change no count.

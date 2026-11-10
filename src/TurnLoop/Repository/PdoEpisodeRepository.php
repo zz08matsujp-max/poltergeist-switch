@@ -603,6 +603,85 @@ final class PdoEpisodeRepository implements EpisodeRepository
         return $episodes;
     }
 
+    public function listEndedEpisodesByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('strval', $ids)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $holders = [];
+        foreach ($ids as $i => $_) {
+            $holders[] = ':id' . $i;
+        }
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM episodes WHERE ended = 1 AND id IN (' . implode(', ', $holders) . ')'
+        );
+        foreach ($ids as $i => $id) {
+            $stmt->bindValue(':id' . $i, $id);
+        }
+        $stmt->execute();
+
+        $byId = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (is_array($row)) {
+                $episode = $this->episodeRowFrom($row);
+                $byId[$episode->id] = $episode;
+            }
+        }
+
+        // Keep the caller's order.
+        $episodes = [];
+        foreach ($ids as $id) {
+            if (isset($byId[$id])) {
+                $episodes[] = $byId[$id];
+            }
+        }
+
+        return $episodes;
+    }
+
+    public function listEndedEpisodesForDevice(
+        string $deviceId,
+        ?string $sinceCreatedAt,
+        array $excludeIds,
+        int $limit
+    ): array {
+        $sql = 'SELECT * FROM episodes WHERE ended = 1 AND device_id = :device';
+        if ($sinceCreatedAt !== null) {
+            $sql .= ' AND created_at > :since';
+        }
+        $excludeIds = array_values(array_unique(array_map('strval', $excludeIds)));
+        $holders = [];
+        foreach ($excludeIds as $i => $_) {
+            $holders[] = ':ex' . $i;
+        }
+        if ($holders !== []) {
+            $sql .= ' AND id NOT IN (' . implode(', ', $holders) . ')';
+        }
+        $sql .= ' ORDER BY created_at DESC, id DESC LIMIT :limit';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':device', $deviceId);
+        if ($sinceCreatedAt !== null) {
+            $stmt->bindValue(':since', $sinceCreatedAt);
+        }
+        foreach ($excludeIds as $i => $id) {
+            $stmt->bindValue(':ex' . $i, $id);
+        }
+        $stmt->bindValue(':limit', (int) $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $episodes = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (is_array($row)) {
+                $episodes[] = $this->episodeRowFrom($row);
+            }
+        }
+
+        return $episodes;
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView

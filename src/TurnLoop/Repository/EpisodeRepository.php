@@ -236,6 +236,33 @@ interface EpisodeRepository
      */
     public function listEndedEpisodes(int $limit): array;
 
+    /**
+     * The ended episodes among $ids, in the order of $ids (public-lab Req 6.2).
+     * Ids that do not exist or have not ended are simply absent; duplicate ids
+     * give one row.
+     *
+     * @param list<string> $ids
+     * @return EpisodeRow[]
+     */
+    public function listEndedEpisodesByIds(array $ids): array;
+
+    /**
+     * The Device's ended episodes, newest first (created date descending, id
+     * descending for ties), at most $limit (public-lab Req 6.3-6.8). Only
+     * episodes created strictly after $sinceCreatedAt are returned when it is
+     * not null (the Device's Reset_Point). Ids in $excludeIds (the Featured
+     * list) are excluded in the query, so they never use up a slot.
+     *
+     * @param list<string> $excludeIds
+     * @return EpisodeRow[]
+     */
+    public function listEndedEpisodesForDevice(
+        string $deviceId,
+        ?string $sinceCreatedAt,
+        array $excludeIds,
+        int $limit
+    ): array;
+
     // --- View -------------------------------------------------------------
 
     /**

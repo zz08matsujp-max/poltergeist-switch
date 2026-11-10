@@ -268,6 +268,62 @@ class NoStorePropertyTest extends TestCase
     }
 
     /**
+     * The list route, with and without the Device cookie, carries no-store and
+     * parses as JSON in the {featured, yours} shape and leaks no Device_Id
+     * (public-lab Requirements 6.2, 6.8, 6.10).
+     */
+    public function testListRouteIsUncacheableWithAndWithoutCookie(): void
+    {
+        $this->limitTo(30)
+            ->forAll(Generators::choose(0, 4))
+            ->then(function (int $endedCount): void {
+                $repo = new InMemoryEpisodeRepository();
+                $now = date('Y-m-d H:i:s');
+                for ($i = 0; $i < $endedCount; $i++) {
+                    $repo->createEpisode(new EpisodeRow(
+                        id: 'ep_list_' . $i,
+                        deviceId: self::LIMIT_DEVICE,
+                        disaster: 'earthquake',
+                        seed: $i,
+                        currentExpectedTurn: 1,
+                        earthquakeStartTurn: null,
+                        ended: true,
+                        createdAt: $now,
+                        lastActivityAt: $now,
+                    ));
+                    $repo->createTurn('ep_list_' . $i, 0, null);
+                }
+                $turns = new TurnService(
+                    new FakeRobotClient(),
+                    new FakeRobotClient(),
+                    new FakeRecorderClient(),
+                    new ReplayEngineFactory($repo),
+                    $repo,
+                    new Config(),
+                );
+                $listService = new \PoltergeistSwitch\TurnLoop\EpisodeListService(
+                    $repo,
+                    new \PoltergeistSwitch\TurnLoop\WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+                    new Config(),
+                );
+                $cookieSets = [
+                    'no cookie' => [],
+                    'with cookie' => [PS_DEVICE_COOKIE => self::LIMIT_DEVICE],
+                ];
+                foreach ($cookieSets as $label => $cookies) {
+                    $response = ps_dispatch($turns, 'GET', 'episodes', $cookies, ['ended' => '1'], $listService);
+                    $this->assertSame(200, $response->status, "list {$label}");
+                    $this->assertSame('no-store', $response->headers['Cache-Control'] ?? null, "list {$label} no-store");
+                    $decoded = json_decode($response->body, true);
+                    $this->assertIsArray($decoded, "list {$label} parses as JSON");
+                    $this->assertSame(['featured', 'yours'], array_keys($decoded), "list {$label} shape");
+                    $this->assertStringNotContainsString(self::LIMIT_DEVICE, $response->body, "list {$label} leaks no Device_Id");
+                    $this->assertCount($label === 'no cookie' ? 0 : $endedCount, $decoded['yours'], "list {$label} yours");
+                }
+            });
+    }
+
+    /**
      * Seed up to $count clean active memories of the current generation, spread
      * across both robots, so status and reflect report a range of counts. The
      * bodies are plain, non-secret strings.

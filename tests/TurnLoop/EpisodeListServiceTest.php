@@ -23,11 +23,24 @@ use PoltergeistSwitch\TurnLoop\WorldStateBackfill;
  */
 class EpisodeListServiceTest extends TestCase
 {
+    private const DEVICE = "dev_single";
+
+    /**
+     * The caller's "Your runs" group (the old flat list), for one Device.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function yours(InMemoryEpisodeRepository $repo, mixed $limit = null): array
+    {
+        return $this->service($repo)->list($limit, self::DEVICE)['yours'];
+    }
+
     private function service(InMemoryEpisodeRepository $repo): EpisodeListService
     {
         return new EpisodeListService(
             $repo,
             new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+            new \PoltergeistSwitch\TurnLoop\Config(),
         );
     }
 
@@ -44,7 +57,7 @@ class EpisodeListServiceTest extends TestCase
     ): void {
         $repo->createEpisode(new EpisodeRow(
             id: $id,
-            deviceId: 'dev_' . $id,
+            deviceId: self::DEVICE,
             disaster: 'earthquake',
             seed: 1,
             currentExpectedTurn: 1,
@@ -82,7 +95,7 @@ class EpisodeListServiceTest extends TestCase
         $repo = new InMemoryEpisodeRepository();
         $this->seedEpisode($repo, 'a', '2026-11-01 10:00:00', ended: false, worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'));
 
-        $this->assertSame([], $this->service($repo)->list());
+        $this->assertSame([], $this->yours($repo));
     }
 
     public function testItemShapeAndOneLinerWording(): void
@@ -101,7 +114,7 @@ class EpisodeListServiceTest extends TestCase
             extraTurns: 2, // turn 0 + turns 1 and 2 → two robot turns taken
         );
 
-        $list = $this->service($repo)->list();
+        $list = $this->yours($repo);
 
         $this->assertCount(1, $list);
         $item = $list[0];
@@ -138,7 +151,7 @@ class EpisodeListServiceTest extends TestCase
         // End_Card calls this "13 turns taken", so the list must say 13, not 14.
         $this->seedEpisode($repo, 'a', '2026-11-01 10:00:00', ended: true, worldJson: $w, extraTurns: 13);
 
-        $list = $this->service($repo)->list();
+        $list = $this->yours($repo);
 
         $this->assertCount(1, $list);
         $this->assertSame(13, $list[0]['turns']);
@@ -157,7 +170,7 @@ class EpisodeListServiceTest extends TestCase
             worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'),
         );
 
-        $list = $this->service($repo)->list();
+        $list = $this->yours($repo);
 
         $this->assertCount(1, $list);
         $this->assertSame(0, $list[0]['turns']);
@@ -175,7 +188,7 @@ class EpisodeListServiceTest extends TestCase
         // Same created_at as 'new' → id desc tiebreak ('new' > 'dup').
         $this->seedEpisode($repo, 'dup', '2026-11-02 09:00:00', ended: true, worldJson: $w);
 
-        $ids = array_map(static fn (array $i): string => $i['id'], $this->service($repo)->list());
+        $ids = array_map(static fn (array $i): string => $i['id'], $this->yours($repo));
 
         $this->assertSame(['new', 'dup', 'old'], $ids);
     }
@@ -189,9 +202,9 @@ class EpisodeListServiceTest extends TestCase
             $this->seedEpisode($repo, 'e' . $i, '2026-11-0' . ($i + 1) . ' 09:00:00', ended: true, worldJson: $w);
         }
 
-        $this->assertCount(2, $this->service($repo)->list(2));
+        $this->assertCount(2, $this->yours($repo, 2));
         // A string from the query is accepted when it is a plain integer.
-        $this->assertCount(3, $this->service($repo)->list('3'));
+        $this->assertCount(3, $this->yours($repo, '3'));
     }
 
     public function testAbsentLimitDefaultsToTwenty(): void
@@ -203,7 +216,7 @@ class EpisodeListServiceTest extends TestCase
             $this->seedEpisode($repo, sprintf('e%02d', $i), sprintf('2026-11-01 09:%02d:00', $i), ended: true, worldJson: $w);
         }
 
-        $this->assertCount(20, $this->service($repo)->list());
+        $this->assertCount(20, $this->yours($repo));
     }
 
     /**
@@ -232,7 +245,7 @@ class EpisodeListServiceTest extends TestCase
         $this->seedEpisode($repo, 'a', '2026-11-01 10:00:00', ended: true, worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'));
 
         try {
-            $this->service($repo)->list($limit);
+            $this->yours($repo, $limit);
             $this->fail('expected an out-of-range ApiError');
         } catch (ApiError $e) {
             $this->assertSame(400, $e->status);
@@ -246,7 +259,44 @@ class EpisodeListServiceTest extends TestCase
         $repo = new InMemoryEpisodeRepository();
         $this->seedEpisode($repo, 'a', '2026-11-01 10:00:00', ended: true, worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'));
 
-        $this->assertCount(1, $this->service($repo)->list(1));
-        $this->assertCount(1, $this->service($repo)->list(100));
+        $this->assertCount(1, $this->yours($repo, 1));
+        $this->assertCount(1, $this->yours($repo, 100));
+    }
+    public function testShapeIsFeaturedAndYoursAndNoCookieGivesEmptyYours(): void
+    {
+        // Requirements 6.2, 6.8: the list is {featured, yours}; without a Device
+        // the Your-runs group is empty.
+        $repo = new InMemoryEpisodeRepository();
+        $this->seedEpisode($repo, 'a', '2026-11-01 10:00:00', ended: true, worldJson: $this->worldJson('night', 'kitchen', 'bedroom', 'living_room'));
+
+        $body = $this->service($repo)->list();
+
+        $this->assertSame(['featured', 'yours'], array_keys($body));
+        $this->assertSame([], $body['featured']);
+        $this->assertSame([], $body['yours']);
+    }
+
+    public function testYoursHoldsOnlyTheCallersEpisodes(): void
+    {
+        // Requirement 6.5: another Device's runs never appear.
+        $repo = new InMemoryEpisodeRepository();
+        $w = $this->worldJson('night', 'kitchen', 'bedroom', 'living_room');
+        $this->seedEpisode($repo, 'mine', '2026-11-01 10:00:00', ended: true, worldJson: $w);
+        $repo->createEpisode(new EpisodeRow(
+            id: 'theirs',
+            deviceId: 'dev_other',
+            disaster: 'earthquake',
+            seed: 1,
+            currentExpectedTurn: 1,
+            earthquakeStartTurn: null,
+            ended: true,
+            createdAt: '2026-11-01 11:00:00',
+            lastActivityAt: '2026-11-01 11:00:00',
+        ));
+        $repo->createTurn('theirs', 0, $w);
+
+        $ids = array_map(static fn (array $i): string => $i['id'], $this->yours($repo));
+
+        $this->assertSame(['mine'], $ids);
     }
 }

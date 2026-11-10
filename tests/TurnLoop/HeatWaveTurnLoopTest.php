@@ -50,6 +50,7 @@ class HeatWaveTurnLoopTest extends TestCase
         return new EpisodeListService(
             $repo,
             new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+            new \PoltergeistSwitch\TurnLoop\Config(),
         );
     }
 
@@ -151,13 +152,13 @@ class HeatWaveTurnLoopTest extends TestCase
         $service = $this->service($repo);
 
         // One heat-wave episode and one earthquake episode, both ended.
-        $heat = $service->createEpisode('dev_heat_list', seed: 11, disaster: 'heat_wave');
+        $heat = $service->createEpisode('dev_list', seed: 11, disaster: 'heat_wave');
         $repo->markEpisodeEnded($heat->episodeId);
 
-        $quake = $service->createEpisode('dev_quake_list', seed: 12);
+        $quake = $service->createEpisode('dev_list', seed: 12);
         $repo->markEpisodeEnded($quake->episodeId);
 
-        $list = $this->listService($repo)->list(20);
+        $list = $this->listService($repo)->list(20, 'dev_list')['yours'];
 
         $byId = [];
         foreach ($list as $item) {

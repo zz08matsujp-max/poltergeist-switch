@@ -79,6 +79,7 @@ class ApiTest extends TestCase
         return new EpisodeListService(
             $repo,
             new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+            new \PoltergeistSwitch\TurnLoop\Config(),
         );
     }
 
@@ -90,7 +91,7 @@ class ApiTest extends TestCase
     private function seedEndedEpisode(InMemoryEpisodeRepository $repo): string
     {
         $service = $this->service($repo);
-        $episodeId = $service->createEpisode('dev_list', seed: 1)->episodeId;
+        $episodeId = $service->createEpisode(str_repeat('ab', 16), seed: 1)->episodeId;
         $repo->markEpisodeEnded($episodeId);
 
         return $episodeId;
@@ -283,7 +284,7 @@ class ApiTest extends TestCase
             $this->service($repo),
             'GET',
             'episodes',
-            [],
+            [PS_DEVICE_COOKIE => str_repeat('ab', 16)],
             ['route' => 'episodes', 'ended' => '1', 'limit' => '20'],
             $this->listService($repo),
         );
@@ -304,11 +305,13 @@ class ApiTest extends TestCase
             );
         }
 
-        $this->assertCount(1, $decoded);
-        $this->assertSame($episodeId, $decoded[0]['id'] ?? null);
-        $this->assertArrayHasKey('createdDate', $decoded[0]);
-        $this->assertArrayHasKey('turns', $decoded[0]);
-        $this->assertArrayHasKey('startingSituation', $decoded[0]);
+        $this->assertSame(['featured', 'yours'], array_keys($decoded));
+        $yours = $decoded['yours'];
+        $this->assertCount(1, $yours);
+        $this->assertSame($episodeId, $yours[0]['id'] ?? null);
+        $this->assertArrayHasKey('createdDate', $yours[0]);
+        $this->assertArrayHasKey('turns', $yours[0]);
+        $this->assertArrayHasKey('startingSituation', $yours[0]);
     }
 
     public function testEndedEpisodeListRejectsOutOfRangeLimit(): void

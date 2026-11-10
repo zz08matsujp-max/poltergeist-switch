@@ -500,6 +500,53 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         return $ended;
     }
 
+    public function listEndedEpisodesByIds(array $ids): array
+    {
+        $episodes = [];
+        $seen = [];
+        foreach ($ids as $id) {
+            $id = (string) $id;
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            if (isset($this->episodes[$id]) && $this->episodes[$id]->ended) {
+                $episodes[] = $this->episodes[$id];
+            }
+        }
+
+        return $episodes;
+    }
+
+    public function listEndedEpisodesForDevice(
+        string $deviceId,
+        ?string $sinceCreatedAt,
+        array $excludeIds,
+        int $limit
+    ): array {
+        $matches = [];
+        foreach ($this->episodes as $episode) {
+            if (!$episode->ended || $episode->deviceId !== $deviceId) {
+                continue;
+            }
+            if ($sinceCreatedAt !== null && strcmp($episode->createdAt, $sinceCreatedAt) <= 0) {
+                continue;
+            }
+            if (in_array($episode->id, $excludeIds, true)) {
+                continue;
+            }
+            $matches[] = $episode;
+        }
+
+        usort($matches, static function (EpisodeRow $a, EpisodeRow $b): int {
+            $byDate = strcmp($b->createdAt, $a->createdAt);
+
+            return $byDate !== 0 ? $byDate : strcmp($b->id, $a->id);
+        });
+
+        return array_slice($matches, 0, max(0, $limit));
+    }
+
     // --- View -------------------------------------------------------------
 
     public function loadEpisodeView(string $id): ?EpisodeView

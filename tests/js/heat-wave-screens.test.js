@@ -356,7 +356,7 @@ pending.push(Promise.all(pending.slice()).then(function () {
     { id: 'q1', createdDate: '2026-11-08T10:00:00+09:00', turns: 5, startingSituation: 'Night. Jade is in the hall.' }
   ];
   global.window.createApiClient = function () {
-    return { listEnded: function () { return Promise.resolve({ status: 200, body: listed }); } };
+    return { listEnded: function () { return Promise.resolve({ status: 200, body: { featured: listed, yours: [] } }); } };
   };
   delete require.cache[require.resolve(path.join(JS, 'replay.js'))];
   const replay = require(path.join(JS, 'replay.js'));
@@ -365,7 +365,8 @@ pending.push(Promise.all(pending.slice()).then(function () {
   fire(r.doc);   // no ?episode -> shows the list
   return new Promise(function (res) { setImmediate(res); }).then(function () {
     check('Replay list marks "Heat wave" on heat-wave episodes only (10.4)', function () {
-      const items = r.byId['episode-list'].children;
+      // children[0] is the Featured section: heading first, then the items.
+      const items = r.byId['episode-list'].children[0].children.slice(1);
       assert.strictEqual(items.length, 2);
       const heatTag = findByClass(items[0], 'disaster-tag');
       assert.ok(heatTag && heatTag.textContent === 'Heat wave', 'heat item is tagged');

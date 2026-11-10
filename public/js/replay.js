@@ -105,7 +105,7 @@
         showError('The list could not be loaded. Please try again.');
         return;
       }
-      if (result._error || !result || result.status !== 200 || !Array.isArray(result.body)) {
+      if (result._error || !result || result.status !== 200 || !result.body || typeof result.body !== 'object' || Array.isArray(result.body)) {
         showError('The list could not be loaded. Please try again.');
         return;
       }
@@ -114,28 +114,51 @@
   }
 
   /**
-   * renderList(items) — render at most 20 ended episodes newest-first (the
-   * server already orders them that way; we also cap defensively) (Req 8.2).
-   * An empty list shows the "no replayable episodes yet" message (Req 8.4).
+   * renderList(body) — body is { featured: [...], yours: [...] } (public-lab
+   * Req 6.9): a "Featured" section and a "Your runs" section (at most 20,
+   * newest first, with an empty-state line).
    * Each item shows its created date, number of turns and the single-line
    * starting situation, and is clickable → navigates to replay.php?episode=<id>
    * so the direct-load path (Req 8.7) is the single playback entry.
    */
-  function renderList(items) {
+  function renderList(body) {
     if (!el.list) { return; }
     el.list.textContent = '';
-
-    if (!items || items.length === 0) {
-      showMessage('No replayable episodes yet.');
-      return;
-    }
-
     clearNotice();
-    var shown = items.slice(0, LIST_LIMIT);
-    shown.forEach(function (item) {
-      if (!item) { return; }
-      el.list.appendChild(buildListItem(item));
-    });
+
+    var featured = (body && Array.isArray(body.featured)) ? body.featured : [];
+    var yours = (body && Array.isArray(body.yours)) ? body.yours : [];
+
+    // A Featured episode appears once: drop it from "Your runs" (Req 6.9).
+    var featuredIds = {};
+    featured.forEach(function (item) { if (item) { featuredIds['id:' + item.id] = true; } });
+    yours = yours.filter(function (item) { return item && !featuredIds['id:' + item.id]; });
+
+    var featuredSection = buildListSection('Featured', featured, null);
+    var yoursSection = buildListSection('Your runs', yours.slice(0, LIST_LIMIT),
+      'No runs of your own yet. Start one on the Observe page and it will appear here.');
+    el.list.appendChild(featuredSection);
+    el.list.appendChild(yoursSection);
+  }
+
+  // One headed section: <section class="list-group"><h2>heading</h2>items…</section>.
+  // An empty group shows `emptyText` (when given) as a short line.
+  function buildListSection(heading, items, emptyText) {
+    var section = document.createElement('section');
+    section.className = 'list-group';
+    var h = document.createElement('h2');
+    h.className = 'list-heading';
+    h.textContent = heading;
+    section.appendChild(h);
+    var shown = items.filter(function (item) { return !!item; });
+    if (shown.length === 0 && emptyText) {
+      var p = document.createElement('p');
+      p.className = 'list-empty';
+      p.textContent = emptyText;
+      section.appendChild(p);
+    }
+    shown.forEach(function (item) { section.appendChild(buildListItem(item)); });
+    return section;
   }
 
   // Build one clickable list item from a list entry
@@ -899,6 +922,7 @@
   // a headless check can require this file. Nothing here calls an AI endpoint.
   var controller = {
     showList: showList,
+    renderList: renderList,
     directLoad: directLoad,
     // Started-with memory counts (robot-memory Req 7.6), exposed so a headless
     // check can assert the per-robot count equals the stored snapshot length.

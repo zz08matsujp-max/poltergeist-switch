@@ -103,7 +103,7 @@ function ps_dispatch(
             && ($query['ended'] ?? null) === '1'
             && $listService !== null
         ) {
-            return ps_handle_list($listService, $query);
+            return ps_handle_list($listService, $query, ps_device_id_from_cookies($cookies));
         }
 
         // POST /api/episodes — create (takes the Memory_Snapshot when the

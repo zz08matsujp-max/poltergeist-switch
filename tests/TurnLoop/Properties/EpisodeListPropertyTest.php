@@ -46,6 +46,9 @@ class EpisodeListPropertyTest extends TestCase
 {
     use TestTrait;
 
+    /** One Device owns every seeded episode, so its "yours" group is the whole list. */
+    private const DEVICE = 'device-123456';
+
     /**
      * Provider words and model names that must never appear in a list body,
      * reusing the forbidden-substring style of
@@ -88,7 +91,7 @@ class EpisodeListPropertyTest extends TestCase
                 $service = $this->makeService($repo);
 
                 // A limit of 100 (the max) so ordering, not the cap, is tested.
-                $items = $service->list(100);
+                $items = $service->list(100, self::DEVICE)['yours'];
                 $actualIds = array_map(static fn (array $item): string => $item['id'], $items);
 
                 $expectedIds = $this->orderedEndedIds($episodes, 100);
@@ -129,7 +132,7 @@ class EpisodeListPropertyTest extends TestCase
                 $endedCount = count($this->endedRows($episodes));
 
                 // A supplied limit caps at min(limit, number-of-ended).
-                $items = $service->list($limit);
+                $items = $service->list($limit, self::DEVICE)['yours'];
                 $this->assertLessThanOrEqual(
                     $limit,
                     count($items),
@@ -142,7 +145,7 @@ class EpisodeListPropertyTest extends TestCase
                 );
 
                 // An absent limit caps at min(20, number-of-ended).
-                $defaultItems = $service->list(null);
+                $defaultItems = $service->list(null, self::DEVICE)['yours'];
                 $this->assertLessThanOrEqual(
                     20,
                     count($defaultItems),
@@ -185,7 +188,7 @@ class EpisodeListPropertyTest extends TestCase
                 $threw = false;
                 $returned = null;
                 try {
-                    $returned = $service->list($badLimit);
+                    $returned = $service->list($badLimit, self::DEVICE);
                 } catch (ApiError $e) {
                     $threw = true;
                     $this->assertSame(
@@ -246,7 +249,7 @@ class EpisodeListPropertyTest extends TestCase
 
                 $service = $this->makeService($repo);
 
-                $items = $service->list(100);
+                $items = $service->list(100, self::DEVICE)['yours'];
 
                 // The item shape is exactly the four fields.
                 foreach ($items as $item) {
@@ -292,7 +295,7 @@ class EpisodeListPropertyTest extends TestCase
     {
         $backfill = new WorldStateBackfill($repo, new ReplayEngineFactory($repo));
 
-        return new EpisodeListService($repo, $backfill);
+        return new EpisodeListService($repo, $backfill, new \PoltergeistSwitch\TurnLoop\Config());
     }
 
     /**
@@ -332,7 +335,7 @@ class EpisodeListPropertyTest extends TestCase
             // Unique, zero-padded id so string ordering is stable and total.
             $id = 'ep_' . str_pad((string) $i, 3, '0', STR_PAD_LEFT)
                 . '_' . str_pad((string) $next(1000), 3, '0', STR_PAD_LEFT);
-            $deviceId = 'device-' . str_pad((string) $next(100000), 6, '0', STR_PAD_LEFT);
+            $deviceId = self::DEVICE;
             $createdAt = $datePool[$next(count($datePool))];
             $ended = $allEnded ? true : ($next(2) === 1);
 

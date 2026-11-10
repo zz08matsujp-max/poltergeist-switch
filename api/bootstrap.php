@@ -201,6 +201,7 @@ function ps_build_episode_list_service(): EpisodeListService
     return new EpisodeListService(
         $repo,
         new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+        new Config(),
     );
 }
 

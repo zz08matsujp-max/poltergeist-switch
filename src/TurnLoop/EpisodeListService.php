@@ -6,6 +6,7 @@ namespace PoltergeistSwitch\TurnLoop;
 
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\Repository\EpisodeRepository;
+use PoltergeistSwitch\TurnLoop\Values\EpisodeRow;
 
 /**
  * The ended-episode list for the Replay_Screen — `GET /api/episodes?ended=1&limit=20`
@@ -66,6 +67,7 @@ final class EpisodeListService
     public function __construct(
         private readonly EpisodeRepository $repo,
         private readonly WorldStateBackfill $worldBackfill,
+        private readonly Config $config,
     ) {}
 
     /**
@@ -75,56 +77,77 @@ final class EpisodeListService
      * thin.
      *
      * @param mixed $rawLimit the raw `limit` query value, or null when absent
-     * @return list<array{id: string, createdDate: string, turns: int, startingSituation: string, disaster?: string}>
+     * @param string|null $deviceId the caller's Device (null when no cookie)
+     * @return array{featured: list<array<string, mixed>>, yours: list<array<string, mixed>>}
      *
      * @throws ApiError 'limit_out_of_range' (400) when $rawLimit is present but
      *                  not an integer, is less than 1, or is greater than 100
      *                  (Requirement 11.6); no list is returned.
      */
-    public function list(mixed $rawLimit = null): array
+    public function list(mixed $rawLimit = null, ?string $deviceId = null): array
     {
         $limit = $this->validateLimit($rawLimit);
 
-        $items = [];
-        foreach ($this->repo->listEndedEpisodes($limit) as $episode) {
-            // Fill a pre-existing episode's missing per-turn World_State once,
-            // by replaying the engine (never AI) — so turn 0's world exists for
-            // the one-liner (Requirement 8.5 / 10.7). Already-filled episodes
-            // are a no-op. A replay that cannot complete throws a
-            // 'world_backfill_failed' ApiError (Requirement 10.8).
-            $this->worldBackfill->backfill($episode->id);
-
-            $worldsByTurn = $this->repo->loadTurnWorldJson($episode->id);
-
-            $item = [
-                'id'                => $episode->id,
-                // The stored timestamp is Japan time (UTC+9, no DST); return it
-                // as ISO 8601 WITH the offset so a viewer in any zone can render
-                // the correct instant in their own local time (Requirement 8.5).
-                'createdDate'       => $this->createdDateIso($episode->createdAt),
-                // The number of turns as a non-negative integer: the count of
-                // applied turns AFTER turn 0 (the robot turns taken, excluding
-                // the quiet turn-0 setup), so it matches the End_Card's "turns
-                // taken" (Requirement 11.3).
-                'turns'             => $this->turnsTaken($worldsByTurn),
-                'startingSituation' => $this->startingSituation($worldsByTurn),
-            ];
-
-            // Heat-only addition (heat-wave Requirement 1.8, 4.6): a `disaster`
-            // field is surfaced ONLY for a heat-wave episode so the list shows
-            // "Heat wave". An earthquake list item gains no new key and stays
-            // byte-identical to before this change. The value is read from the
-            // stored turn-0 world (the serializer emits `disaster` only for a
-            // heat-wave world), so a heat-wave episode is recognised without a
-            // new column.
-            if ($this->isHeatWave($worldsByTurn)) {
-                $item['disaster'] = 'heat_wave';
-            }
-
-            $items[] = $item;
+        // Featured: in full, in configured order; missing or unended ids are
+        // simply absent (public-lab Requirements 6.2-6.4).
+        $featured = [];
+        foreach ($this->repo->listEndedEpisodesByIds($this->config->featuredEpisodeIds) as $episode) {
+            $featured[] = $this->buildItem($episode);
         }
 
-        return $items;
+        // Your runs: empty without a Device; otherwise this Device's ended
+        // episodes since its latest reset, Featured ids excluded in the query
+        // (Requirements 6.5-6.8).
+        $yours = [];
+        if ($deviceId !== null) {
+            $episodes = $this->repo->listEndedEpisodesForDevice(
+                $deviceId,
+                $this->repo->latestDeviceResetAt($deviceId),
+                $this->config->featuredEpisodeIds,
+                $limit,
+            );
+            foreach ($episodes as $episode) {
+                $yours[] = $this->buildItem($episode);
+            }
+        }
+
+        return ['featured' => $featured, 'yours' => $yours];
+    }
+
+    /**
+     * Build one list item (unchanged fields from the screens spec).
+     *
+     * @return array{id: string, createdDate: string, turns: int, startingSituation: string, disaster?: string}
+     */
+    private function buildItem(EpisodeRow $episode): array
+    {
+        // Fill a pre-existing episode's missing per-turn World_State once,
+        // by replaying the engine (never AI) — so turn 0's world exists for
+        // the one-liner (Requirement 8.5 / 10.7). Already-filled episodes
+        // are a no-op. A replay that cannot complete throws a
+        // 'world_backfill_failed' ApiError (Requirement 10.8).
+        $this->worldBackfill->backfill($episode->id);
+
+        $worldsByTurn = $this->repo->loadTurnWorldJson($episode->id);
+
+        $item = [
+            'id'                => $episode->id,
+            // The stored timestamp is Japan time (UTC+9, no DST); return it
+            // as ISO 8601 WITH the offset (Requirement 8.5).
+            'createdDate'       => $this->createdDateIso($episode->createdAt),
+            // Applied turns AFTER turn 0 (Requirement 11.3).
+            'turns'             => $this->turnsTaken($worldsByTurn),
+            'startingSituation' => $this->startingSituation($worldsByTurn),
+        ];
+
+        // Heat-only addition (heat-wave Requirement 1.8, 4.6): `disaster` is
+        // surfaced only for a heat-wave episode; earthquake items stay
+        // byte-identical.
+        if ($this->isHeatWave($worldsByTurn)) {
+            $item['disaster'] = 'heat_wave';
+        }
+
+        return $item;
     }
 
     /**
