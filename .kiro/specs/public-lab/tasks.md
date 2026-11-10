@@ -354,7 +354,7 @@ Steering constraints that apply to every task:
     - Create `tests/js/replay-voices.test.js`: the label starts "Voices: on" and the button exists in list and playback modes; no speech before the First_Gesture; Pause, Step back, Step forward and Play cancel any reading and bubble timer, close the open bubble and start no further line until the new position's Line_Sequence begins; the picture still ends in the recorded world.
     - _Requirements: 11.1, 11.3, 11.16, 14.11_
 
-- [-] 15. Draw the heat-wave sky
+- [x] 15. Draw the heat-wave sky
   - [x] 15.1 Update the heat palette in `house-renderer.js`
     - When `S.heat`: sky gradient from rgb(58,14,30) to rgb(196,78,40) (no generic sun, stars or bats), hills `#3a1622`, ground `#2a1a10`, ground texture `#3c2614`. `heatSky()` draws only the sun at (330, 34): `#ffc83a` alpha 0.16 radius 32, `#ffd84a` alpha 0.32 radius 21, `#ffe46a` radius 13; the old orange wash and white sun are removed. Keep the heat shimmer, windows, fan and air conditioner. An earthquake world (`S.heat === null`) skips every new branch, and a heat world replaced by an earthquake world draws the earthquake sky and ground again.
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
@@ -366,11 +366,11 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 12.1, 12.2, 12.3, 12.5, 12.6**
     - Create `tests/js/heat-palette-property.test.js` (seeded, at least 100 cases, `Math.random` stubbed): for any earthquake world the call sequence equals the recorded one and contains no Heat_Palette colour or sun disc; for any heat-wave world the sky, hills, ground, texture and sun match Requirements 12.1 to 12.3; drawing a heat world then an earthquake world gives the same calls as the earthquake world alone.
 
-- [ ] 16. Audit the existing tests after the changes
-  - [ ] 16.1 Write a stale-reference check
+- [~] 16. Audit the existing tests after the changes
+  - [x] 16.1 Write a stale-reference check
     - Create `tests/js/no-stale-references.test.js` that scans `public/` and `tests/js/` for leftovers: `Paused.`, `sw-rain`, `btn-pause` (Observe only), `stepOnce`, `Array.isArray(result.body)` for the list, `autoUnlock` defaulting to true, and the old `createActOut(house, voices)` two-argument call. Fix every leftover it finds in the files this spec owns.
     - _Requirements: 9.9, 10.1, 10.5, 14.13_
-  - [ ] 16.2 Review the test changes for protected edits
+  - [x] 16.2 Review the test changes for protected edits
     - Review `git diff` of every existing test changed by this spec. Only these were changed on purpose: the memory tests (design C2, C3), the list tests (C5), the 409 body tests (C6), `heat-wave-screens.test.js` (C7) and `ask-apply-recovery.test.js` (C8). Confirm `tests/fixtures/earthquake_golden_master.json`, `tests/fixtures/renderer_earthquake_calls.json`, `ProtectedVersionsTest` and `EpisodeViewBytesTest` are byte-for-byte unchanged since task 1, and the `earthquake_golden_master.json` SHA-256 still starts with `c2aba50f87c22fe6`. Report any other changed expected value to the maintainer instead of editing it.
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 14.13_
 
