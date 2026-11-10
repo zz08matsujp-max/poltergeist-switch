@@ -214,7 +214,7 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 13.14, 13.18, 1.7, 3.3, 6.10**
     - Create `tests/TurnLoop/Properties/IpPrivacyPropertyTest.php` (tag `Feature: public-lab, Property 15: IP privacy and hash stability`): includes the check that the raw IP and the Device_Id appear in no `daily_usage` fake row, no response body and no `error_log` message of the create path.
 
-- [~] 8. Return the episode list in two groups
+- [x] 8. Return the episode list in two groups
   - [x] 8.1 Add the list queries to both repositories
     - Add `listEndedEpisodesByIds(array $ids)` (ended episodes among the ids, in `$ids` order) and `listEndedEpisodesForDevice(string $deviceId, ?string $sinceCreatedAt, array $excludeIds, int $limit)` (newest first, Featured ids excluded in the query) to the interface, `PdoEpisodeRepository` and `InMemoryEpisodeRepository`.
     - _Requirements: 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8_
@@ -245,11 +245,11 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 13.1, 13.2**
     - Create `tests/TurnLoop/Properties/OnlyStartIsLimitedPropertyTest.php` (tag `Feature: public-lab, Property 14: Only starting an episode is counted or limited`): with Device, IP and site at their limits, `ask`, `apply`, `reflect`, `GET /api/episodes/{id}`, the list and `GET /api/memory` behave as if no limit existed and change no count.
 
-- [ ] 9. Keep direct replay links working
-  - [ ] 9.1 Write `DirectAccessTest` and fix `replay.php` only if it fails
+- [~] 9. Keep direct replay links working
+  - [x] 9.1 Write `DirectAccessTest` and fix `replay.php` only if it fails
     - Create `tests/TurnLoop/DirectAccessTest.php`: `GET /api/episodes/{id}` works for an ended episode that is in no list and for another Device's episode; `public/replay.php` (source check) plays `?episode=<id>` without consulting a list and shows the not-found message and the list for an unknown id. Change `replay.php` or `replay.js` only if the test shows a gap.
     - _Requirements: 7.1, 7.2, 7.3, 14.8_
-  - [ ] 9.2 Write the property test for caller-independent access
+  - [x] 9.2 Write the property test for caller-independent access
     - **Property 10: Direct access does not depend on the caller**
     - **Validates: Requirements 7.3**
     - Create `tests/TurnLoop/Properties/DirectAccessPropertyTest.php` (tag `Feature: public-lab, Property 10: Direct access does not depend on the caller`): same status and bytes for no cookie, the owner's cookie and another Device's cookie.
