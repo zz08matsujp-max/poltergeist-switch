@@ -35,6 +35,24 @@ readonly class Config
         // --- Slot limits (Req 9.9, 9.10) ---
         public int $maxRunningEpisodes = 5,
         public int $idleSlotReleaseSeconds = 300,
+
+        // --- Public lab: daily start limits (Req 13.3) ---
+        public int $dailyDeviceLimit = 10,
+        public int $dailyIpLimit = 30,
+        public int $dailySiteLimit = 100,
+
+        // --- Public lab: Featured replay ids, in display order (Req 6.1) ---
+        /** @var list<string> */
+        public array $featuredEpisodeIds = [
+            'b9931223-fc11-4162-8a4d-a8cf55886e1e',
+            '450e9249-94db-4744-987d-ec6774bf5057',
+            '4113e82c-2f09-49e4-b647-a1481d794807',
+            '2a3800d5-4029-448c-8152-fd622693a775',
+            '3ef560a5-c35c-4632-869f-d01fb2dd2e2b',
+            'bae88cfc-7eea-4cb6-a742-a49c0ccc401c',
+            '36e82c3e-03bc-4396-bfdc-e3fc33ffe671',
+            '186823c0-3ff4-4289-ad30-ca98ef97708e',
+        ],
     ) {
         $this->assertInvariants();
     }
@@ -50,6 +68,19 @@ readonly class Config
             throw new \InvalidArgumentException(
                 'perCallTimeoutSeconds must be strictly below perRequestBudgetSeconds'
             );
+        }
+        foreach ([$this->dailyDeviceLimit, $this->dailyIpLimit, $this->dailySiteLimit] as $limit) {
+            if ($limit < 1) {
+                throw new \InvalidArgumentException('daily limits must be at least 1');
+            }
+        }
+        foreach ($this->featuredEpisodeIds as $id) {
+            if (!is_string($id) || preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+                $id
+            ) !== 1) {
+                throw new \InvalidArgumentException('featuredEpisodeIds must be UUIDs');
+            }
         }
     }
 }

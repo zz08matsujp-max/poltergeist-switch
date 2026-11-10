@@ -46,7 +46,7 @@ Steering constraints that apply to every task:
     - If anything fails, stop and report; do not change the code or any expected value.
     - _Requirements: 1.1, 1.8, 14.13_
 
-- [~] 2. Add the additive SQL file for the public lab
+- [x] 2. Add the additive SQL file for the public lab
   - [x] 2.1 Create `sql/2026-11-10_add_public_lab.sql`
     - Write the file exactly as in the design's Data Models: nullable `memories.device_id` with `idx_device_snapshot` and `idx_device_pick`, the append-only `device_resets` table and the `daily_usage` table (InnoDB, utf8mb4).
     - The header comment says the file is schema only, is never run by any task, and that the maintainer applies it over FTPS before deploying the matching code. No secret, key or provider name.
@@ -56,24 +56,24 @@ Steering constraints that apply to every task:
     - Create `tests/Memory/PublicLabMigrationFileTest.php` in the style of `MigrationFileTest`: the file exists with the dated name; the header says to apply it before deploying and that it is never run by tasks; only `CREATE TABLE`, `ADD COLUMN ... NULL` and `ADD KEY` appear; no `DROP`, `UPDATE`, `DELETE`, `TRUNCATE`; utf8mb4; no secret-like text.
     - _Requirements: 1.6, 1.7, 5.1, 5.3, 13.17_
 
-- [ ] 3. Add Config values and the pure limit and IP classes
-  - [ ] 3.1 Add the public-lab parameters to `Config`
+- [-] 3. Add Config values and the pure limit and IP classes
+  - [x] 3.1 Add the public-lab parameters to `Config`
     - In `src/TurnLoop/Config.php` append promoted parameters with defaults: `dailyDeviceLimit` 10, `dailyIpLimit` 30, `dailySiteLimit` 100, and `featuredEpisodeIds` (the eight ids of Requirement 6.1, in that order).
     - Extend `assertInvariants()`: each limit is at least 1 and each featured id matches the UUID pattern. Existing `new Config()` callers are unaffected.
     - _Requirements: 6.1, 13.3_
-  - [ ] 3.2 Write `ConfigPublicLabTest`
+  - [x] 3.2 Write `ConfigPublicLabTest`
     - Create `tests/TurnLoop/ConfigPublicLabTest.php`: the exact eight ids in order, the three default limits, and the invariants (limit below 1 and a malformed id are rejected).
     - _Requirements: 6.1, 13.3_
-  - [ ] 3.3 Create `DailyLimitPolicy` and `UsageKeys`
+  - [x] 3.3 Create `DailyLimitPolicy` and `UsageKeys`
     - Create `src/TurnLoop/DailyLimitPolicy.php` (`fromConfig`, `denial(array $counts): ?string` returning the first reached of `daily_device_limit`, `daily_ip_limit`, `daily_site_limit` in that order, `utcDay(int): string` using `gmdate('Y-m-d')`; an untracked IP count of null is skipped) and `src/TurnLoop/UsageKeys.php` (`deviceKey`, `?ipKey`, `SITE_KEY` of 64 zeros).
     - _Requirements: 13.3, 13.4, 13.5, 13.6, 13.7, 13.10_
-  - [ ] 3.4 Write `DailyLimitPolicyTest`
+  - [x] 3.4 Write `DailyLimitPolicyTest`
     - Create `tests/TurnLoop/DailyLimitPolicyTest.php`: boundary at limit-1, limit and limit+1 for each scope, the error order when several are reached, null IP skipped, `utcDay` at 23:59:59 and 00:00:00 UTC.
     - _Requirements: 13.4, 13.5, 13.6, 13.7, 13.10, 14.17_
-  - [ ] 3.5 Create `ClientIp` and `IpHasher`
+  - [x] 3.5 Create `ClientIp` and `IpHasher`
     - Create `src/TurnLoop/ClientIp.php` (`normalize(?string): ?string`: null for empty, malformed, loopback, private, link-local or reserved; IPv4 canonical; IPv6 reduced to its /64; IPv4-mapped IPv6 unwrapped) and `src/TurnLoop/IpHasher.php` (`ipHash` and `deviceKey` using `hash_hmac('sha256', "<scope>:" . $value, $salt)`, 64 hex characters).
     - _Requirements: 13.14, 13.15_
-  - [ ] 3.6 Write `ClientIpTest` and `IpHasherTest`
+  - [x] 3.6 Write `ClientIpTest` and `IpHasherTest`
     - Create `tests/TurnLoop/ClientIpTest.php` and `tests/TurnLoop/IpHasherTest.php`: normalisation examples (public v4, public v6 in one /64, mapped v4, 127.0.0.1, 10.x, 192.168.x, ::1, garbage), hash determinism, 64 lowercase hex, different salt gives a different hash, device and ip scopes never collide.
     - _Requirements: 13.14, 14.19_
 
