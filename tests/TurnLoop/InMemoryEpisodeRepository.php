@@ -118,6 +118,61 @@ final class InMemoryEpisodeRepository implements EpisodeRepository
         return $id;
     }
 
+    /** @var array<string,true> turn locks held by this repository */
+    private array $heldTurnLocks = [];
+
+    /** @var array<string,true> turn locks held by "someone else" (test hook) */
+    private array $foreignTurnLocks = [];
+
+    private int $turnLockAcquireCount = 0;
+
+    private int $turnLockReleaseCount = 0;
+
+    /** Test hook: make a lock busy for this repository's callers. */
+    public function holdTurnLock(string $kind, string $episodeId, int $turnNumber): void
+    {
+        $this->foreignTurnLocks[$kind . ':' . $episodeId . ':' . $turnNumber] = true;
+    }
+
+    /** Test hook: make a lock held through {@see holdTurnLock()} free again. */
+    public function freeHeldTurnLock(string $kind, string $episodeId, int $turnNumber): void
+    {
+        unset($this->foreignTurnLocks[$kind . ':' . $episodeId . ':' . $turnNumber]);
+    }
+
+    /** Number of successful acquireTurnLock calls. */
+    public function turnLockAcquireCount(): int
+    {
+        return $this->turnLockAcquireCount;
+    }
+
+    /** Number of releaseTurnLock calls that freed a held lock. */
+    public function turnLockReleaseCount(): int
+    {
+        return $this->turnLockReleaseCount;
+    }
+
+    public function acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool
+    {
+        $key = $kind . ':' . $episodeId . ':' . $turnNumber;
+        if (isset($this->foreignTurnLocks[$key]) || isset($this->heldTurnLocks[$key])) {
+            return false;
+        }
+        $this->heldTurnLocks[$key] = true;
+        $this->turnLockAcquireCount++;
+
+        return true;
+    }
+
+    public function releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void
+    {
+        $key = $kind . ':' . $episodeId . ':' . $turnNumber;
+        if (isset($this->heldTurnLocks[$key])) {
+            unset($this->heldTurnLocks[$key]);
+            $this->turnLockReleaseCount++;
+        }
+    }
+
     public function findEpisode(string $id): ?EpisodeRow
     {
         return $this->episodes[$id] ?? null;

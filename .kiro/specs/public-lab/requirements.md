@@ -64,6 +64,16 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 - **Heat_Palette**: The pilot v0.5 heat colours defined in Requirement 12.
 - **House_Renderer**: The shared stage drawing module `public/js/house-renderer.js`.
 - **Golden_Master**: `tests/fixtures/earthquake_golden_master.json` (SHA-256 starts with `c2aba50f87c22fe6`) and `EarthquakeGoldenMasterTest`.
+- **Turn_Lock**: A per-turn MySQL named lock taken on the repository's own database connection, with one lock kind for `ask` and a separate kind for `apply`. It is taken without waiting and is released when the request ends or the connection closes.
+- **Turn_Busy**: The answer `409 {"error":"turn_busy"}` (with the current expected turn and turn state) sent when the Turn_Lock cannot be taken.
+- **Attempt_Limit**: At most 2 provider calls per robot per turn (the existing `attempts_a` and `attempts_b` limit of 2).
+- **Reserved_Attempt**: The attempt number a robot receives when `incrementAttempt` is called before its provider call.
+- **Accepted_Ask**: An `ask` that has passed the episode, ended, turn-number and already-applied checks and holds the ask Turn_Lock. An episode has had an Accepted_Ask exactly when a turn row with a turn number of 1 or more exists for it (turn 0 is the quiet turn that `createEpisode` writes).
+- **Unasked_Episode**: An episode that has not ended and has never had an Accepted_Ask.
+- **Unasked_Release_Seconds**: How long an Unasked_Episode holds a running slot after its last activity: 60 seconds, a `Config` value. The existing 300-second idle rule (`idleSlotReleaseSeconds`) stays for every other episode.
+- **Allowed_Origin**: An origin (scheme, host and optional port, no path) listed under `allowed_origins` in `api/config.local.php`; `api/config.example.php` shows `https://kiro.pyol.net`.
+- **Cross_Site_Request**: A `POST` request that carries an `Origin` header whose value is not exactly one of the Allowed_Origins (including the value `null`).
+- **Security_Headers**: The four response headers of Requirement 20: Content-Security-Policy, X-Frame-Options, Referrer-Policy and Strict-Transport-Security, with the exact values given there.
 - **Amber / Jade**: The screen names of Robot_A (Claude) and Robot_B (GPT). The robots never see these names.
 
 ## Requirements
@@ -329,6 +339,14 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 22. THE Public_Lab SHALL test in JavaScript that the Notice_Area sits inside the Switches_Panel directly after the Levers, that a notice shown outside the viewport is scrolled into view (instantly when reduced motion is requested), and that every earlier notice test still passes (Requirement 16).
 23. THE Public_Lab SHALL test `voices.js` with a fake `speechSynthesis` for the splitting rules, the chunk order and the line end after the last chunk, `resume()` before `speak()` on a paused engine, `resume()` on `visibilitychange` and window focus, the 150 ms gap after `cancel()`, and the Chunk_Watchdog (Requirement 17).
 24. THE Public_Lab SHALL keep the Golden_Master, `ProtectedVersionsTest`, `EpisodeViewBytesTest` and `renderer_earthquake_calls.json` unchanged by Requirements 15 to 17, and SHALL change no file in `src/`, `api/` or `sql/` for them.
+25. THE Public_Lab SHALL test, against the in-memory fake repository and fake clients and without any real AI call, that `ask` with a busy Turn_Lock answers Turn_Busy and calls no client and changes no attempt count, that the attempt is reserved before the client is called, that however many asks arrive for one turn no robot is called more than twice and neither attempt count exceeds 2 (an Eris property test), that the lock is released after success and after an exception, and that every existing `ask` idempotency test still passes (Requirement 18).
+26. THE Public_Lab SHALL test, against the same fakes, that `apply` with a busy Turn_Lock answers Turn_Busy and calls no recorder client and stores nothing, that a second `apply` of an applied turn still returns the stored state, and that the ask lock and the apply lock are separate (Requirement 18).
+27. WHERE `PS_TEST_MYSQL_DSN` names a throwaway database, THE Public_Lab SHALL test with two PDO connections that a Turn_Lock held on one connection makes the other connection's `acquireTurnLock` fail, that the lock is free again after `releaseTurnLock` and after the holding connection closes, that an `ask` lock and an `apply` lock for the same turn do not block each other, and that an episode id of any length gives a lock name of 64 characters or fewer; without the variable these tests SHALL skip.
+28. THE Public_Lab SHALL test in JavaScript that Observe treats Turn_Busy on `ask` and on `apply` as still thinking: it waits 2000 ms, reads the episode once, continues from the stored state, shows no notice, counts no failed try, and after 15 consecutive Turn_Busy answers for one turn counts one failed try (Requirement 18, criterion 13).
+29. THE Public_Lab SHALL test that a Cross_Site_Request is answered with 403 `cross_site` and changes nothing on every POST route, that a request with an Allowed_Origin or with no `Origin` header is handled as before, and that a missing or empty `allowed_origins` makes any request that carries an `Origin` header a Cross_Site_Request (Requirement 19).
+30. THE Public_Lab SHALL test, with an injected clock, that an Unasked_Episode stops holding a running slot after 60 seconds and still holds it at 59 seconds, that an episode with an Accepted_Ask keeps the 300-second rule (held at 299 seconds, released at 301 seconds), that `device_already_running` and `too_many_running` follow the same rule, and that an ask on a released episode is accepted and makes it hold a slot again, on the in-memory fake and (gated by `PS_TEST_MYSQL_DSN`) on the PDO repository (Requirement 19).
+31. THE Public_Lab SHALL test that `public/index.php`, `public/replay.php` and every API response (success, 403, 404, 409, 429 and 500) send the four Security_Headers with the exact values of Requirement 20, that the page headers equal the API headers, that `index.php`, `replay.php`, `screens.css` and every file in `public/js/` contain no inline script, `<style>` element, `style="` attribute, inline event-handler attribute or `javascript:` URL, and that `api/.htaccess` denies every `.php` file except `index.php` (Requirement 20).
+32. THE Public_Lab SHALL keep the Golden_Master, `ProtectedVersionsTest`, `EpisodeViewBytesTest` and `renderer_earthquake_calls.json` unchanged by Requirements 18 to 20, and SHALL run the project's JavaScript command `node tests/js/run-all.js` and the full PHPUnit suite before each of their commits.
 
 ---
 
@@ -383,3 +401,67 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 9. IF a Spoken_Chunk reports neither 'end' nor 'error' within 2000 ms plus 120 ms per character divided by the rate, THEN THE Voices_Module SHALL, WHEN `speechSynthesis.speaking` is false, treat the Spoken_Chunk as ended and go on with the next one, and SHALL, WHEN `speechSynthesis.speaking` is still true after twice that time, cancel the Spoken_Chunk and go on with the next one, so that the line continues.
 10. IF a Spoken_Chunk reports 'error', THEN THE Voices_Module SHALL report 'error' for the line, as before.
 11. THE Public_Lab SHALL implement this requirement in `public/js/voices.js` only and SHALL change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; every protection pin of Requirement 1 SHALL stay unchanged.
+
+---
+
+### Requirement 18: Provider Calls Are Capped, Even Under Concurrent Requests
+
+**User Story:** As the maintainer, I want each robot called at most twice per turn however many requests arrive at once, so that a burst of concurrent requests cannot run up the AI bill.
+
+#### Acceptance Criteria
+
+1. WHEN `TurnService::ask` has found the episode, THE Public_Lab SHALL try to take the ask Turn_Lock for that episode and turn without waiting, before it stages any provider call.
+2. IF the ask Turn_Lock cannot be taken, THEN THE Public_Lab SHALL respond with Turn_Busy carrying the current expected turn and the current turn state, and SHALL call no provider, record no activity, store no reply and change no attempt count.
+3. WHILE the ask Turn_Lock is held, THE TurnService SHALL read the episode, the turn and the attempt counts afresh and SHALL apply the existing ended, turn-number, already-applied, stored-success and Attempt_Limit checks to those values.
+4. WHEN a robot has no stored successful reply and fewer than 2 attempts, THE TurnService SHALL call `incrementAttempt` for that robot before its provider call is made, and SHALL stage the provider call only if the Reserved_Attempt is 2 or less.
+5. THE TurnService SHALL store each prompt and reply under the Reserved_Attempt of its call.
+6. THE Public_Lab SHALL make at most 2 provider calls per robot per turn in total, and SHALL keep `attempts_a` and `attempts_b` at 2 or less, however many `ask` requests for that turn arrive one after another or at the same time.
+7. WHEN `ask` finishes, whether it returns a view or throws, THE TurnService SHALL release the ask Turn_Lock.
+8. WHEN `TurnService::apply` has found the episode, THE Public_Lab SHALL try to take the apply Turn_Lock for that episode and turn without waiting, and IF it cannot be taken, THEN THE Public_Lab SHALL respond with Turn_Busy, SHALL NOT call the recorder and SHALL store nothing; WHEN `apply` finishes, whether it returns a view or throws, THE TurnService SHALL release that lock.
+9. WHILE the apply Turn_Lock is held, THE TurnService SHALL repeat its existing checks on freshly read values, so that a repeated `apply` of an applied turn still returns the stored state without calling the recorder.
+10. THE Public_Lab SHALL derive each lock name from the lock kind (`ask` or `apply`), the episode id and the turn number in a form that is distinct for each combination and at most 64 characters long for any episode id.
+11. THE Public_Lab SHALL take and release the Turn_Lock on the same database connection that the repository uses for the turn, so that a PHP request that ends without releasing the lock releases it when its connection closes.
+12. THE `EpisodeRepository` interface SHALL declare `acquireTurnLock` and `releaseTurnLock`, THE `PdoEpisodeRepository` SHALL implement them with `GET_LOCK` (timeout 0) and `RELEASE_LOCK`, treating any result other than 1 as "not obtained", and THE `InMemoryEpisodeRepository` SHALL implement them so that tests can make a lock busy.
+13. WHEN `ask` or `apply` is answered with Turn_Busy, THE Observe SHALL treat it like a turn that is still being worked on: it SHALL wait 2000 ms, read the episode once with `GET /api/episodes/{id}`, and continue from the stored turn state, without showing a notice and without counting a failed try; WHEN 15 Turn_Busy answers in a row have been received for one turn, THE Observe SHALL count the next one as one failed try.
+14. THE Public_Lab SHALL keep the existing `ask` and `apply` idempotency, the stored-success reuse and the Attempt_Limit, and SHALL implement this requirement in `src/`, `api/` and `public/js/observe.js` only, changing nothing in `sql/`, the engine or any text the robots read; the Golden_Master (SHA-256 starting with `c2aba50f87c22fe6`) and every protection pin of Requirement 1 SHALL stay unchanged.
+
+---
+
+### Requirement 19: Episodes That Never Run Do Not Block Other Visitors
+
+**User Story:** As a visitor, I want the lab to stay open to me even when other pages or scripts start episodes they never run, so that an empty start cannot use up the running slots.
+
+#### Acceptance Criteria
+
+1. IF a `POST` request to any `/api` route carries an `Origin` header and the request is a Cross_Site_Request, THEN THE Public_Lab SHALL respond with status 403 and the error `cross_site`, and SHALL create no episode, mint no Device cookie, count no usage, change no stored data and call no provider.
+2. THE Public_Lab SHALL apply criterion 1 to every `POST` route: create, disaster, ask, apply, reflect and memory reset.
+3. WHEN a `POST` request carries no `Origin` header, THE Public_Lab SHALL handle it exactly as before.
+4. THE Public_Lab SHALL read the Allowed_Origins from the `allowed_origins` list in `api/config.local.php`, and `api/config.example.php` SHALL show `'allowed_origins' => ['https://kiro.pyol.net']`.
+5. IF `allowed_origins` is missing or empty, THEN THE Public_Lab SHALL treat every `POST` request that carries an `Origin` header as a Cross_Site_Request.
+6. THE Public_Lab SHALL compare an `Origin` value with each Allowed_Origin as an exact string, and SHALL NOT apply this check to `GET` requests.
+7. THE Public_Lab SHALL send the 403 `cross_site` body with the error code only, and with `Cache-Control: no-store`.
+8. WHILE an Unasked_Episode has not ended, THE Public_Lab SHALL count it as running (for `device_already_running`, for `too_many_running` and for the running-episode count) only when its last activity is within Unasked_Release_Seconds (60) of now.
+9. WHILE an episode has had an Accepted_Ask and has not ended, THE Public_Lab SHALL count it as running only when its last activity is within the existing 300 seconds of now.
+10. WHEN an Unasked_Episode has stopped holding a running slot, THE Public_Lab SHALL let its Device create a new episode and SHALL NOT answer `device_already_running` for it.
+11. WHILE an Unasked_Episode holds a running slot, THE Public_Lab SHALL answer `device_already_running` with its id as before, so that the Observe Resume action keeps working.
+12. WHEN an `ask` is accepted for an episode that had stopped holding a slot, THE Public_Lab SHALL make that episode hold a running slot again under the 300-second rule.
+13. THE Public_Lab SHALL apply criteria 8 and 9 identically in `PdoEpisodeRepository` and `InMemoryEpisodeRepository`, computed in PHP and bound as query parameters, with the 60-second value a `Config` field.
+14. THE Public_Lab SHALL change no ended episode, no recorded turn, reply or memory, and no table or column for this requirement, and SHALL leave the Daily_Limit counts unchanged.
+15. THE Public_Lab SHALL implement this requirement in `src/` and `api/` only, changing nothing in `sql/`, the engine, the browser files or any text the robots read; the Golden_Master and every protection pin of Requirement 1 SHALL stay unchanged.
+
+---
+
+### Requirement 20: Response Headers and No Direct Access to api/ Files
+
+**User Story:** As the maintainer, I want every page and API response to carry the browser security headers and the helper files in `api/` to be unreachable by URL, so that a hostile page cannot frame or inject into the lab and no helper script can be run directly.
+
+#### Acceptance Criteria
+
+1. THE `public/index.php` and `public/replay.php` SHALL each send, before any output and in addition to `Cache-Control: no-store`, the Security_Headers: `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` and `Strict-Transport-Security: max-age=31536000`.
+2. THE Public_Lab SHALL send the same four Security_Headers, with the same values, on every API response, including the 403, 404, 409, 429 and 500 responses.
+3. THE Public_Lab SHALL keep `public/index.php`, `public/replay.php`, `public/css/screens.css` and every file in `public/js/` free of inline scripts, `<style>` elements, `style` attributes in markup, inline event-handler attributes and `javascript:` URLs, and SHALL set dynamic styles only through the CSSOM (for example `element.style.width`).
+4. THE Public_Lab SHALL NOT loosen the Content-Security-Policy value (no `unsafe-inline`, no `unsafe-eval`, no added source) to make a page work; IF a page needs an inline script or style, THEN THE Public_Lab SHALL move it to a file under `public/js/` or `public/css/`.
+5. THE `api/.htaccess` SHALL deny a direct request for every `.php` file in `api/` except `index.php` with status 403, before the rewrite rules run.
+6. THE Public_Lab SHALL keep `api/index.php` reachable, including through the `?route=` form and through the rewrite, and SHALL keep the existing rewrite and `Cache-Control: no-store` rules of `api/.htaccess`.
+7. THE Public_Lab SHALL define the four header values in one place for the API and SHALL test that the page headers equal them.
+8. THE Public_Lab SHALL implement this requirement in `public/index.php`, `public/replay.php`, `api/` and `src/` only, changing nothing in `sql/`, the engine, the game logic or any text the robots read; the Golden_Master and every protection pin of Requirement 1 SHALL stay unchanged.

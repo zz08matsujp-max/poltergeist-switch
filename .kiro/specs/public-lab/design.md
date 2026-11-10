@@ -549,6 +549,89 @@ Notes on the choices:
 
 Existing `secrets_dir`. New optional `client_ip_header` (a `$_SERVER` key, default `REMOTE_ADDR`). `api/config.example.php` gets the placeholder and a comment. No secret value is ever written to the repository.
 
+### Security hardening (Requirements 18, 19, 20; source: security review 2026-11-10)
+
+These three changes touch `src/`, `api/` and `public/` (intended). They add no table or column and do not change `sql/`, the engine, the robot-facing texts, the Golden_Master (SHA-256 starting with `c2aba50f87c22fe6`) or any protection pin.
+
+#### Findings from reading the current code
+
+- `TurnService::ask()` (src/TurnLoop/TurnService.php) reads the turn, skips a robot that has a stored success or `attemptsFor($turn, $robotId) >= 2`, runs the provider calls through `ParallelHttp`, and only then calls `incrementAttempt()` inside the result loop. Concurrent asks all pass the check. `apply()` has the same shape around `recorder->prepare/finish`; it ends with `storeAppliedTurn` (idempotent), `setTurnState`, then `markEpisodeEnded` or `setCurrentExpectedTurn`.
+- `EpisodeRepository` has `incrementAttempt(): int` (returns the new count) and no lock methods. `PdoEpisodeRepository` holds one `PDO` for its lifetime, so a named lock taken through it lives on the connection every other call of that request uses. `InMemoryEpisodeRepository` (tests/TurnLoop/) is the fake.
+- `ps_dispatch()` (api/router.php) has no origin parameter and no security headers. Every response is built by `ps_json_response()` (api/bootstrap.php), which is the single place that sets `Content-Type` and `Cache-Control`; `api/index.php` copies `$response->headers` to the output. So API headers are added in `ps_json_response`.
+- `findRunningEpisodeForDevice` and `countRunningEpisodes` (PDO and fake) both use one rule: `ended = 0 AND last_activity_at >= now - idleSlotReleaseSeconds`. `createEpisode` writes the quiet turn 0 as an applied turn, so every episode has a turn row 0; `ask` calls `touchActivity` and then `createTurn` for the first real turn, which is turn 1 or more.
+- `api/` has an `index.php` (the only front controller). `api/.htaccess` rewrites unknown paths to it, but its rule "leave real files alone" lets a request for `api/episodes_ask.php` or `api/bootstrap.php` run that file directly.
+- `public/index.php`, `public/replay.php`, `public/css/screens.css` and `public/js/*.js` contain no `<style>`, no `style="`, no inline `<script>` body and no inline event handler (grep found none). The JS sets styles only through `element.style.*` (CSSOM, allowed by `style-src 'self'`). `screens.css` uses `@import url('https://fonts.googleapis.com/...')` and the pages link the same Google Fonts stylesheet, both covered by `style-src ... https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com`. So no inline style has to be moved. **`public/debug.php` is different**: it has an inline `<style>` and an inline `<script>`, so it would break under this policy. It is out of scope (Requirement 20 names only the two pages and the API) and is listed under "What cannot be verified here" for the maintainer.
+- The pages have no `require` of `src/`, and the deployed folder layout is not known from the repository (on the server `public/` is the web root and `api/` sits inside it, while `api/bootstrap.php` loads `../src/`). So the page headers must not depend on a path into `src/`.
+
+#### Task 21: Turn_Lock (Requirement 18)
+
+Interface additions on `EpisodeRepository`:
+
+```php
+/** Try to take the per-turn lock without waiting. $kind is 'ask' or 'apply'. */
+public function acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool;
+/** Release it. Releasing a lock that is not held is a no-op. */
+public function releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void;
+```
+
+- **Name.** `'ps_' . $kind . ':' . sha1($episodeId . ':' . $turnNumber)`: at most 4 + 5 + 40 = 49 characters, so it is always within MySQL's 64-character limit whatever the id length, and `ask` and `apply` names differ. The name is built in PHP (one private helper in `PdoEpisodeRepository`) and bound as a parameter: `SELECT GET_LOCK(:name, 0)` and `SELECT RELEASE_LOCK(:name)`. This is the `GET_LOCK(CONCAT('ps_ask:', episode_id, ':', turn), 0)` of the review with a hash added for the length limit. MySQL 5.7-compatible; no `SKIP LOCKED`.
+- **Result.** `GET_LOCK` returns 1 (obtained), 0 (busy) or NULL (error). Only 1 returns true; 0 and NULL both return false, so an error fails closed as Turn_Busy and never lets a call through.
+- **Connection.** The lock is taken on the repository's own `PDO`, the connection used by every other query of the request. Named locks are per connection and are released when the connection closes, so a request that dies releases the lock. The repository remembers the names it holds so `releaseTurnLock` only releases its own. `storeAppliedTurn` runs a transaction on the same connection; named locks are not affected by commit or rollback.
+- **Fake.** `InMemoryEpisodeRepository` keeps a set of held names plus a test hook `holdTurnLock($kind, $id, $turn)` that marks a lock as held by "someone else", so `acquireTurnLock` returns false for it. It also exposes acquire and release counters so a test can prove the release.
+
+`TurnService::ask()` becomes:
+
+1. `findEpisode` (404 if missing), as today.
+2. `acquireTurnLock('ask', ...)`. If false: throw `ApiError::conflict('turn_busy', $episode->currentExpectedTurn, $this->currentTurnState(...))` (the existing 409 shape, so Observe can read `currentExpectedTurn` and the state). Nothing else runs: no `touchActivity`, no engine, no client.
+3. `try { ... } finally { releaseTurnLock('ask', ...); }` around the rest. Inside, **re-read** the episode and turn (the ended, turn-mismatch and already-applied gates move inside the try and run on fresh values), then the existing `touchActivity`, `createTurn`, `prepareTurn` and staging.
+4. **Reserve before the call.** For each robot with no stored success and `attemptsFor(...) < 2`: `$reserved = $this->repo->incrementAttempt(...)`; stage the call only if `$reserved <= 2`; keep `$reserved` per robot. After the call, `savePromptAndReply` uses that `$reserved` (today it uses the value `incrementAttempt` returned after the call, so the stored attempt numbers are unchanged). The pre-check stays, so the counters never go above 2; the reservation is the second guard. A request that dies after reserving costs one attempt and leaves no reply, which the existing rule already treats as a failed attempt.
+5. The post-call decision logic (reload the turn, `markNoReply`, `replies_complete`) is unchanged.
+
+`TurnService::apply()` follows the same shape with `'apply'`: lock after `findEpisode`; the "already applied: return the stored view" check, the ended and turn gates and the `replies_complete` check all run inside the try on fresh values, so a repeat `apply` of an applied turn that gets the lock still returns the stored state, and one that does not get it receives Turn_Busy. `storeAppliedTurn` was already idempotent; the lock stops the second recorder spend. The two lock kinds are independent, so an `ask` for the same turn is not blocked by an `apply`.
+
+Why lock first and re-read: a check made before the lock can be stale by the time the lock is taken (another request may have reserved attempts or applied the turn in between). The lock does not wait, so locking first costs one cheap query on a request that is about to spend money anyway.
+
+**Observe** (`public/js/observe.js`). `askAndApply` and `applyOnly` call `handleTurn409` first, and that function resyncs from `currentExpectedTurn` and re-runs the loop immediately, which would busy-loop on Turn_Busy. So a new check runs **before** `handleTurn409`: when the response is 409 with `body.error === 'turn_busy'`, call `waitBusy(turnNumber, failures)`: `recoveryWait(2000)`, then `api.getEpisode`, then the same branch as `recoverTurn` (`applied` → `onApplied`, `replies_complete` → `applyOnly`, otherwise `askAndApply`) **with the same `failures` value**, so it is not counted as a failed try. A per-turn counter `busyCount` (reset when a turn is applied) makes the 16th consecutive Turn_Busy for one turn go through `recoverTurn(turnNumber, failures + 1)` instead, so a lock that never frees ends in the existing "Try again" notice. `recoveryWait` is the existing injectable wait, so tests need no real time. No notice is shown for Turn_Busy.
+
+#### Task 22: cross-site POST and slot release (Requirement 19)
+
+**Origin check.** `ps_dispatch()` gets two trailing parameters, `?string $origin = null` and `array $allowedOrigins = []`. At the top, for `POST` only: if `$origin !== null` and `!in_array($origin, $allowedOrigins, true)`, return `ps_json_response(403, ['error' => 'cross_site'])`. It runs before routing, before the cookie is read and before any service is called, so nothing is created, counted, minted or recorded. Strict `in_array` gives exact string comparison, so `https://kiro.pyol.net/`, `HTTP://KIRO.PYOL.NET` and the literal `null` are all rejected. A missing or empty list rejects any request that has an `Origin` header (fail closed); the maintainer must add `allowed_origins` to `config.local.php` when deploying, and the local origin (for example `http://localhost:8000`) for local `php -S` runs. `api/index.php` passes `$_SERVER['HTTP_ORIGIN'] ?? null` (an empty string counts as present and is rejected) and `$localConfig['allowed_origins']` (kept only if it is a list of strings). `api/config.example.php` gets `'allowed_origins' => ['https://kiro.pyol.net']` with a comment. Requests without `Origin` (curl, older tools) are unchanged, as the review asks.
+
+**Accepted ask, defined precisely.** An ask is accepted at the moment `ask()` passes its gates under the Turn_Lock; the same code path calls `touchActivity` and `createTurn`. The durable evidence is a `turns` row with `turn_number >= 1`, because turn 0 is the quiet turn written by `createEpisode`. So "has had an Accepted_Ask" is a query on existing data, with no new column. (A request that dies between `touchActivity` and `createTurn` leaves the episode unasked, which only shortens its slot to 60 s; the next ask repairs it.)
+
+**Running rule.** `Config` gets `public int $unaskedReleaseSeconds = 60`. An episode is running when `ended = 0` and `last_activity_at >= now - 300` and (`last_activity_at >= now - 60` or the episode has a turn row with `turn_number >= 1`). In `PdoEpisodeRepository`, `countRunningEpisodes` and `findRunningEpisodeForDevice` add to their `WHERE`: `AND (last_activity_at >= :unasked_threshold OR EXISTS (SELECT 1 FROM turns t WHERE t.episode_id = episodes.id AND t.turn_number >= 1))`, with both thresholds computed in PHP like the existing `idleThreshold()`. `turns` is keyed `(episode_id, turn_number)`, so the `EXISTS` is a primary-key range lookup. `InMemoryEpisodeRepository::isRunning` applies the same rule using its turn map.
+
+Behaviour around it:
+- Create, then `disaster`, then the first ask normally happen within a few seconds, far inside 60 s.
+- An unasked episode inside its 60 s still answers `device_already_running` with its id, so Resume works. After 60 s it no longer blocks; the Device may start a new one. The old episode is not ended or changed, `GET /api/episodes/{id}` still returns it, and an ask on it is accepted and gives it the 300 s rule again.
+- `too_many_running` uses the same rule, so unasked episodes free the five site slots after 60 s.
+- Daily limits are not refunded for an unasked episode (the count happened at create time). The 30-per-IP and 10-per-Device limits still bound how many empty episodes one source can make per day; with the Origin check, another website can no longer cause the creates.
+
+#### Task 23: Security_Headers and direct access (Requirement 20)
+
+- **One definition for the API.** A final class `PoltergeistSwitch\TurnLoop\Http\SecurityHeaders` in `src/TurnLoop/Http/SecurityHeaders.php` with `public static function all(): array` returning the four name/value pairs (exact strings from Requirement 20.1). `ps_json_response()` merges them into every response, so the 403, 404, 409, 429 and 500 bodies carry them, and so does the early 500 in `api/index.php` (it also uses `ps_json_response`).
+- **Pages.** `public/security_headers.php` is a small file with one function `ps_send_security_headers()` that calls `header()` for the same four pairs; `public/index.php` and `public/replay.php` `require_once __DIR__ . '/security_headers.php'` and call it right after their existing `header('Cache-Control: no-store')`, before any output. It lives beside the pages because their deployed relationship to `src/` is not known. A PHPUnit test includes both definitions and asserts they are identical, so they cannot drift (Requirement 20.7). The file prints nothing and defines only the function, so a direct request for it is harmless.
+- **CSP and the existing pages.** No inline script or style exists today (see the findings), so the policy is applied as given with no `unsafe-inline`. A source-scan test (PHPUnit, reading the files) fails if `index.php`, `replay.php`, `screens.css` or any `public/js/*.js` gains a `<style` element, a `style="` attribute (in markup or in a JS string), an `on<event>=` attribute, a `javascript:` URL or an inline `<script>` with a body. The JS keeps using `element.style.*`, which is CSSOM and allowed. `font-src` allows only `https://fonts.gstatic.com`; `connect-src 'self'` covers the relative `fetch` calls to `api/`; `img-src 'self' data:` covers any data URL. If the implementer finds an inline style after all, it moves to a class in `screens.css` and the policy stays as given.
+- **Direct access.** `api/.htaccess` gets, above the rewrite block:
+
+```apache
+# Only index.php may be requested directly; every other .php in api/ is a library file.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^(?!index\.php$).+\.php$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^(?!index\.php$).+\.php$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
+```
+
+  A request for `bootstrap.php` or `episodes_ask.php` gets 403. `index.php`, `index.php?route=...` and the rewrite of clean paths (which end in `index.php`) still work. The `require`s inside `index.php` are filesystem reads, not HTTP requests, so they are not blocked. A static PHPUnit test checks the `.htaccess` text (denies `.php` except `index.php`, keeps `RewriteRule` and `Cache-Control`).
+- **Does the host honour `.htaccess`?** The repository already depends on `api/.htaccess` for `Cache-Control` and the rewrite, and its comments treat the rewrite as best-effort. The repository cannot show whether the onamae.com RS host, which has nginx in front, passes `.htaccess` to an Apache behind it. This cannot be verified here; it is a maintainer check after deployment (request `/api/bootstrap.php` and expect 403). If the host ignores `.htaccess`, the helper files stay reachable by URL; this is defense in depth, and the Origin check and the Turn_Lock do not depend on it.
+
 ## Correctness Properties
 
 Each item below states a characteristic that should hold true across all valid executions of the system: a formal statement of what the system should do. These statements are the bridge between the human-readable requirements and machine-verifiable correctness guarantees.
@@ -705,6 +788,24 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 
 **Validates: Requirements 17.1, 17.2, 17.3**
 
+### Property 24: Provider calls and attempts stay within the Attempt_Limit
+
+*For any* sequence of `ask` requests for one turn, where each request finds the Turn_Lock free or busy and each provider call for each robot succeeds or fails, a robot's client is called at most twice in total, `attempts_a` and `attempts_b` never exceed 2, an `ask` that finds the lock busy calls no client and leaves every attempt count unchanged, a robot with a stored success is never called again, the attempt is reserved (the count already incremented) at the moment the client is called, and the lock is released after every `ask` that obtained it, whether it returned or threw.
+
+**Validates: Requirements 18.1, 18.2, 18.4, 18.5, 18.6, 18.7, 18.14**
+
+### Property 25: Cross-site POST is refused and changes nothing
+
+*For any* `Origin` string (including the empty string, `null`, a trailing slash, a different case and a different port) and *for any* list of allowed origins (including the empty list), a `POST` request with that `Origin` is answered with 403 `cross_site` and leaves the repository, the usage counts and the cookies unchanged exactly when the string is not equal to a list member, and is otherwise answered as it would be with no `Origin` header; a `POST` with no `Origin` header and any `GET` are never refused for this reason.
+
+**Validates: Requirements 19.1, 19.2, 19.3, 19.5, 19.6**
+
+### Property 26: The running-slot rule matches a simple model
+
+*For any* episode (ended or not, with or without a turn row of 1 or more, with any age of its last activity) and *for any* clock value, the episode counts as running (in `countRunningEpisodes` and in `findRunningEpisodeForDevice`) exactly when it has not ended and its last activity is at most 300 seconds old and, unless it has had an Accepted_Ask, at most 60 seconds old; and an accepted `ask` on a released episode makes it count as running again.
+
+**Validates: Requirements 19.8, 19.9, 19.10, 19.11, 19.12, 19.13**
+
 ## Error Handling
 
 | Situation | Where | Result |
@@ -726,6 +827,11 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 | Voices module missing, throws, or never reports the end | `speech-sequencer.js` | a failed reading falls back to the remaining Reading_Time; per-line safety cap 4000 ms + 100 ms per code point; errors swallowed (speech is best effort). |
 | Start pressed with no Lever ON | `onStart` | Start_Hint in the Notice_Area, no request, phase stays `idle`. |
 | Notice outside the viewport | `revealNotice` | scrolled into view (instant with reduced motion); a missing `scrollIntoView` or `matchMedia` is ignored. |
+| `ask` or `apply` cannot take the Turn_Lock (busy, or `GET_LOCK` returns 0 or NULL) | `TurnService` | 409 `turn_busy` with `currentExpectedTurn` and `turnState`; no client call, no activity, no attempt change. Observe waits 2 s, reads the episode and continues; no notice. |
+| A request dies while holding a Turn_Lock | MySQL | the lock is freed when the connection closes; a reserved attempt stays counted (one attempt lost, never an extra call). |
+| `POST` with an `Origin` that is not an Allowed_Origin, or any `Origin` when `allowed_origins` is missing | `ps_dispatch` | 403 `cross_site`, `no-store`, nothing created or counted, no cookie minted. |
+| An episode that never had an accepted ask is idle for 60 s | repository running rule | it stops counting as running; the Device can start a new episode; the old one stays readable and can be asked again. |
+| Direct request for an `api/*.php` file other than `index.php` | `api/.htaccess` | 403 from the web server, if the host honours `.htaccess`. |
 | A speech chunk never ends | `voices.js` Chunk_Watchdog | passed over (or cancelled after twice the time); the line continues with the next chunk. |
 | A speech chunk errors | `voices.js` | the line reports `'error'`; the sequencer keeps the bubble for the remaining Reading_Time as today. |
 | Engine paused (Chrome) | `voices.js` | `resume()` before speak, every 5000 ms while reading, and on `visibilitychange` / focus. |
@@ -758,6 +864,9 @@ Each property test carries a tag comment: `Feature: public-lab, Property N: <tex
 | Migration file | `PublicLabMigrationFileTest` (same style as `MigrationFileTest`) | 1.6, 5.1, 5.3, 13.17: file exists, header says apply before deploying, only `CREATE TABLE` / `ADD COLUMN ... NULL` / `ADD KEY`, no `DROP`/`UPDATE`/`DELETE`/`TRUNCATE`, utf8mb4 |
 | Config | `ConfigPublicLabTest` | 6.1 order and ids, 13.3 defaults, invariants |
 | PDO (gated) | `tests/Memory/Repository/DeviceRepositoryPdoTest.php`, `UsageRepositoryPdoTest.php` | same cases as the fake; **retire-oldest regression for C1**; two-connection reserve at the boundary admits exactly `limit - current` |
+| Turn_Lock (task 21) | `tests/TurnLoop/Properties/AttemptLimitPropertyTest.php` (Property 24); `TurnLockTest.php`; update `TurnServiceAskTest`, `TurnServiceApplyTest` (only for the reserve-first order and the lock calls, never an expected value); gated `tests/TurnLoop/Repository/TurnLockPdoTest.php` | 14.25, 14.26, 14.27; fake `holdTurnLock` makes the lock busy; a fake client records the attempt count at call time; two PDO connections for the gated test, name length for long ids, release on `releaseTurnLock` and on connection close |
+| Origin check and slot release (task 22) | `tests/TurnLoop/Properties/CrossSitePropertyTest.php` (Property 25), `RunningSlotPropertyTest.php` (Property 26); `CrossSiteRouteTest.php`; update `ConfigPublicLabTest`; gated `RunningSlotPdoTest.php` | 14.29, 14.30; every POST route with the fake service; boundaries 59/61 s and 299/301 s with the injected clock; PDO and fake give the same answers |
+| Headers and direct access (task 23) | `tests/TurnLoop/SecurityHeadersTest.php`, `PageSecurityHeadersTest.php`, `NoInlineAssetsTest.php`, `ApiHtaccessTest.php` | 14.31; API headers on 200/403/404/409/429/500 responses via `ps_dispatch`; each page is run with `php` as a child process from the project folder (`php-cgi` or the CLI, whichever the project's tests already use) and its emitted headers are read, or, if the CLI cannot report headers, the test checks that the page source calls `ps_send_security_headers()` before any output and that the function emits the expected strings; the two definitions are equal; source scan for inline script/style; `.htaccess` text checks |
 | No-store and leaks | extend `NoStorePropertyTest`, `NoLeakPropertyTest` | 3.4, 4.9, 6.10, 13.18, 13.19: all new routes and the 429/409 bodies |
 
 Fakes: `InMemoryEpisodeRepository` gains the device methods with the same semantics as the SQL (including `ORDER BY id DESC OFFSET 6` retirement). `InMemoryUsageRepository` implements `tryReserve/release/counts` with the same all-or-nothing rule. Both take an injectable clock.
@@ -785,6 +894,7 @@ New or changed JS tests:
 | `observe-notice-placement.test.js` (task 19) | 14.22: the notice inside the Switches_Panel right after the Levers (static check of `index.php`, DOM shim check), `scrollIntoView` calls and the reduced-motion `instant` behaviour |
 | `voices-chunks.test.js`, `voices-keepalive.test.js` (task 20) | P23, 14.23: splitting rules, chunk order, `resume` rules, 150 ms gap, watchdog, with a fake `speechSynthesis` and `fake-clock.js` |
 | `observe-flow.test.js` | P21, 14.9, 14.15, 14.16, 14.20: random event sequences against `fake-api.js`, plus fixed examples for each exact notice text ("A turn could not be completed." with a Try again button, the two 429 messages, the Device_Busy_Notice with Notice_Resume and its `episodeId` and `localStorage` fallback, the All reset 409 message) |
+| `observe-turn-busy.test.js` (task 21) | 14.28: `fake-api.js` returns 409 `turn_busy` for ask and for apply; `observeWait` shows exactly 2000 ms, one `getEpisode`, continuation by stored state, no notice, no failed try; the 16th consecutive Turn_Busy counts one failed try; `ask-apply-recovery.test.js` stays unchanged |
 | `observe-static.test.js` | 14.10: `index.php` and `observe.js` contain no `btn-pause`, `btn-step`, `btn-resume`, `sw-rain`, `Heavy rain`, `coming later`, `paused`, `stepOnce`; Start and Voices exist; two levers only |
 | `heat-sky.test.js` | P22, 14.12; the earthquake call log is compared with `tests/fixtures/renderer_earthquake_calls.json`, **generated from the current renderer in task 1 before the renderer is edited** and never regenerated |
 | `replay-groups.test.js` | 6.9: headings "Featured" and "Your runs", empty-state line, object (not array) response |
@@ -796,6 +906,8 @@ The Observe flow property is the hardest to write against the existing IIFE. Two
 
 - The MySQL SQL (reserve transaction, per-Device retire, list queries). Only the gated PDO tests would exercise it, and no MySQL was available to me for the new statements. The statements are kept simple and the fake mirrors them. For C1 the maintainer ran the existing gated test against MariaDB 10.11 and saw it fail; after the fix `testPdoTwoPerTripleCommitsSerializeToExactlySix` and the new per-Device retire test must pass on MariaDB (the maintainer runs them with `PS_TEST_MYSQL_DSN`).
 - Whether PHP can write into `secrets_dir`. It has a safe fallback (above) but should be checked once after deployment.
+- Whether the live host honours `api/.htaccess` behind nginx, and whether `config.local.php` has `allowed_origins`. Both are maintainer checks after deployment (requests to `/api/bootstrap.php` and a cross-origin POST).
+- Whether browsers accept the Content-Security-Policy on the live pages with Google Fonts. The policy is applied as given; the maintainer opens both pages once in a browser with the console open and confirms there are no CSP violations. `public/debug.php` (inline style and script) would be blocked if the same headers were ever added to it.
 - Real speech in real browsers (autoplay policy, `onend` reliability). The sequencer's safety cap exists because some engines never fire `onend`; only manual checking on Chrome, Safari and Firefox confirms the experience.
 
 ### Implementation order and protection gates
@@ -819,4 +931,4 @@ The Observe flow property is the hardest to write against the existing IIFE. Two
 
 ### Maintainer steps after implementation (not tasks for the agent)
 
-Apply `sql/2026-11-10_add_public_lab.sql` over FTPS before deploying the code, confirm `ip_salt.key` appears in `secrets_dir`.
+Apply `sql/2026-11-10_add_public_lab.sql` over FTPS before deploying the code, confirm `ip_salt.key` appears in `secrets_dir`. For tasks 21 to 23: add `'allowed_origins' => ['https://kiro.pyol.net']` to the server's `config.local.php` before deploying the code (without it every POST that carries an `Origin` header is refused), upload `public/security_headers.php` with the pages, then check `/api/bootstrap.php` answers 403 and both pages show no CSP errors in the browser console.

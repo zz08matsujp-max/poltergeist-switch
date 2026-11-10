@@ -712,10 +712,59 @@
     return !!res && (res.status === 0 || res.status >= 500);
   }
 
+  // Turn_Busy (public-lab Requirement 18.13): another request holds the lock
+  // for this turn, so it is "still thinking", not a failure. Wait, read the
+  // stored state and carry on with the same failure count. After
+  // MAX_BUSY_ANSWERS consecutive answers for one turn the next one counts as a
+  // failed try.
+  var MAX_BUSY_ANSWERS = 15;
+  var BUSY_WAIT_MS = 2000;
+  var busyTurn = null;
+  var busyCount = 0;
+
+  function isTurnBusy(res) {
+    return !!res && res.status === 409 && !!res.body && res.body.error === 'turn_busy';
+  }
+
+  function handleTurnBusy(turnNumber, failures) {
+    if (busyTurn !== turnNumber) { busyTurn = turnNumber; busyCount = 0; }
+    if (busyCount >= MAX_BUSY_ANSWERS) {
+      busyCount = 0;
+      recoverTurn(turnNumber, failures + 1);
+      return;
+    }
+    busyCount += 1;
+    waitBusy(turnNumber, failures);
+  }
+
+  function waitBusy(turnNumber, failures) {
+    pendingAsk = null;
+    recoveryWait(BUSY_WAIT_MS).then(function () {
+      return api.getEpisode(state.episodeId).then(function (res) {
+        if (!res || res.status !== 200 || !res.body) {
+          recoverTurn(turnNumber, failures + 1);
+          return;
+        }
+        var stored = findTurn(res.body, turnNumber);
+        var storedState = stored && stored.state;
+        if (storedState === 'applied') {
+          onApplied(res.body, turnNumber);
+        } else if (storedState === 'replies_complete') {
+          applyOnly(turnNumber, failures);
+        } else {
+          askAndApply(turnNumber, failures);
+        }
+      }, function () {
+        recoverTurn(turnNumber, failures + 1);
+      });
+    });
+  }
+
   // Ask the turn, then apply it. `failures` counts the failed tries so far for
   // this turn (0 on the normal path).
   function askAndApply(turnNumber, failures) {
     askTurn(turnNumber).then(function (askRes) {
+      if (isTurnBusy(askRes)) { handleTurnBusy(turnNumber, failures); return; }
       if (handleTurn409(askRes)) { looping = false; runLoop(); return; }
       if (isTransient(askRes)) {
         recoverTurn(turnNumber, failures + 1);
@@ -736,6 +785,7 @@
   // never changes it (Req 5.7).
   function applyOnly(turnNumber, failures) {
     api.apply(state.episodeId, turnNumber).then(function (applyRes) {
+      if (isTurnBusy(applyRes)) { handleTurnBusy(turnNumber, failures); return; }
       if (handleTurn409(applyRes)) { looping = false; runLoop(); return; }
       if (isTransient(applyRes)) {
         recoverTurn(turnNumber, failures + 1);
@@ -787,6 +837,8 @@
   // 5.5, 5.10, 5.11).
   function onApplied(view, turnNumber) {
     var applied = findTurn(view, turnNumber);
+    busyTurn = null;
+    busyCount = 0;
     // Resync the expected turn from the authoritative view, then advance past
     // the turn we just applied.
     state.ended = (view.ended === true);

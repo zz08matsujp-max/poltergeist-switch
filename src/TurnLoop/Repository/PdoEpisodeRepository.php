@@ -110,6 +110,52 @@ final class PdoEpisodeRepository implements EpisodeRepository
         return $id;
     }
 
+    /** @var array<string,true> names of the turn locks this repository holds */
+    private array $heldTurnLocks = [];
+
+    /**
+     * Lock name: at most 49 characters whatever the episode id length, so it
+     * is inside MySQL's 64-character limit.
+     */
+    private function turnLockName(string $kind, string $episodeId, int $turnNumber): string
+    {
+        return 'ps_' . $kind . ':' . sha1($episodeId . ':' . $turnNumber);
+    }
+
+    public function acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool
+    {
+        $name = $this->turnLockName($kind, $episodeId, $turnNumber);
+        $stmt = $this->pdo->prepare('SELECT GET_LOCK(:name, 0)');
+        $stmt->bindValue(':name', $name);
+        $stmt->execute();
+        $value = $stmt->fetchColumn();
+        $stmt->closeCursor();
+
+        // 1 = obtained; 0 = busy; NULL/false = error. Only 1 passes.
+        if ((int) $value === 1 && $value !== null && $value !== false) {
+            $this->heldTurnLocks[$name] = true;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public function releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void
+    {
+        $name = $this->turnLockName($kind, $episodeId, $turnNumber);
+        if (!isset($this->heldTurnLocks[$name])) {
+            return;
+        }
+        unset($this->heldTurnLocks[$name]);
+
+        $stmt = $this->pdo->prepare('SELECT RELEASE_LOCK(:name)');
+        $stmt->bindValue(':name', $name);
+        $stmt->execute();
+        $stmt->fetchColumn();
+        $stmt->closeCursor();
+    }
+
     public function findEpisode(string $id): ?EpisodeRow
     {
         $stmt = $this->pdo->prepare('SELECT * FROM episodes WHERE id = :id');

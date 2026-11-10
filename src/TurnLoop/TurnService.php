@@ -468,6 +468,43 @@ class TurnService
             throw ApiError::notFound();
         }
 
+        // Turn_Lock (public-lab Requirement 18): take the non-waiting ask lock
+        // before anything else runs. A busy lock answers Turn_Busy with no
+        // activity touch, no engine and no provider call.
+        if (!$this->repo->acquireTurnLock('ask', $episodeId, $turnNumber)) {
+            throw $this->turnBusy($episode);
+        }
+
+        try {
+            return $this->askLocked($episodeId, $turnNumber);
+        } finally {
+            $this->repo->releaseTurnLock('ask', $episodeId, $turnNumber);
+        }
+    }
+
+    /**
+     * The 409 `turn_busy` answer: the existing 409 shape, so Observe can read
+     * the current expected turn and the turn state.
+     */
+    private function turnBusy(EpisodeRow $episode): ApiError
+    {
+        return ApiError::conflict(
+            'turn_busy',
+            $episode->currentExpectedTurn,
+            $this->currentTurnState($episode->id, $episode->currentExpectedTurn),
+        );
+    }
+
+    /** The body of ask(), run while the ask Turn_Lock is held. */
+    private function askLocked(string $episodeId, int $turnNumber): EpisodeView
+    {
+        // Re-read on fresh values now that the lock is held: another request
+        // may have reserved attempts or applied the turn in between.
+        $episode = $this->repo->findEpisode($episodeId);
+        if ($episode === null) {
+            throw ApiError::notFound();
+        }
+
         // Turn-number / ended / already-applied gate (Requirement 7).
         if ($episode->ended) {
             throw ApiError::conflict(
@@ -517,6 +554,8 @@ class TurnService
         $handles = [];
         /** @var array<string,string> $prompts */
         $prompts = [];
+        /** @var array<string,int> $reservedAttempts attempt number reserved before the call */
+        $reservedAttempts = [];
         foreach ($clients as $robotId => $client) {
             if ($this->repo->findSuccessfulReply($episodeId, $turnNumber, $robotId) !== null) {
                 continue; // reuse the stored success; never call again (Req 5.2, 5.3)
@@ -524,6 +563,15 @@ class TurnService
             if ($this->attemptsFor($turn, $robotId) >= 2) {
                 continue; // attempts spent; counted already, no retry (Req 5.5)
             }
+
+            // Reserve the attempt BEFORE the provider call (Requirement 18):
+            // a request that dies after this costs one attempt, and a
+            // reservation above the limit stages no call.
+            $reserved = $this->repo->incrementAttempt($episodeId, $turnNumber, $robotId);
+            if ($reserved > 2) {
+                continue;
+            }
+            $reservedAttempts[$robotId] = $reserved;
 
             $prompt = $engine->situationTextFor($robotId); // no memories (Req 4.7)
             $prompts[$robotId] = $prompt;
@@ -539,8 +587,9 @@ class TurnService
             $result = $results[$robotId] ?? ['status' => 0, 'body' => null, 'seconds' => 0.0, 'error' => 'no_result'];
             $record = $client->finish($prompts[$robotId], $result);
 
-            // Count the attempt (persisted across ask calls — Requirement 5.4).
-            $attempt = $this->repo->incrementAttempt($episodeId, $turnNumber, $robotId);
+            // The attempt was counted before the call (persisted across ask
+            // calls — Requirements 5.4, 18); store under that number.
+            $attempt = $reservedAttempts[$robotId];
 
             // Store the prompt and the reply with the situation-text version
             // (Requirements 8.3, 11.6). A failed/abandoned attempt is stored as
@@ -629,6 +678,28 @@ class TurnService
      */
     public function apply(string $episodeId, int $turnNumber): EpisodeView
     {
+        $episode = $this->repo->findEpisode($episodeId);
+        if ($episode === null) {
+            throw ApiError::notFound();
+        }
+
+        // Turn_Lock (public-lab Requirement 18): a busy apply lock answers
+        // Turn_Busy before the recorder is called or anything is stored.
+        if (!$this->repo->acquireTurnLock('apply', $episodeId, $turnNumber)) {
+            throw $this->turnBusy($episode);
+        }
+
+        try {
+            return $this->applyLocked($episodeId, $turnNumber);
+        } finally {
+            $this->repo->releaseTurnLock('apply', $episodeId, $turnNumber);
+        }
+    }
+
+    /** The body of apply(), run while the apply Turn_Lock is held. */
+    private function applyLocked(string $episodeId, int $turnNumber): EpisodeView
+    {
+        // Re-read on fresh values now that the lock is held.
         $episode = $this->repo->findEpisode($episodeId);
         if ($episode === null) {
             throw ApiError::notFound();

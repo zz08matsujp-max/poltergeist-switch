@@ -97,6 +97,22 @@ interface EpisodeRepository
      */
     public function touchActivity(string $id, string $now): void;
 
+    /**
+     * Try to take the per-turn lock without waiting (public-lab Requirement
+     * 18). $kind is 'ask' or 'apply'; the two kinds are independent locks for
+     * the same turn. Returns true only when the lock was obtained; busy and
+     * error both return false, so a failure never lets a provider call
+     * through. The lock is per database connection, so it is freed when the
+     * connection closes even if the request dies.
+     */
+    public function acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool;
+
+    /**
+     * Release a lock taken with acquireTurnLock on this repository. Releasing
+     * a lock this repository does not hold is a no-op.
+     */
+    public function releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void;
+
     // --- Turn lifecycle ---------------------------------------------------
 
     /**

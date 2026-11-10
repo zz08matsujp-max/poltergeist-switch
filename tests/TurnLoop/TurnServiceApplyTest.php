@@ -400,6 +400,16 @@ final class ThrowingStoreRepository implements \PoltergeistSwitch\TurnLoop\Repos
         $this->inner->touchActivity($id, $now);
     }
 
+    public function acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool
+    {
+        return $this->inner->acquireTurnLock($kind, $episodeId, $turnNumber);
+    }
+
+    public function releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void
+    {
+        $this->inner->releaseTurnLock($kind, $episodeId, $turnNumber);
+    }
+
     public function findTurn(string $episodeId, int $turnNumber): ?\PoltergeistSwitch\TurnLoop\Values\TurnRow
     {
         return $this->inner->findTurn($episodeId, $turnNumber);

@@ -429,6 +429,80 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 17.1, 17.2, 17.3**
     - Create `tests/js/voices-split-property.test.js` (seeded `mulberry32`, at least 100 cases, tag `Feature: public-lab, Property 23: Speech splitting preserves the line and respects the limits`): random texts with sentence ends, ellipses, commas, semicolons, long words and Japanese text; chunks are non-blank, in order, rejoin to the trimmed text (cut whitespace ignored), none over 180 characters unless a single word, and a short text with no inner sentence end gives one chunk.
     - _Requirements: 17.1, 17.2, 17.3_
+- [ ] 21. Cap provider calls under concurrent requests
+  - [x] 21.1 Add the Turn_Lock and reserve attempts before the provider call
+    - Touches `src/` only (this is intended). Change nothing in `sql/`, the engine, `api/`, `public/` or any text the robots read; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged, and no expected value is edited to make a test pass.
+    - `src/TurnLoop/Repository/EpisodeRepository.php`: add `acquireTurnLock(string $kind, string $episodeId, int $turnNumber): bool` and `releaseTurnLock(string $kind, string $episodeId, int $turnNumber): void` with doc comments (kind is `ask` or `apply`; non-waiting; per connection).
+    - `src/TurnLoop/Repository/PdoEpisodeRepository.php`: implement them on the repository's own `$this->pdo` with `SELECT GET_LOCK(:name, 0)` and `SELECT RELEASE_LOCK(:name)`; the name is built in PHP as `'ps_' . $kind . ':' . sha1($episodeId . ':' . $turnNumber)` (at most 49 characters) and bound as a parameter; only a result of 1 returns true (0 and NULL return false); remember held names so release only frees its own. MySQL 5.7-compatible, no `SKIP LOCKED`.
+    - `tests/TurnLoop/InMemoryEpisodeRepository.php`: implement both methods with a held-name set, a hook `holdTurnLock($kind, $episodeId, $turnNumber)` that makes the lock busy for the caller, and acquire/release counters.
+    - `src/TurnLoop/TurnService.php`, `ask()`: after `findEpisode`, `acquireTurnLock('ask', ...)`; when false throw `ApiError::conflict('turn_busy', $episode->currentExpectedTurn, $this->currentTurnState(...))` before `touchActivity`, the engine or any client; wrap the rest in `try { ... } finally { releaseTurnLock('ask', ...) }`; re-read the episode and turn inside the try and run the existing ended, turn-mismatch and already-applied gates on those values; for each robot with no stored success and fewer than 2 attempts call `incrementAttempt` BEFORE the call, stage the call only if the reserved number is 2 or less, and store the prompt and reply under that reserved number. The post-call logic (`markNoReply`, `replies_complete`) stays as it is.
+    - `apply()`: the same with `'apply'`; lock after `findEpisode`, busy gives `turn_busy` with the recorder never called and nothing stored; the already-applied check, the ended and turn gates and the `replies_complete` check run inside the try on fresh values.
+    - `api/` needs no change: `ApiError` already maps to its status in `ps_dispatch`.
+    - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 21 in 21.6.
+    - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.9, 18.10, 18.11, 18.12, 18.14_
+  - [x] 21.2 Treat turn_busy as still thinking on Observe
+    - Front end only, in `public/js/observe.js`. Change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read; the Golden_Master and every protection pin stay unchanged.
+    - In `askAndApply` and `applyOnly`, before `handleTurn409`, detect `res.status === 409 && res.body && res.body.error === 'turn_busy'` and call a new `waitBusy(turnNumber, failures)`: `recoveryWait(2000)`, then `api.getEpisode(state.episodeId)`, then the same branch as `recoverTurn` (`applied` → `onApplied`, `replies_complete` → `applyOnly`, otherwise `askAndApply`) with the same `failures`, so no failed try is counted and no notice is shown. Keep a per-turn `busyCount` (reset when the turn is applied); when it reaches 15 consecutive Turn_Busy answers for one turn the next one goes through `recoverTurn(turnNumber, failures + 1)`. A failed `getEpisode` inside `waitBusy` is a failed try (`recoverTurn(turnNumber, failures + 1)`). `handleTurn409` and every other path stay as they are.
+    - _Requirements: 18.13, 18.14_
+  - [x] 21.3 Write the fake-repository tests for the lock and the reserve-first order
+    - Create `tests/TurnLoop/TurnLockTest.php`: with `holdTurnLock('ask', ...)`, `ask` throws `ApiError` 409 `turn_busy` carrying `currentExpectedTurn` and `turnState`, the fake robot clients record zero calls, `attempts_a` and `attempts_b` are unchanged and `touchActivity` was not called; with `holdTurnLock('apply', ...)`, `apply` gives `turn_busy`, the fake recorder records zero calls and nothing is stored; the ask lock and the apply lock are independent; the lock is released (release counter equals acquire counter) after a normal `ask`, after an `ask` whose client throws, after an `apply`, and after an `apply` that throws; a repeated `apply` of an applied turn returns the stored view without a recorder call; a fake client that records the attempt count at call time sees the attempt already incremented. Update `tests/TurnLoop/TurnServiceAskTest.php` and `tests/TurnLoop/TurnServiceApplyTest.php` only where the reserve-first order or the new lock calls need it; no expected value, attempt number or stored text changes.
+    - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 18.9, 14.25, 14.26_
+  - [x] 21.4 Write the property test for the attempt limit
+    - **Property 24: Provider calls and attempts stay within the Attempt_Limit**
+    - **Validates: Requirements 18.1, 18.2, 18.4, 18.5, 18.6, 18.7, 18.14**
+    - Create `tests/TurnLoop/Properties/AttemptLimitPropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 24: Provider calls and attempts stay within the Attempt_Limit`) against the fake repository and fake clients: random sequences of `ask` calls with the lock free or busy and each robot's call succeeding or failing; assert at most 2 client calls per robot in total, attempts never above 2, no call and no change on a busy lock, no call for a robot with a stored success, the lock released after every obtained lock. No real AI call.
+    - _Requirements: 18.1, 18.2, 18.4, 18.6, 18.7, 14.25_
+  - [x] 21.5 Write the gated MySQL lock test
+    - Create `tests/TurnLoop/Repository/TurnLockPdoTest.php`, skipped unless `PS_TEST_MYSQL_DSN` names a throwaway database (same gating as `UsageRepositoryPdoTest`). Open two PDO connections and two `PdoEpisodeRepository` objects: a lock held through the first makes the second's `acquireTurnLock` return false; after `releaseTurnLock` the second obtains it; after the holding connection is closed the second obtains it; an `ask` lock and an `apply` lock for the same turn do not block each other; an episode id of 500 characters still gives a working lock (name of 64 characters or fewer); `ask` through a `TurnService` built on the second connection while the first holds the lock gives `turn_busy` and the fake clients are not called.
+    - _Requirements: 18.10, 18.11, 18.12, 14.27_
+  - [x] 21.6 Write `observe-turn-busy.test.js`, then run everything and commit
+    - Create `tests/js/observe-turn-busy.test.js` with `fake-api.js` and the injectable `observeWait`: a 409 `turn_busy` for `ask` and for `apply` makes Observe wait exactly 2000 ms, call `getEpisode` once, continue from the stored turn state (`waiting`, `replies_complete`, `applied`), show no notice and count no failed try; 15 consecutive Turn_Busy answers keep waiting and the 16th counts one failed try; `ask-apply-recovery.test.js` and every other existing test pass unchanged.
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 21. Commit only the files of task 21 with `task 21: Cap provider calls under concurrent requests`. Never push, amend, rebase or reset.
+    - _Requirements: 18.13, 14.28, 14.32_
+- [ ] 22. Stop episodes that never run from blocking other visitors
+  - [~] 22.1 Add the Origin check and the 60-second slot rule
+    - Touches `src/` and `api/` only (this is intended). Change nothing in `sql/`, `public/`, the engine or any text the robots read; no table or column is added; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged.
+    - `src/TurnLoop/Config.php`: add `public int $unaskedReleaseSeconds = 60` next to `idleSlotReleaseSeconds`.
+    - `src/TurnLoop/Repository/PdoEpisodeRepository.php`: in `countRunningEpisodes` and `findRunningEpisodeForDevice` add `AND (last_activity_at >= :unasked_threshold OR EXISTS (SELECT 1 FROM turns t WHERE t.episode_id = episodes.id AND t.turn_number >= 1))`, with the second threshold computed in PHP next to `idleThreshold()` and bound as a parameter. `tests/TurnLoop/InMemoryEpisodeRepository.php`: the same rule in `isRunning` using its turn map (turn number 1 or more). `TurnService::assertCanStart` and the `ask` path need no change.
+    - `api/router.php`: `ps_dispatch()` gets trailing parameters `?string $origin = null` and `array $allowedOrigins = []`; for `POST` only, if `$origin !== null` and `!in_array($origin, $allowedOrigins, true)` return `ps_json_response(403, ['error' => 'cross_site'])` before routing, the cookie read or any service call. `api/index.php`: pass `$_SERVER['HTTP_ORIGIN'] ?? null` and `$localConfig['allowed_origins']` (only if it is a list of strings, else `[]`). `api/config.example.php`: add `'allowed_origins' => ['https://kiro.pyol.net']` with a comment (placeholder, no secret).
+    - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 22 in 22.5.
+    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9, 19.10, 19.11, 19.12, 19.13, 19.14, 19.15_
+  - [~] 22.2 Write the slot-rule tests on the fake repository
+    - Create `tests/TurnLoop/RunningSlotTest.php` with the injected clock: an unasked episode still counts as running at 59 s and not at 61 s; an episode with a turn row of 1 or more counts at 299 s and not at 301 s; `device_already_running` (with the episode id) and `too_many_running` follow the same rule through `assertCanStart`; after release the Device creates a new episode and the old one is unchanged and readable through `GET`; an accepted `ask` on a released episode makes it count as running again; an ended episode never counts. Update `ConfigPublicLabTest` for the new default (60).
+    - _Requirements: 19.8, 19.9, 19.10, 19.11, 19.12, 19.13, 19.14, 14.30_
+  - [~] 22.3 Write the Origin tests through `ps_dispatch`
+    - Create `tests/TurnLoop/CrossSiteRouteTest.php` with a fake-backed `TurnService`: for each POST route (create, disaster, ask, apply, reflect, memory reset) a foreign `Origin` gives 403 `cross_site`, `Cache-Control: no-store`, no `Set-Cookie`, no episode, no usage count and no client call; an allowed `Origin` and no `Origin` give the same responses as before; an empty list and a missing list refuse any `Origin`; `null`, a trailing slash, a different case and a different port are refused; GET requests are not checked; the body contains only the error code.
+    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 14.29_
+  - [~] 22.4 Write the property tests for the Origin check and the slot rule
+    - **Property 25: Cross-site POST is refused and changes nothing**
+    - **Validates: Requirements 19.1, 19.2, 19.3, 19.5, 19.6**
+    - Create `tests/TurnLoop/Properties/CrossSitePropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 25: Cross-site POST is refused and changes nothing`): random origin strings and allowed lists; refused exactly when the string is not a list member, with the repository, usage counts and cookies unchanged; otherwise handled as with no `Origin`.
+    - **Property 26: The running-slot rule matches a simple model**
+    - **Validates: Requirements 19.8, 19.9, 19.10, 19.11, 19.12, 19.13**
+    - Create `tests/TurnLoop/Properties/RunningSlotPropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 26: The running-slot rule matches a simple model`): random episodes (ended or not, with or without an accepted ask, random last-activity age) and clock values; `countRunningEpisodes` and `findRunningEpisodeForDevice` match the model (not ended, at most 300 s, and at most 60 s unless an accepted ask); an accepted `ask` on a released episode makes it running again.
+    - _Requirements: 19.1, 19.3, 19.5, 19.6, 19.8, 19.9, 19.10, 19.12, 14.29, 14.30_
+  - [~] 22.5 Write the gated PDO slot test, then run everything and commit
+    - Create `tests/TurnLoop/Repository/RunningSlotPdoTest.php`, skipped unless `PS_TEST_MYSQL_DSN` names a throwaway database: the same boundary cases as 22.2 run against `PdoEpisodeRepository` and the fake, with identical answers (it inserts episodes and turn rows with chosen `last_activity_at` values; no real clock wait).
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 22. Commit only the files of task 22 with `task 22: Stop episodes that never run from blocking other visitors`. Never push, amend, rebase or reset.
+    - _Requirements: 19.13, 19.14, 14.30, 14.32_
+- [ ] 23. Add response headers and block direct access to api/ files
+  - [~] 23.1 Send the Security_Headers from the pages and the API
+    - Touches `src/`, `api/` and `public/` (this is intended). Change nothing in `sql/`, the engine, the game logic or any text the robots read; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged. Do not loosen the policy.
+    - Create `src/TurnLoop/Http/SecurityHeaders.php` (`final class SecurityHeaders`, `public static function all(): array`) returning exactly: `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security: max-age=31536000`.
+    - `api/bootstrap.php`: `ps_json_response()` merges `SecurityHeaders::all()` into every response's headers (so 200, 403, 404, 409, 429 and 500 all carry them), keeping `Content-Type` and `Cache-Control: no-store` as they are.
+    - Create `public/security_headers.php` with one function `ps_send_security_headers()` that calls `header()` for the same four pairs and prints nothing. In `public/index.php` and `public/replay.php` add `require_once __DIR__ . '/security_headers.php';` and a call to `ps_send_security_headers();` right after the existing `header('Cache-Control: no-store');`, before any output. Do not touch `public/debug.php`.
+    - Inline check (already done while writing this spec): `public/index.php`, `public/replay.php`, `public/css/screens.css` and `public/js/*.js` contain no `<style>`, no `style="`, no inline `<script>` body and no inline event handler; the JS sets styles only through `element.style.*`. If you find any inline style or script that was missed, move it to a class in `screens.css` or a file in `public/js/` and list it in your summary; never loosen the policy.
+    - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.7, 20.8_
+  - [~] 23.2 Deny direct requests to api/ files other than index.php
+    - Edit `api/.htaccess` only: above the rewrite block add a `FilesMatch "^(?!index\.php$).+\.php$"` rule that denies access (`Require all denied` inside `<IfModule mod_authz_core.c>`, `Order allow,deny` and `Deny from all` inside `<IfModule !mod_authz_core.c>`), with a comment. Keep the existing rewrite (`RewriteBase /api/`, the `-f`/`-d` condition, the `index.php?route=$1` rule) and the `Cache-Control: no-store` header rule exactly as they are. `api/index.php` stays reachable, including `?route=`.
+    - _Requirements: 20.5, 20.6, 20.8_
+  - [~] 23.3 Write the header and inline-asset tests
+    - Create `tests/TurnLoop/SecurityHeadersTest.php`: `SecurityHeaders::all()` equals the four exact strings; `ps_dispatch()` responses for 200, 403 `cross_site`, 404, 409, 429 and 500 each carry all four plus `Cache-Control: no-store`. Create `tests/TurnLoop/PageSecurityHeadersTest.php`: `public/security_headers.php` emits the same four pairs as `SecurityHeaders::all()` (the two definitions are equal), and `public/index.php` and `public/replay.php` call `ps_send_security_headers()` after `header('Cache-Control: no-store')` and before any output (source check, plus a child `php` run of each page if the CLI can report its headers). Create `tests/TurnLoop/NoInlineAssetsTest.php`: `index.php`, `replay.php`, `screens.css` and every `public/js/*.js` contain no `<style`, no `style="`, no `on<event>=` attribute, no `javascript:` and no inline `<script>` with a body.
+    - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.7, 14.31_
+  - [~] 23.4 Write the .htaccess test, then run everything and commit
+    - Create `tests/TurnLoop/ApiHtaccessTest.php`: a text check that `api/.htaccess` denies every `.php` file except `index.php` (the `FilesMatch` pattern, evaluated with `preg_match` against `index.php`, `bootstrap.php`, `episodes_ask.php`, `router.php`, `config.local.php`), appears before the `RewriteEngine` line, and still contains the `RewriteRule` and `Cache-Control` lines.
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 23. Commit only the files of task 23 with `task 23: Add response headers and block direct access to api/ files`. Never push, amend, rebase or reset.
+    - _Requirements: 20.5, 20.6, 14.31, 14.32_
 
 ## Notes
 
@@ -437,6 +511,7 @@ Steering constraints that apply to every task:
 - Property tests: PHP uses Eris (`limitTo(100)`) against the in-memory fakes; JavaScript uses a seeded `mulberry32` generator with at least 100 cases (no npm in this project). One test per property, tagged `Feature: public-lab, Property N: <text>`. No test makes a real AI call, network call or database call; MySQL-only tests are gated by `PS_TEST_MYSQL_DSN`.
 - Task 8 includes the grouped list on Replay (sub-task 8.3) so Replay keeps working between commits; task 14 adds only Voices and cancel-on-control.
 - Commits follow tech.md: one per task, message `task N: <task title>`, only after `php -l`, the full PHPUnit suite and `node tests/js/run-all.js` pass. Tick each finished sub-task before the commit; the Post Task Execution hook ticks parent tasks. Never push, amend, rebase or reset.
+- Tasks 21 to 23 (security review 2026-11-10) intentionally touch `src/`, `api/` and `public/` as described in each task and add no table or column. They keep the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin unchanged, and change no robot-facing text, no engine code and nothing in `sql/`. Each is committed with `task N: <title>` after `php -l`, the full PHPUnit suite and `node tests/js/run-all.js` pass; never push. MySQL-only tests are gated by `PS_TEST_MYSQL_DSN`; no test makes a real AI call.
 - Never run the SQL file, deploy, or touch the server. After implementation the maintainer applies `sql/2026-11-10_add_public_lab.sql` over FTPS, confirms `ip_salt.key` appears in `secrets_dir`, and checks which address PHP sees for visitors.
 
 ## Task Dependency Graph
@@ -499,7 +574,15 @@ Steering constraints that apply to every task:
     { "id": 52, "tasks": ["19.1"] },
     { "id": 53, "tasks": ["19.2"] },
     { "id": 54, "tasks": ["20.1"] },
-    { "id": 55, "tasks": ["20.2", "20.3"] }
+    { "id": 55, "tasks": ["20.2", "20.3"] },
+    { "id": 56, "tasks": ["21.1"] },
+    { "id": 57, "tasks": ["21.2", "21.3"] },
+    { "id": 58, "tasks": ["21.4", "21.5", "21.6"] },
+    { "id": 59, "tasks": ["22.1"] },
+    { "id": 60, "tasks": ["22.2", "22.3", "22.4"] },
+    { "id": 61, "tasks": ["22.5"] },
+    { "id": 62, "tasks": ["23.1", "23.2"] },
+    { "id": 63, "tasks": ["23.3", "23.4"] }
   ]
 }
 ```
