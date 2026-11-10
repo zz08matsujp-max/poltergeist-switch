@@ -26,6 +26,8 @@ declare(strict_types=1);
 use PoltergeistSwitch\Memory\MemoryService;
 use PoltergeistSwitch\Memory\ReflectService;
 use PoltergeistSwitch\TurnLoop\EpisodeListService;
+use PoltergeistSwitch\TurnLoop\EpisodeStarter;
+use PoltergeistSwitch\TurnLoop\IpHasher;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\TurnService;
 
@@ -65,6 +67,13 @@ require_once __DIR__ . '/memory_get.php';
  *                                           null when not wired, in which case
  *                                           the reflect route falls through to
  *                                           404
+ * @param EpisodeStarter|null  $starter     the daily-limit-aware episode starter
+ *                                           (public-lab Requirement 13.1); null
+ *                                           means create is not limited
+ * @param string|null          $clientIp    the normalised client IP, or null when
+ *                                           it cannot be resolved (IP scope skipped)
+ * @param IpHasher|null        $hasher      the salted hasher for usage keys; null
+ *                                           means no salt is available
  */
 function ps_dispatch(
     TurnService $service,
@@ -75,6 +84,9 @@ function ps_dispatch(
     ?EpisodeListService $listService = null,
     ?MemoryService $memoryService = null,
     ?ReflectService $reflectService = null,
+    ?EpisodeStarter $starter = null,
+    ?string $clientIp = null,
+    ?IpHasher $hasher = null,
 ): PsApiResponse {
     $method = strtoupper($method);
     $route = trim($route, '/');
@@ -102,7 +114,7 @@ function ps_dispatch(
         if ($method === 'POST' && $segments === ['episodes']) {
             $disaster = ps_disaster_from_query($query);
 
-            return ps_handle_create($service, $cookies, $memoryService, $disaster);
+            return ps_handle_create($service, $cookies, $memoryService, $disaster, $starter, $clientIp, $hasher);
         }
 
         // GET /api/memory — the current generation and per-robot active-memory
@@ -221,5 +233,7 @@ function ps_device_id_from_cookies(array $cookies): ?string
 {
     $id = $cookies[PS_DEVICE_COOKIE] ?? null;
 
-    return is_string($id) && $id !== '' ? $id : null;
+    // Accept only what ps_new_device_id() mints; anything else (empty, long,
+    // malformed) is treated as absent (public-lab design C15).
+    return is_string($id) && preg_match('/\A[0-9a-f]{32}\z/', $id) === 1 ? $id : null;
 }

@@ -15,7 +15,16 @@ return [
     // and outside this repository. Placeholder only — set the real path in
     // config.local.php on the server.
     'secrets_dir' => '/path/outside/the/web/root',
+
+    // OPTIONAL. The $_SERVER key that holds the visitor's address when a proxy
+    // sits in front of PHP, e.g. 'HTTP_X_REAL_IP'. Leave it out to use
+    // REMOTE_ADDR (the default). For a comma-separated list the rightmost entry
+    // is used. Placeholder only.
+    // 'client_ip_header' => 'HTTP_X_REAL_IP',
 ];
+
+// The IP salt is NOT configured here: api/ip_salt.php creates
+// <secrets_dir>/ip_salt.key (64 hex characters) once, outside the web root.
 
 // The db.php file inside secrets_dir returns the database credentials, e.g.:
 //

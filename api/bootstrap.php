@@ -31,10 +31,13 @@ use PoltergeistSwitch\TurnLoop\Clients\ClaudeClient;
 use PoltergeistSwitch\TurnLoop\Clients\ClaudeRecorderClient;
 use PoltergeistSwitch\TurnLoop\Clients\GptClient;
 use PoltergeistSwitch\TurnLoop\Config;
+use PoltergeistSwitch\TurnLoop\DailyLimitPolicy;
+use PoltergeistSwitch\TurnLoop\EpisodeStarter;
 use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
 use PoltergeistSwitch\TurnLoop\ReplayEngineFactory;
 use PoltergeistSwitch\TurnLoop\Repository\PdoEpisodeRepository;
+use PoltergeistSwitch\TurnLoop\Repository\PdoUsageRepository;
 use PoltergeistSwitch\TurnLoop\SecretLoader;
 use PoltergeistSwitch\TurnLoop\TurnService;
 use PoltergeistSwitch\TurnLoop\WorldStateBackfill;
@@ -156,31 +159,12 @@ function ps_internal_error(): ApiError
  */
 function ps_build_turn_service(): TurnService
 {
-    $config = ps_load_local_config();
-    $secretsDir = $config['secrets_dir'];
-
     // SecretLoader reads the secrets_dir from an uncommitted local Config_File
     // and each named key from a <name>.key file in that directory. Reuse it for
     // the API keys (task 3.2). We point it at this api/config.local.php.
     $secrets = new SecretLoader(__DIR__ . '/config.local.php');
 
-    $db = ps_load_db_credentials($secretsDir);
-
-    try {
-        $pdo = new PDO(
-            $db['dsn'],
-            $db['user'],
-            $db['password'],
-            [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ],
-        );
-    } catch (\Throwable) {
-        // Never leak the DSN, credential, or driver message.
-        throw ps_internal_error();
-    }
+    $pdo = ps_build_pdo();
 
     $cfg = new Config();
     $repo = new PdoEpisodeRepository($pdo);
@@ -210,6 +194,31 @@ function ps_build_turn_service(): TurnService
  */
 function ps_build_episode_list_service(): EpisodeListService
 {
+    $pdo = ps_build_pdo();
+
+    $repo = new PdoEpisodeRepository($pdo);
+
+    return new EpisodeListService(
+        $repo,
+        new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
+    );
+}
+
+/**
+ * Open the production PDO connection to the MySQL database using the
+ * credentials read from the secrets directory (outside the web root, outside
+ * the repository). Any config/secrets/connection failure surfaces as a generic
+ * 500 ApiError so no path, credential, or driver message ever leaks. Shared by
+ * the memory and reflect service builders.
+ */
+function ps_build_pdo(): PDO
+{
+    // One connection per request, shared by every builder.
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
     $config = ps_load_local_config();
     $db = ps_load_db_credentials($config['secrets_dir']);
 
@@ -229,41 +238,31 @@ function ps_build_episode_list_service(): EpisodeListService
         throw ps_internal_error();
     }
 
-    $repo = new PdoEpisodeRepository($pdo);
-
-    return new EpisodeListService(
-        $repo,
-        new WorldStateBackfill($repo, new ReplayEngineFactory($repo)),
-    );
+    return $pdo;
 }
 
 /**
- * Open the production PDO connection to the MySQL database using the
- * credentials read from the secrets directory (outside the web root, outside
- * the repository). Any config/secrets/connection failure surfaces as a generic
- * 500 ApiError so no path, credential, or driver message ever leaks. Shared by
- * the memory and reflect service builders.
+ * Build the production UsageRepository (public-lab Requirement 13.14) over the
+ * shared PDO connection. No AI secret is read.
  */
-function ps_build_pdo(): PDO
+function ps_build_usage_repository(): PdoUsageRepository
 {
-    $config = ps_load_local_config();
-    $db = ps_load_db_credentials($config['secrets_dir']);
+    return new PdoUsageRepository(ps_build_pdo());
+}
 
-    try {
-        return new PDO(
-            $db['dsn'],
-            $db['user'],
-            $db['password'],
-            [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ],
-        );
-    } catch (\Throwable) {
-        // Never leak the DSN, credential, or driver message.
-        throw ps_internal_error();
-    }
+/**
+ * Build the production EpisodeStarter (public-lab Requirement 13.1): the
+ * TurnService, the MemoryService, the usage repository and the daily limits
+ * from Config. Reads the API keys through ps_build_turn_service().
+ */
+function ps_build_episode_starter(): EpisodeStarter
+{
+    return new EpisodeStarter(
+        ps_build_turn_service(),
+        ps_build_memory_service(),
+        ps_build_usage_repository(),
+        DailyLimitPolicy::fromConfig(new Config()),
+    );
 }
 
 /**
@@ -495,4 +494,6 @@ function ps_robot_layers_to_array(RobotFourLayers $layers): array
     ];
 }
 
+require_once __DIR__ . '/client_ip.php';
+require_once __DIR__ . '/ip_salt.php';
 require_once __DIR__ . '/router.php';

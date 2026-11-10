@@ -188,28 +188,28 @@ Steering constraints that apply to every task:
     - **Validates: Requirements 13.9**
     - Create `tests/TurnLoop/Properties/StartReleasePropertyTest.php` (tag `Feature: public-lab, Property 13: Denied or failed starts count nothing`).
 
-- [ ] 7. Wire the API layer for limits, IP and salt
-  - [ ] 7.1 Validate the Device cookie and share one PDO in `bootstrap.php`
+- [-] 7. Wire the API layer for limits, IP and salt
+  - [x] 7.1 Validate the Device cookie and share one PDO in `bootstrap.php`
     - `ps_device_id_from_cookies` accepts only `/^[0-9a-f]{32}$/`; anything else is treated as absent. Builders share one memoized `ps_build_pdo()`. Add `ps_build_episode_starter()` and `ps_build_usage_repository()`.
     - _Requirements: 13.1, 13.14_
-  - [ ] 7.2 Create `api/client_ip.php` and `api/ip_salt.php`, and document the config key
+  - [x] 7.2 Create `api/client_ip.php` and `api/ip_salt.php`, and document the config key
     - `ps_client_ip(array $server, array $config): ?string` reads `REMOTE_ADDR` or the configured `client_ip_header` (rightmost entry of a comma list) and returns `ClientIp::normalize()`. A null result logs the fixed code `ip_unresolvable`.
     - `ps_load_ip_salt(string $secretsDir): ?string` reads `<secrets_dir>/ip_salt.key` (64 hex), or creates it once with `bin2hex(random_bytes(32))` via a temporary file and `link()` (fall back to `rename()` only when the target does not exist), mode 0600; an existing invalid file is never overwritten; an unavailable salt logs `ip_salt_unavailable` and the IP scope is skipped. With no salt the Device key falls back to `hash('sha256', 'device:' . $deviceId)`.
     - Add the optional `client_ip_header` placeholder and comment to `api/config.example.php`. Write no real salt or secret anywhere.
     - _Requirements: 13.14, 13.15, 13.16_
-  - [ ] 7.3 Route `POST /api/episodes` through `EpisodeStarter`
+  - [x] 7.3 Route `POST /api/episodes` through `EpisodeStarter`
     - `api/router.php` `ps_dispatch(...)` gains trailing optional `?EpisodeStarter $starter = null, ?string $clientIp = null, ?IpHasher $hasher = null`; `api/episodes_create.php` builds `UsageKeys` from the Device and the IP, calls `EpisodeStarter::start`, maps `ApiError` to status 429 or 409, and sets the cookie only when it minted one. All responses keep `Cache-Control: no-store` and carry no Device_Id, raw IP or IP_Hash.
     - _Requirements: 13.1, 13.2, 13.4, 13.5, 13.6, 13.8, 13.14, 13.18, 13.19_
-  - [ ] 7.4 Write `IpSaltFileTest` and the `ps_client_ip` test
+  - [x] 7.4 Write `IpSaltFileTest` and the `ps_client_ip` test
     - Create `tests/TurnLoop/IpSaltFileTest.php` (temp directory): the salt is created once and reused; two loads return the same value; an invalid file is not overwritten and gives null; a non-writable directory gives null and the fallback key works. Create `tests/TurnLoop/ClientIpApiTest.php` for `ps_client_ip` (default `REMOTE_ADDR`, configured header, proxy address gives null).
     - _Requirements: 13.14, 13.15, 13.16, 14.19_
-  - [ ] 7.5 Write the create-route tests
+  - [x] 7.5 Write the create-route tests
     - Create `tests/TurnLoop/CreateRouteLimitsTest.php`: 429 bodies are exactly `{"error": code}` with `no-store`; the running-episode 409 now carries `episodeId` and comes before any 429; a malformed or oversized cookie is treated as absent; the cookie is minted only on a successful create; only the IP_Hash is stored (no raw IP, no Device_Id in `daily_usage` fakes or any response).
     - _Requirements: 13.8, 13.14, 13.18, 13.19, 14.17, 14.19_
-  - [ ] 7.6 Extend the no-store and no-leak tests for the new responses
+  - [x] 7.6 Extend the no-store and no-leak tests for the new responses
     - Extend `tests/Memory/Properties/NoStorePropertyTest.php` and `NoLeakPropertyTest.php` to cover the 429 and 409 create responses and the reset 409.
     - _Requirements: 3.3, 3.4, 4.9, 13.18, 13.19_
-  - [ ] 7.7 Write the property test for IP privacy and hash stability
+  - [x] 7.7 Write the property test for IP privacy and hash stability
     - **Property 15: IP privacy and hash stability**
     - **Validates: Requirements 13.14, 13.18, 1.7, 3.3, 6.10**
     - Create `tests/TurnLoop/Properties/IpPrivacyPropertyTest.php` (tag `Feature: public-lab, Property 15: IP privacy and hash stability`): includes the check that the raw IP and the Device_Id appear in no `daily_usage` fake row, no response body and no `error_log` message of the create path.

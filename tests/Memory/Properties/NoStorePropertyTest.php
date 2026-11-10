@@ -65,6 +65,8 @@ class NoStorePropertyTest extends TestCase
 
     private const ROBOT_A = 'robot_a';
     private const ROBOT_B = 'robot_b';
+    private const LIMIT_DEVICE = '5e17c0de5e17c0de5e17c0de5e17c0de';
+    private const LIMIT_IP = '198.51.100.77';
 
     /**
      * Property 10: every reflect, reset, and status response parses as JSON and
@@ -178,6 +180,89 @@ class NoStorePropertyTest extends TestCase
                         $decoded,
                         "{$label} body must parse as JSON (seed {$seedValue})"
                     );
+                }
+            });
+    }
+
+    /**
+     * The 429 and 409 create responses and the reset 409 (public-lab
+     * Requirements 3.3, 3.4, 4.9, 13.18, 13.19).
+     */
+    public function testLimitAndConflictResponsesAreUncacheable(): void
+    {
+        $this->limitTo(30)
+            ->forAll(Generators::choose(0, 3))
+            ->then(function (int $scope): void {
+                $repo = new InMemoryEpisodeRepository();
+                $turns = new TurnService(
+                    new FakeRobotClient(),
+                    new FakeRobotClient(),
+                    new FakeRecorderClient(),
+                    new ReplayEngineFactory($repo),
+                    $repo,
+                    new Config(),
+                );
+                $memory = new MemoryService($repo);
+                $usage = new \PoltergeistSwitch\Tests\TurnLoop\InMemoryUsageRepository();
+                $hasher = new \PoltergeistSwitch\TurnLoop\IpHasher(str_repeat('cd', 32));
+                $limits = [[1, 30, 100], [10, 1, 100], [10, 30, 1], [10, 30, 100]][$scope];
+                $starter = new \PoltergeistSwitch\TurnLoop\EpisodeStarter(
+                    $turns,
+                    $memory,
+                    $usage,
+                    new \PoltergeistSwitch\TurnLoop\DailyLimitPolicy($limits[0], $limits[1], $limits[2]),
+                );
+                $create = static fn (string $device, string $ip) => ps_dispatch(
+                    $turns,
+                    'POST',
+                    'episodes',
+                    [PS_DEVICE_COOKIE => $device],
+                    [],
+                    null,
+                    $memory,
+                    null,
+                    $starter,
+                    $ip,
+                    $hasher,
+                );
+
+                $first = $create(self::LIMIT_DEVICE, self::LIMIT_IP);
+                $this->assertSame(200, $first->status);
+
+                // 409: the Device's episode is still running (wins over any limit).
+                $conflict = $create(self::LIMIT_DEVICE, self::LIMIT_IP);
+                $this->assertSame(409, $conflict->status);
+
+                // Reset 409 while that episode runs.
+                $resetConflict = ps_dispatch(
+                    $turns,
+                    'POST',
+                    'memory/reset',
+                    [PS_DEVICE_COOKIE => self::LIMIT_DEVICE],
+                    [],
+                    null,
+                    $memory,
+                );
+                $this->assertSame(409, $resetConflict->status);
+
+                $responses = ['create 409' => $conflict, 'reset 409' => $resetConflict];
+
+                // 429: end the episode, then start again (scope 3 has no limit to hit).
+                $running = $repo->findRunningEpisodeForDevice(self::LIMIT_DEVICE);
+                $this->assertNotNull($running);
+                $repo->markEpisodeEnded($running->id);
+                $second = $create(
+                    $scope === 0 ? self::LIMIT_DEVICE : '00000000000000000000000000000001',
+                    $scope === 2 ? '192.0.2.200' : self::LIMIT_IP,
+                );
+                if ($scope < 3) {
+                    $this->assertSame(429, $second->status);
+                    $responses['create 429'] = $second;
+                }
+
+                foreach ($responses as $label => $response) {
+                    $this->assertSame('no-store', $response->headers['Cache-Control'] ?? null, "{$label} no-store (scope {$scope})");
+                    $this->assertIsArray(json_decode($response->body, true), "{$label} parses as JSON (scope {$scope})");
                 }
             });
     }

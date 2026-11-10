@@ -144,7 +144,7 @@ class ApiTest extends TestCase
             $this->service(),
             'POST',
             'episodes',
-            ['ps_device' => 'device-abc'],
+            ['ps_device' => '0123456789abcdef0123456789abcdef'],
         );
 
         $this->assertSame(200, $response->status);
@@ -193,7 +193,7 @@ class ApiTest extends TestCase
 
         // Reuse the device cookie that create set, so later calls are the same
         // device (not strictly required here, but mirrors the browser).
-        $cookies = ['ps_device' => 'device-drive'];
+        $cookies = ['ps_device' => '0123456789abcdef0123456789abcd01'];
 
         $flip = ps_dispatch($service, 'POST', 'episodes/' . $episodeId . '/disaster', $cookies);
         $this->assertSame(200, $flip->status);
@@ -238,7 +238,7 @@ class ApiTest extends TestCase
         // The 409 body carries the running episode's id so Notice_Resume works
         // after a reload (public-lab Requirements 10.4, 13.8).
         $service = $this->service(new InMemoryEpisodeRepository());
-        $cookies = ['ps_device' => 'device-busy'];
+        $cookies = ['ps_device' => '0123456789abcdef0123456789abcd02'];
 
         $first = $this->assertSafeJson(ps_dispatch($service, 'POST', 'episodes', $cookies));
         $second = ps_dispatch($service, 'POST', 'episodes', $cookies);

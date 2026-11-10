@@ -22,6 +22,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use PoltergeistSwitch\TurnLoop\IpHasher;
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 // Resolve the route: prefer the explicit ?route= query (works without
@@ -62,6 +64,15 @@ try {
     $listService = ps_build_episode_list_service();
     $memoryService = ps_build_memory_service();
     $reflectService = ps_build_reflect_service();
+
+    // Daily limits (public-lab Requirement 13): the starter, the client IP and
+    // the salted hasher. No salt means the IP scope is skipped and the Device
+    // key falls back to a plain hash (see ps_usage_keys).
+    $localConfig = ps_load_local_config();
+    $starter = ps_build_episode_starter();
+    $clientIp = ps_client_ip($_SERVER, $localConfig);
+    $salt = ps_load_ip_salt($localConfig['secrets_dir']);
+    $hasher = $salt !== null ? new IpHasher($salt) : null;
     $response = ps_dispatch(
         $service,
         (string) $method,
@@ -71,6 +82,9 @@ try {
         $listService,
         $memoryService,
         $reflectService,
+        $starter,
+        $clientIp,
+        $hasher,
     );
 } catch (\Throwable) {
     // Any failure before/around dispatch (config, secrets, DB connection)
