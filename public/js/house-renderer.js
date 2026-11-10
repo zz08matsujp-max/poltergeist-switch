@@ -161,6 +161,7 @@
       if (S.timeOfDay === 'morning') { top = [44, 52, 104]; bot = [232, 150, 112]; }
       else if (S.timeOfDay === 'afternoon') { top = [86, 122, 170]; bot = [214, 190, 150]; }
       else { top = [18, 13, 36]; bot = [58, 36, 86]; }
+      if (S.heat) { top = [58, 14, 30]; bot = [196, 78, 40]; }
       var bands = 12, bh = Math.ceil(GY / bands);
       for (var b = 0; b < bands; b++) {
         var t = b / (bands - 1);
@@ -170,7 +171,9 @@
         R(0, b * bh, W, bh, c);
         if (b > 0) { for (var x = (b % 2); x < W; x += 2) R(x, b * bh, 1, 1, c); }
       }
-      if (!night) {
+      if (S.heat) {
+        // heat wave: the only sun is drawn by heatSky(); no stars or bats
+      } else if (!night) {
         var sx = S.timeOfDay === 'morning' ? 52 : 330, sy = S.timeOfDay === 'morning' ? 48 : 34;
         alpha('#fff2c8', 0.18); disc(sx, sy, 20, '#fff2c8'); ctx.globalAlpha = 1;
         disc(sx, sy, 11, S.timeOfDay === 'morning' ? '#ffd9a0' : '#fff6dc');
@@ -188,10 +191,10 @@
       // hills
       for (var hx = 0; hx < W; hx++) {
         var hy = 168 + round(Math.sin(hx * 0.018) * 8 + Math.sin(hx * 0.05) * 3);
-        R(hx, hy, 1, GY - hy, night ? '#1b1530' : (S.timeOfDay === 'morning' ? '#3a3550' : '#4f5a48'));
+        R(hx, hy, 1, GY - hy, S.heat ? '#3a1622' : night ? '#1b1530' : (S.timeOfDay === 'morning' ? '#3a3550' : '#4f5a48'));
       }
       // bats (night only)
-      if (night) {
+      if (night && !S.heat) {
         BATS.forEach(function (bt) {
           if (!REDUCE) { bt.x += bt.v; if (bt.x > W + 10) bt.x = -10; }
           var up = Math.floor((frame + bt.p) / 4) % 2 === 0;
@@ -204,8 +207,8 @@
     }
 
     function ground() {
-      R(0, GY, W, H - GY, (S.timeOfDay === 'afternoon') ? '#34452a' : '#1c2418');
-      for (var x = 0; x < W; x += 5) R(x + ((x * 7) % 3), GY, 1, 2, '#2b3824');
+      R(0, GY, W, H - GY, S.heat ? '#2a1a10' : (S.timeOfDay === 'afternoon') ? '#34452a' : '#1c2418');
+      for (var x = 0; x < W; x += 5) R(x + ((x * 7) % 3), GY, 1, 2, S.heat ? '#3c2614' : '#2b3824');
       // stepping stones
       [[HX + 6, GY + 6], [HX + 24, GY + 10]].forEach(function (p) { R(p[0], p[1], 14, 4, '#4a4a52'); R(p[0] + 1, p[1], 12, 1, '#6a6a74'); });
       // pampas grass on the left
@@ -429,12 +432,13 @@
     // Every function below runs only when S.heat is set, i.e. only when the
     // world's disaster is heat wave. An earthquake world never reaches them.
 
-    // Afternoon sky: a hot, hazy wash over the sky and a larger, whiter sun.
+    // Heat-wave sun (the gradient, hills and ground are drawn by sky() and
+    // ground() with the heat palette): two glow discs and a core disc.
     function heatSky() {
-      alpha('#ff9a3c', 0.14); ctx.fillRect(0, 0, W, GY); ctx.globalAlpha = 1;
       var sx = 330, sy = 34;
-      alpha('#fff2c8', 0.22); disc(sx, sy, 28, '#fff2c8'); ctx.globalAlpha = 1;
-      disc(sx, sy, 13, '#fffbe8');
+      alpha('#ffc83a', 0.16); disc(sx, sy, 32, '#ffc83a'); ctx.globalAlpha = 1;
+      alpha('#ffd84a', 0.32); disc(sx, sy, 21, '#ffd84a'); ctx.globalAlpha = 1;
+      disc(sx, sy, 13, '#ffe46a');
     }
 
     // Heat shimmer: faint wavering streaks rising off the ground and hills

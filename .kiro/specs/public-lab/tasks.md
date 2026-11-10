@@ -354,14 +354,14 @@ Steering constraints that apply to every task:
     - Create `tests/js/replay-voices.test.js`: the label starts "Voices: on" and the button exists in list and playback modes; no speech before the First_Gesture; Pause, Step back, Step forward and Play cancel any reading and bubble timer, close the open bubble and start no further line until the new position's Line_Sequence begins; the picture still ends in the recorded world.
     - _Requirements: 11.1, 11.3, 11.16, 14.11_
 
-- [ ] 15. Draw the heat-wave sky
-  - [ ] 15.1 Update the heat palette in `house-renderer.js`
+- [-] 15. Draw the heat-wave sky
+  - [x] 15.1 Update the heat palette in `house-renderer.js`
     - When `S.heat`: sky gradient from rgb(58,14,30) to rgb(196,78,40) (no generic sun, stars or bats), hills `#3a1622`, ground `#2a1a10`, ground texture `#3c2614`. `heatSky()` draws only the sun at (330, 34): `#ffc83a` alpha 0.16 radius 32, `#ffd84a` alpha 0.32 radius 21, `#ffe46a` radius 13; the old orange wash and white sun are removed. Keep the heat shimmer, windows, fan and air conditioner. An earthquake world (`S.heat === null`) skips every new branch, and a heat world replaced by an earthquake world draws the earthquake sky and ground again.
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
-  - [ ] 15.2 Write `heat-sky.test.js` examples
+  - [x] 15.2 Write `heat-sky.test.js` examples
     - Create `tests/js/heat-sky.test.js` with `fake-canvas.js`: the exact sky end colours, hills, ground, texture and sun discs in a heat-wave world; none of the Heat_Palette colours and no sun in an earthquake world; the earthquake call log equals `tests/fixtures/renderer_earthquake_calls.json` (never regenerated); heat then earthquake equals earthquake alone.
     - _Requirements: 12.1, 12.2, 12.3, 12.5, 12.6, 14.12_
-  - [ ] 15.3 Write the property test for the heat palette
+  - [x] 15.3 Write the property test for the heat palette
     - **Property 22: Heat palette only in heat worlds**
     - **Validates: Requirements 12.1, 12.2, 12.3, 12.5, 12.6**
     - Create `tests/js/heat-palette-property.test.js` (seeded, at least 100 cases, `Math.random` stubbed): for any earthquake world the call sequence equals the recorded one and contains no Heat_Palette colour or sun disc; for any heat-wave world the sky, hills, ground, texture and sun match Requirements 12.1 to 12.3; drawing a heat world then an earthquake world gives the same calls as the earthquake world alone.

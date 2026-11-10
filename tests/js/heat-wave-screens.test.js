@@ -426,7 +426,7 @@ check('heat fields drive heat drawing when disaster is heat wave (10.2)', functi
   assert.strictEqual(S.heat.outside, 38);
   assert.strictEqual(S.timeOfDay, 'afternoon');
   // The heat sky paints its sun colour; nothing else in the scene uses it.
-  assert.ok(r.log.some(function (l) { return l.indexOf('#fffbe8') !== -1; }), 'heat sky is painted');
+  assert.ok(r.log.some(function (l) { return l.indexOf('#ffe46a') !== -1; }), 'heat sky is painted');
 });
 
 check('the fan moves to the room the world puts it in (10.2)', function () {
@@ -442,7 +442,7 @@ check('an earthquake world runs no heat drawing (10.5)', function () {
   const explicit = renderWorld(Object.assign({}, quake, { disaster: 'earthquake' }));
   assert.strictEqual(none.house._state().S.heat, null);
   assert.strictEqual(explicit.house._state().S.heat, null);
-  assert.ok(!none.log.some(function (l) { return l.indexOf('#fffbe8') !== -1; }), 'no heat sky');
+  assert.ok(!none.log.some(function (l) { return l.indexOf('#ffe46a') !== -1; }), 'no heat sky');
   assert.deepStrictEqual(explicit.log, none.log, 'drawn exactly as a world without a disaster field');
 });
 
