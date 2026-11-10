@@ -1,6 +1,7 @@
 /*
  * observe-flow.test.js — fixed examples for the Observe phase machine
- * (public-lab Requirements 9.1, 9.2, 9.3, 9.5, 11.1, 11.3, 14.9, 14.16).
+ * (public-lab Requirements 8.1-8.4, 9.1-9.9, 10.3, 10.4, 11.1, 11.3, 13.11-13.13,
+ * 14.9, 14.10, 14.15, 14.16, 14.20).
  * Run with `node tests/js/observe-flow.test.js`. Real public/js/observe.js,
  * a scripted fake API client and a fake Voices module. No network.
  */
@@ -86,6 +87,28 @@ METHODS.forEach(function (m) {
 });
 global.window.createApiClient = function () { return proxy; };
 global.window.createVoices = function (opts) { voicesOptions = opts; return voices; };
+
+// A counting fake House_Renderer, so "stage unchanged / back to first load" can be seen.
+const houseCalls = { setWorld: 0, reset: 0 };
+global.window.createHouseRenderer = function () {
+  return {
+    mount: function () {}, start: function () {}, setThinking: function () {},
+    setWorld: function () { houseCalls.setWorld += 1; },
+    reset: function () { houseCalls.reset += 1; }
+  };
+};
+// Instant recovery waits, an in-memory localStorage and a fake memory-ui.
+global.window.observeWait = function () { return Promise.resolve(); };
+const storage = {};
+global.window.localStorage = {
+  getItem: function (k) { return Object.prototype.hasOwnProperty.call(storage, k) ? storage[k] : null; },
+  setItem: function (k, v) { storage[k] = String(v); }
+};
+let confirmReset = null;
+global.window.memoryUi = {
+  renderStatusLine: function () {},
+  buildConfirmPanel: function (onConfirm) { confirmReset = onConfirm; return makeElement(); }
+};
 
 function world(disaster) {
   return {
@@ -234,6 +257,263 @@ async function check(name, fn) { await fn(); passed += 1; console.log('  ok - ' 
     assert.strictEqual(current.count('createEpisode'), 1);
     assert.strictEqual(current.count('flipDisaster'), 0);
     assert.strictEqual(ctl._state().phase, 'staged');
+  });
+
+  // ── task 13.6: unfinished runs, All reset, daily limits, Notice_Resume ────
+  function buttons(node, out) {
+    out = out || [];
+    if (typeof node.className === 'string' && /\bbtn\b/.test(node.className)) { out.push(node); }
+    node.children.forEach(function (c) { buttons(c, out); });
+    return out;
+  }
+  function noticeButton(label) {
+    const found = buttons(byId.notice).filter(function (b) { return b.textContent === label; });
+    assert.strictEqual(found.length, 1, 'one "' + label + '" button in the notice');
+    return found[0];
+  }
+  function okView(id, turns, ended) { return { status: 200, body: view(id, 'earthquake', turns, ended) }; }
+
+  // Leaves the page `unfinished`: three failed asks on turn 1 of episode `id`.
+  async function toUnfinished(id) {
+    ctl.startNewRun();
+    current = createFakeApi({
+      createEpisode: okView(id, [turn0]), flipDisaster: okView(id, [turn0]),
+      getEpisode: okView(id, [turn0]), ask: { status: 502, body: null }
+    });
+    byId['btn-start'].click();
+    await settle();
+    byId['sw-earthquake'].click();
+    await settle();
+    assert.strictEqual(ctl._state().phase, 'unfinished');
+    assert.strictEqual(current.count('ask'), 3, 'three tries');
+  }
+  function continuingApi(id) {
+    return createFakeApi({
+      getEpisode: okView(id, [turn0, Object.assign({}, turn1, { world: world('earthquake') })], true),
+      reflect: { status: 409, body: { error: 'not_reflectable' } }
+    });
+  }
+
+  await check('after the tries are used up the notice offers Try again and never says Paused', async function () {
+    await toUnfinished('u1');
+    assert.ok(byId.notice.textContent.indexOf('A turn could not be completed.') >= 0);
+    assert.ok(!/paused/i.test(byId.notice.textContent), 'no "Paused"');
+    assert.deepStrictEqual(buttons(byId.notice).map(function (b) { return b.textContent; }), ['Try again']);
+    assert.strictEqual(byId.notice.hidden, false);
+  });
+
+  await check('Try again continues the same episode without a create', async function () {
+    const gestures = order.filter(function (o) { return o === 'gesture'; }).length;
+    current = continuingApi('u1');
+    noticeButton('Try again').click();
+    assert.strictEqual(order.filter(function (o) { return o === 'gesture'; }).length, gestures + 1, 'First_Gesture');
+    await settle();
+    assert.strictEqual(current.count('createEpisode'), 0);
+    assert.strictEqual(current.count('flipDisaster'), 0);
+    assert.deepStrictEqual(current.callsOf('getEpisode')[0].args, ['u1']);
+    assert.strictEqual(ctl._state().episodeId, 'u1');
+    assert.strictEqual(ctl._state().phase, 'ended');
+    assert.strictEqual(byId.notice.hidden, true);
+  });
+
+  await check('a failed Try again keeps the page unfinished with the same notice', async function () {
+    await toUnfinished('u2');
+    current = createFakeApi({ getEpisode: { status: 502, body: null } });
+    noticeButton('Try again').click();
+    await settle();
+    assert.strictEqual(ctl._state().phase, 'unfinished');
+    assert.ok(byId.notice.textContent.indexOf('A turn could not be completed.') >= 0);
+    assert.strictEqual(current.count('createEpisode'), 0);
+  });
+
+  await check('a Lever flip and Start while unfinished act as Try again, with no create', async function () {
+    await toUnfinished('u3');
+    current = continuingApi('u3');
+    byId['sw-heat'].click();
+    await settle();
+    assert.strictEqual(current.count('createEpisode'), 0);
+    assert.strictEqual(current.count('flipDisaster'), 0);
+    assert.deepStrictEqual(current.callsOf('getEpisode')[0].args, ['u3']);
+    assert.strictEqual(ctl._state().episodeId, 'u3');
+    assert.strictEqual(ctl._state().phase, 'ended');
+
+    await toUnfinished('u4');
+    current = continuingApi('u4');
+    byId['btn-start'].click();
+    await settle();
+    assert.strictEqual(current.count('createEpisode'), 0);
+    assert.deepStrictEqual(current.callsOf('getEpisode')[0].args, ['u4']);
+    assert.strictEqual(ctl._state().episodeId, 'u4');
+    assert.strictEqual(ctl._state().phase, 'ended');
+  });
+
+  // A finished heat wave run whose reflection is still awaited (Levers still ON).
+  async function finishedRunWithOpenReflection(id) {
+    ctl.startNewRun();
+    const t1 = Object.assign({}, turn1, { world: world('heat_wave') });
+    current = createFakeApi({
+      createEpisode: { status: 200, body: view(id, 'heat_wave', [turn0]) },
+      flipDisaster: { status: 200, body: view(id, 'heat_wave', [turn0]) },
+      ask: { status: 200, body: {} },
+      apply: { status: 200, body: view(id, 'heat_wave', [turn0, t1], true) },
+      reflect: new Promise(function () {})
+    });
+    byId['sw-heat'].click();
+    await settle();
+    assert.strictEqual(ctl._state().phase, 'ended');
+    assert.deepStrictEqual(marks(), ['OFF', 'ON']);
+  }
+  function pressResetAndConfirm() {
+    byId['btn-reset-memory'].click();
+    assert.strictEqual(typeof confirmReset, 'function', 'the confirm panel was built');
+    confirmReset();
+  }
+
+  await check('All reset sets both Levers OFF and returns stage, meters, log and End_Card to first load', async function () {
+    await finishedRunWithOpenReflection('r1');
+    assert.ok(byId.log.children.length > 0);
+    assert.ok(byId['endcard-host'].children.length > 0);
+    assert.notStrictEqual(byId['meter-temp']._subs['.val'].textContent, '\u2014');
+    const resets = houseCalls.reset;
+    current = createFakeApi({
+      resetMemory: { status: 200, body: { generation: 2 } },
+      memoryStatus: { status: 200, body: {} }
+    });
+    pressResetAndConfirm();
+    await settle();
+    assert.strictEqual(current.count('resetMemory'), 1);
+    assert.deepStrictEqual(marks(), ['OFF', 'OFF']);
+    assert.strictEqual(pressed('sw-heat'), 'false');
+    assert.strictEqual(houseCalls.reset, resets + 1, 'stage reset');
+    assert.strictEqual(byId.log.children.length, 0);
+    assert.strictEqual(byId['endcard-host'].children.length, 0);
+    assert.strictEqual(byId['meter-temp']._subs['.val'].textContent, '\u2014');
+    assert.strictEqual(byId.notice.hidden, true);
+    const st = ctl._state();
+    assert.strictEqual(st.phase, 'idle');
+    assert.strictEqual(st.episodeId, null);
+  });
+
+  await check('after All reset the next run starts normally', async function () {
+    current = createFakeApi({ createEpisode: okView('r2', [turn0]) });
+    byId['btn-start'].click();
+    await settle();
+    assert.strictEqual(current.count('createEpisode'), 1);
+    assert.strictEqual(ctl._state().episodeId, 'r2');
+    assert.strictEqual(ctl._state().phase, 'staged');
+    assert.strictEqual(byId['btn-reset-memory'].disabled, false);
+  });
+
+  await check('the All_Reset_Button is disabled while a run starts or turns run, and enabled otherwise', async function () {
+    ctl.startNewRun();
+    assert.strictEqual(byId['btn-reset-memory'].disabled, false, 'idle');
+    current = createFakeApi({
+      createEpisode: okView('d1', [turn0]), flipDisaster: okView('d1', [turn0]),
+      ask: new Promise(function () {})
+    });
+    byId['btn-start'].click();
+    assert.strictEqual(byId['btn-reset-memory'].disabled, true, 'starting');
+    await settle();
+    assert.strictEqual(ctl._state().phase, 'staged');
+    assert.strictEqual(byId['btn-reset-memory'].disabled, false, 'staged');
+    byId['sw-earthquake'].click();
+    await settle();
+    assert.strictEqual(ctl._state().phase, 'running');
+    assert.strictEqual(byId['btn-reset-memory'].disabled, true, 'running');
+    // Even if the click got through, confirming does not call the server.
+    pressResetAndConfirm();
+    await settle();
+    assert.strictEqual(current.count('resetMemory'), 0);
+    assert.strictEqual(ctl._state().phase, 'running');
+  });
+
+  await check('All reset answered 409 shows the message and changes nothing else', async function () {
+    await finishedRunWithOpenReflection('r3');
+    byId['sw-heat'].setAttribute('aria-pressed', 'true');
+    const logRows = byId.log.children.length;
+    const resets = houseCalls.reset;
+    current = createFakeApi({
+      resetMemory: { status: 409, body: { error: 'run_in_progress' } },
+      memoryStatus: { status: 200, body: {} }
+    });
+    pressResetAndConfirm();
+    await settle();
+    assert.strictEqual(
+      byId.notice.textContent,
+      'All reset is available when no run is in progress. A stopped run is released within 5 minutes.');
+    assert.strictEqual(byId.notice.hidden, false);
+    assert.deepStrictEqual(marks(), ['OFF', 'ON'], 'Levers unchanged');
+    assert.strictEqual(byId.log.children.length, logRows);
+    assert.ok(byId['endcard-host'].children.length > 0);
+    assert.strictEqual(houseCalls.reset, resets, 'stage unchanged');
+    assert.strictEqual(ctl._state().phase, 'ended');
+  });
+
+  await check('a 429 on create keeps both Levers OFF and the stage unchanged, with the right message', async function () {
+    const cases = [
+      ['daily_device_limit', 'You have run the lab many times today. It opens again tomorrow (UTC).'],
+      ['daily_ip_limit', 'You have run the lab many times today. It opens again tomorrow (UTC).'],
+      ['daily_site_limit', 'The lab has had a busy day. It opens again tomorrow (UTC).']
+    ];
+    const controls = ['sw-earthquake', 'sw-heat', 'btn-start'];
+    for (let i = 0; i < cases.length; i++) {
+      for (let j = 0; j < controls.length; j++) {
+        ctl.startNewRun();
+        const worlds = houseCalls.setWorld;
+        const resets = houseCalls.reset;
+        current = createFakeApi({ createEpisode: { status: 429, body: { error: cases[i][0] } } });
+        byId[controls[j]].click();
+        await settle();
+        assert.strictEqual(current.count('createEpisode'), 1);
+        assert.strictEqual(current.count('flipDisaster'), 0);
+        assert.strictEqual(byId.notice.textContent, cases[i][1], cases[i][0] + ' via ' + controls[j]);
+        assert.deepStrictEqual(marks(), ['OFF', 'OFF']);
+        assert.strictEqual(houseCalls.setWorld, worlds, 'stage unchanged');
+        assert.strictEqual(houseCalls.reset, resets);
+        assert.strictEqual(ctl._state().phase, 'idle');
+        assert.strictEqual(ctl._state().episodeId, null);
+      }
+    }
+  });
+
+  await check('the Device_Busy_Notice shows Notice_Resume, which resumes the episode named in the 409 body', async function () {
+    ctl.startNewRun();
+    current = createFakeApi({
+      createEpisode: { status: 409, body: { error: 'device_already_running', episodeId: 'run1' } },
+      getEpisode: okView('run1', [turn0]),
+      ask: new Promise(function () {})
+    });
+    byId['btn-start'].click();
+    await settle();
+    assert.ok(byId.notice.textContent.indexOf('A running episode already exists on this device.') >= 0);
+    assert.deepStrictEqual(buttons(byId.notice).map(function (b) { return b.textContent; }),
+      ['Resume', 'Watch a past episode']);
+    const gestures = order.filter(function (o) { return o === 'gesture'; }).length;
+    noticeButton('Resume').click();
+    assert.strictEqual(order.filter(function (o) { return o === 'gesture'; }).length, gestures + 1, 'First_Gesture');
+    await settle();
+    assert.strictEqual(current.count('createEpisode'), 1, 'no second create');
+    assert.deepStrictEqual(current.callsOf('getEpisode')[0].args, ['run1']);
+    assert.deepStrictEqual(current.callsOf('ask')[0].args, ['run1', 1], 'the running episode continues');
+    assert.strictEqual(ctl._state().episodeId, 'run1');
+    assert.strictEqual(ctl._state().phase, 'running');
+  });
+
+  await check('Notice_Resume falls back to the id kept in localStorage when the 409 has none', async function () {
+    ctl.startNewRun();
+    storage['ps:lastEpisodeId'] = 'stored9';
+    current = createFakeApi({
+      createEpisode: { status: 409, body: { error: 'device_already_running' } },
+      getEpisode: okView('stored9', [turn0]),
+      ask: new Promise(function () {})
+    });
+    byId['btn-start'].click();
+    await settle();
+    noticeButton('Resume').click();
+    await settle();
+    assert.deepStrictEqual(current.callsOf('getEpisode')[0].args, ['stored9']);
+    assert.strictEqual(ctl._state().episodeId, 'stored9');
+    assert.strictEqual(ctl._state().phase, 'running');
   });
 
   console.log(passed + ' examples passed.');

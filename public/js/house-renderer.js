@@ -141,6 +141,11 @@
     for (var i = 0; i < 70; i++) STARS.push([Math.floor(rnd() * W), Math.floor(rnd() * 96), rnd()]);
     var BATS = [{ x: 60, y: 30, v: 0.7, p: 0 }, { x: 250, y: 18, v: 0.5, p: 3 }, { x: 330, y: 44, v: 0.6, p: 5 }];
 
+    // Mount-time snapshot for reset(): PRNG seed after the starfield was built
+    // and the bats' starting positions (both change while the loop runs).
+    var SEED0 = seed;
+    var BATS0 = BATS.map(function (b) { return { x: b.x, y: b.y }; });
+
     // Offscreen canvas used for the darkness mask (ported `dark`).
     var dark = null, dctx = null;
 
@@ -1080,6 +1085,32 @@
         running = false;
         if (rafId && typeof cancelAnimationFrame !== 'undefined') { cancelAnimationFrame(rafId); }
         rafId = 0;
+      },
+
+      /**
+       * reset() — return to the mount-time scene (calm night, characters at
+       * their starting places, no heat scene) and clear every bubble, the
+       * caption strip and the thinking flags. Does not start or stop the loop.
+       */
+      reset: function () {
+        frame = 0;
+        seed = SEED0;
+        S.timeOfDay = 'night'; S.power = true; S.shaking = false; S.stoveOn = false;
+        S.broken = {}; S.fallen = {}; S.rooms = {}; S.heat = null;
+        var start = { amber: ROOM.kitchen.x0 + 50, jade: ROOM.bedroom.x0 + 34, man: ROOM.living_room.x0 + 40 };
+        Object.keys(start).forEach(function (k) {
+          var fresh = mkChar(start[k]);
+          Object.keys(fresh).forEach(function (p) { A[k][p] = fresh[p]; });
+        });
+        A.man.pose = 'sit';
+        BATS.forEach(function (bt, i) { bt.x = BATS0[i].x; bt.y = BATS0[i].y; });
+        Object.keys(bubbles).forEach(function (k) {
+          var b = bubbles[k];
+          b.el.classList.remove('show'); b.tail.classList.remove('show');
+          b.until = 0; b.text = '';
+        });
+        if (cap) { cap.innerHTML = ''; }
+        if (ctx) { draw(); placeOverlay(); }
       },
 
       // Internal-ish accessors handy for Act_Out and tests (not required by

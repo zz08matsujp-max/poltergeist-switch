@@ -34,6 +34,15 @@ function makeElement() {
   return el;
 }
 
+// The Unfinished_Episode notice: message plus a primary Try again button.
+function assertUnfinished(notice, msg) {
+  const p = notice.children[0];
+  const row = notice.children[1];
+  assert.ok(p && p.textContent === 'A turn could not be completed.', msg + ': message');
+  assert.ok(row && row.children[0] && row.children[0].textContent === 'Try again', msg + ': button');
+  assert.ok(row.children[0].className.indexOf('primary') >= 0, msg + ': primary');
+}
+
 function settle() {
   return new Promise(function (r) { setImmediate(r); });
 }
@@ -181,7 +190,7 @@ const NEVER = function () { return new Promise(function () { /* pending */ }); }
     ['ask1', 'wait', 'get', 'ask1', 'wait', 'get', 'ask1'],
     'three asks, two waits, then pause'
   );
-  assert.strictEqual(r.notice.textContent, 'A turn could not be asked. Paused.', 'existing notice shown');
+  assertUnfinished(r.notice, 'existing notice shown');
   assert.strictEqual(r.notice.hidden, false, 'notice visible');
   console.log('  ok - 3 failures pause with the notice');
 
@@ -205,7 +214,7 @@ const NEVER = function () { return new Promise(function () { /* pending */ }); }
     get: function () { return OK(storedView('earthquake', 'waiting')); }
   });
   assert.strictEqual(r.counts.ask, 3, 'three asks');
-  assert.strictEqual(r.notice.textContent, 'The lab could not be reached. Paused.', 'unreachable notice');
+  assertUnfinished(r.notice, 'unreachable notice');
   console.log('  ok - 3 network failures pause');
 
   // 5xx on apply, stored applied: no second apply.
@@ -236,6 +245,6 @@ const NEVER = function () { return new Promise(function () { /* pending */ }); }
     get: function () { return BAD_GATEWAY(); }
   });
   assert.deepStrictEqual(r.log, ['ask1', 'wait', 'get', 'wait', 'get'], 'failed GETs count as tries');
-  assert.strictEqual(r.notice.textContent, 'A turn could not be asked. Paused.', 'paused with the notice');
+  assertUnfinished(r.notice, 'paused with the notice');
   console.log('  ok - failed GET counts as a try');
 })().catch(function (e) { console.error(e); process.exit(1); });

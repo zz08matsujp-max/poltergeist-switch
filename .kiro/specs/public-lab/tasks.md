@@ -302,7 +302,7 @@ Steering constraints that apply to every task:
     - Update `tests/js/heat-wave-screens.test.js` (remove the Heavy rain disabled and "coming later" assertions; everything else stays) and any of `end-card-reflection.test.js`, `memory-ui.test.js`, `disaster-already-set.test.js`, `ask-apply-recovery.test.js` that reference removed exports or elements.
     - _Requirements: 10.1, 10.5, 14.13_
 
-- [~] 12. Add the Observe phase machine and levers after an episode ends
+- [x] 12. Add the Observe phase machine and levers after an episode ends
   - [x] 12.1 Add the fake API helper and expose the phase
     - Create `tests/js/helpers/fake-api.js` (scripted `{status, body}` per call, records calls). In `observe.js` add `state.phase` (`idle`, `starting`, `staged`, `running`, `unfinished`, `ended`) to `_state()`.
     - _Requirements: 9.5, 14.9_
@@ -316,26 +316,26 @@ Steering constraints that apply to every task:
     - Create `tests/js/observe-flow.test.js` with fixed examples: both Levers are OFF after the last turn and the reflection (or "not stored"); a later Lever or Start creates a new episode with empty client state and no End_Card; a second Lever flip or Start press while a run is in progress is ignored; the Voices label starts "Voices: on" and no speech happens before the First_Gesture.
     - _Requirements: 9.1, 9.2, 9.3, 9.5, 11.1, 11.3, 14.9, 14.16_
 
-- [ ] 13. Add All reset, Try again and the limit notices to Observe
-  - [ ] 13.1 Add `house.reset()` to the renderer
+- [~] 13. Add All reset, Try again and the limit notices to Observe
+  - [x] 13.1 Add `house.reset()` to the renderer
     - In `public/js/house-renderer.js` add `reset()` restoring the mount-time state and clearing bubbles, caption and thinking flags. Earthquake drawing stays byte-identical: `renderer-earthquake-calls.test.js` must still pass unchanged.
     - _Requirements: 8.1, 12.5_
-  - [ ] 13.2 Implement All reset on Observe
+  - [x] 13.2 Implement All reset on Observe
     - `confirmResetMemory`: on 200 call `clientResetToFirstLoad()` (both Levers OFF, `house.reset()`, meters, log, End_Card and notice cleared, `phase = idle`, status line from the response) then `refreshMemoryStatus()`; on 409 show the plain message "All reset is available when no run is in progress. A stopped run is released within 5 minutes." and change nothing else; the All_Reset_Button is `disabled` in `starting` and `running`.
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
-  - [ ] 13.3 Implement the Unfinished_Episode notice and Try again
+  - [x] 13.3 Implement the Unfinished_Episode notice and Try again
     - When `recoverTurn` reaches `MAX_TURN_TRIES`, or an ask/apply status is not recoverable: `phase = unfinished`, keep the turns on screen, show "A turn could not be completed." with a primary "Try again" button; remove every "Paused" string (failed ask, failed apply, unreachable lab). `tryAgain()` calls `voices.gesture()`, reads `getEpisode(state.episodeId)`, shows the End_Card if ended, otherwise adopts the stored state, clears the notice and resumes the loop with a fresh failure count; it never calls `createEpisode`; on failure it stays `unfinished`. Lever and Start do the same while `unfinished`. The 5000 ms wait, the 3 tries and the log sequence are unchanged.
     - _Requirements: 9.4, 9.6, 9.7, 9.8, 9.9, 11.3_
-  - [ ] 13.4 Implement the 409 and 429 create notices
+  - [x] 13.4 Implement the 409 and 429 create notices
     - 409 `device_already_running`: Device_Busy_Notice with Notice_Resume bound to `body.episodeId` or the `localStorage ps:lastEpisodeId` fallback (ignored when `localStorage` is unavailable), plus "Watch a past episode"; Notice_Resume calls `voices.gesture()` and continues through `resumeEpisode`. 429: `phase = idle`, both Levers OFF, stage unchanged; `daily_device_limit` and `daily_ip_limit` show "You have run the lab many times today. It opens again tomorrow (UTC)."; `daily_site_limit` shows "The lab has had a busy day. It opens again tomorrow (UTC)."
     - _Requirements: 10.3, 10.4, 11.3, 13.11, 13.12, 13.13_
-  - [ ] 13.5 Update `ask-apply-recovery.test.js`
+  - [x] 13.5 Update `ask-apply-recovery.test.js`
     - Change only the notice assertions (the two "Paused." strings become the "A turn could not be completed." notice with the Try again button); the call logs, the 5000 ms waits and the 3 tries stay as they are.
     - _Requirements: 9.4, 9.9, 14.13_
-  - [ ] 13.6 Extend the Observe flow examples
+  - [x] 13.6 Extend the Observe flow examples
     - Extend `tests/js/observe-flow.test.js`: after the tries are used up the notice reads "A turn could not be completed." with a "Try again" button and never contains "Paused"; Try again continues the same episode without a create; Lever and Start do the same; All reset sets both Levers OFF and returns stage, meters, log and End_Card to first load, and the next run starts normally; the All_Reset_Button is disabled while turns run; the All reset 409 message; the 429 messages keep both Levers OFF and the stage unchanged; the Device_Busy_Notice shows Notice_Resume, which continues the running episode through `resumeEpisode` (body `episodeId` and `localStorage` fallback).
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 9.6, 9.7, 9.8, 9.9, 10.3, 10.4, 13.11, 13.12, 13.13, 14.9, 14.10, 14.15, 14.20_
-  - [ ] 13.7 Write the Observe phase invariants property test
+  - [x] 13.7 Write the Observe phase invariants property test
     - **Property 21: Observe phase invariants**
     - **Validates: Requirements 8.1, 8.2, 8.4, 9.2, 9.3, 9.5, 9.7, 9.8, 9.9, 13.11**
     - Create `tests/js/observe-phases-property.test.js` (seeded `mulberry32`, at least 100 random event sequences against `fake-api.js`): at most one `createEpisode` in flight and none while `starting`, `running`, `unfinished` or `staged` (for Start); Lever and Start act as Try again while `unfinished`; Levers OFF after an episode ends and its reflection settles; empty client state on a later run; first-load state after an accepted All reset; the All reset button disabled in `starting` and `running`; no notice contains "Paused"; a 429 leaves the Levers OFF and the stage unchanged.

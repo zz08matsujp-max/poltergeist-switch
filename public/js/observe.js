@@ -46,8 +46,22 @@
     // Explicit page phase: idle | starting | staged | running | unfinished |
     // ended (design "Observe phases"). Exposed through _state(); the
     // transitions are wired in by the later sub-tasks of task 12.
+    // phase is an accessor (defined below) so the All_Reset_Button follows it.
     phase: 'idle'
   };
+
+  // Keep the All_Reset_Button disabled while a run starts or runs (Req 8.3).
+  var phaseValue = 'idle';
+  function syncResetButton() {
+    if (el && el.btnResetMemory) {
+      el.btnResetMemory.disabled = (phaseValue === 'starting' || phaseValue === 'running');
+    }
+  }
+  Object.defineProperty(state, 'phase', {
+    enumerable: true,
+    get: function () { return phaseValue; },
+    set: function (v) { phaseValue = v; syncResetButton(); }
+  });
 
   // ── helpers the run loop (9.3) calls ───────────────────────────────────────
 
@@ -390,6 +404,10 @@
         handleSlotConflict(res.body);
         return;
       }
+      if (res && res.status === 429) {
+        handleDailyLimit(res.body);
+        return;
+      }
       if (!res || res.status !== 200 || !res.body) {
         state.phase = 'idle';
         showNotice('The lab could not start an episode. Please try again.');
@@ -437,6 +455,10 @@
         handleSlotConflict(res.body);
         return;
       }
+      if (res && res.status === 429) {
+        handleDailyLimit(res.body);
+        return;
+      }
       if (!res || res.status !== 200 || !res.body) {
         state.phase = 'idle';
         showNotice('The lab could not start an episode. Please try again.');
@@ -481,24 +503,41 @@
     state.phase = 'idle';
   }
 
-  // Try again style continue from `unfinished`: re-read the stored episode and
-  // carry on from its expected turn. Never creates an episode.
-  function continueUnfinished() {
-    if (!api || !state.episodeId) { state.phase = 'idle'; return; }
+  // The Unfinished_Episode notice (Req 9.4): the turns stay on screen, the
+  // message says a turn could not be completed, and one primary "Try again"
+  // button resumes the same episode. Used by every failure path of the loop.
+  function showUnfinished() {
+    renderNoticePanel(
+      'A turn could not be completed.',
+      [{ label: 'Try again', primary: true, onClick: tryAgain }]
+    );
+  }
+
+  // Try again (Req 9.6-9.9, 11.3): first gesture, then re-read the stored
+  // episode. Ended: show the End_Card. Otherwise adopt the stored state, clear
+  // the notice and resume the loop with a fresh failure count. Never creates
+  // an episode; on failure the page stays `unfinished`.
+  function tryAgain() {
+    primeVoices();
+    if (!api || !state.episodeId) { return; }
+    if (state.phase !== 'unfinished') { return; }
     state.phase = 'starting';
-    clearNotice();
     pendingAsk = null;
     var failed = function () {
       state.phase = 'unfinished';
-      showNotice('That episode could not be resumed.');
+      showUnfinished();
     };
     api.getEpisode(state.episodeId).then(function (res) {
       if (!res || res.status !== 200 || !res.body || !res.body.episodeId) { failed(); return; }
+      clearNotice();
       adoptEpisode(res.body);
       if (state.ended) { onEpisodeEnded(res.body); return; }
       runLoop();
     }, failed);
   }
+
+  // Lever and Start while `unfinished` do the same as Try again.
+  function continueUnfinished() { tryAgain(); }
 
   // ── run-loop internals ──────────────────────────────────────────────────────
 
@@ -688,17 +727,17 @@
     askTurn(turnNumber).then(function (askRes) {
       if (handleTurn409(askRes)) { looping = false; runLoop(); return; }
       if (isTransient(askRes)) {
-        recoverTurn(turnNumber, failures + 1, 'A turn could not be asked. Paused.');
+        recoverTurn(turnNumber, failures + 1);
         return;
       }
       if (!askRes || askRes.status !== 200) {
-        showNotice('A turn could not be asked. Paused.');
         stopLoop();
+        showUnfinished();
         return;
       }
       applyOnly(turnNumber, failures);
     }, function () {
-      recoverTurn(turnNumber, failures + 1, 'The lab could not be reached. Paused.');
+      recoverTurn(turnNumber, failures + 1);
     });
   }
 
@@ -708,33 +747,33 @@
     api.apply(state.episodeId, turnNumber).then(function (applyRes) {
       if (handleTurn409(applyRes)) { looping = false; runLoop(); return; }
       if (isTransient(applyRes)) {
-        recoverTurn(turnNumber, failures + 1, 'A turn could not be applied. Paused.');
+        recoverTurn(turnNumber, failures + 1);
         return;
       }
       if (!applyRes || applyRes.status !== 200 || !applyRes.body) {
-        showNotice('A turn could not be applied. Paused.');
         stopLoop();
+        showUnfinished();
         return;
       }
       onApplied(applyRes.body, turnNumber);
     }, function () {
-      recoverTurn(turnNumber, failures + 1, 'The lab could not be reached. Paused.');
+      recoverTurn(turnNumber, failures + 1);
     });
   }
 
   // One failed try has happened for this turn. Pause after MAX_TURN_TRIES;
   // otherwise wait, read the stored state and carry on from it.
-  function recoverTurn(turnNumber, failures, pausedNotice) {
+  function recoverTurn(turnNumber, failures) {
     pendingAsk = null;
     if (failures >= MAX_TURN_TRIES) {
-      showNotice(pausedNotice);
       stopLoop();
+      showUnfinished();
       return;
     }
     recoveryWait(RECOVERY_WAIT_MS).then(function () {
       return api.getEpisode(state.episodeId).then(function (res) {
         if (!res || res.status !== 200 || !res.body) {
-          recoverTurn(turnNumber, failures + 1, pausedNotice);
+          recoverTurn(turnNumber, failures + 1);
           return;
         }
         var stored = findTurn(res.body, turnNumber);
@@ -747,7 +786,7 @@
           askAndApply(turnNumber, failures);
         }
       }, function () {
-        recoverTurn(turnNumber, failures + 1, pausedNotice);
+        recoverTurn(turnNumber, failures + 1);
       });
     });
   }
@@ -1198,8 +1237,21 @@
     }
     // Default to the device-busy path (device_already_running, or any other
     // create 409): offer resume.
-    var resumeId = body.episodeId || state.episodeId || null;
+    var resumeId = body.episodeId || readLastEpisode() || state.episodeId || null;
     showDeviceBusy(resumeId);
+  }
+
+  // POST /api/episodes answered 429 (Req 13.11-13.13): back to idle with both
+  // Levers OFF and the stage untouched, and a plain notice for the limit.
+  function handleDailyLimit(body) {
+    var code = body && body.error;
+    var text = (code === 'daily_site_limit')
+      ? 'The lab has had a busy day. It opens again tomorrow (UTC).'
+      : 'You have run the lab many times today. It opens again tomorrow (UTC).';
+    state.phase = 'idle';
+    setEarthquakeLever(false);
+    setHeatLever(false);
+    showNotice(text);
   }
 
   // Device already runs an episode (Req 7.1): a message plus a Resume control
@@ -1429,10 +1481,27 @@
     if (el.btnResetMemory) { el.btnResetMemory.setAttribute('aria-expanded', 'false'); }
   }
 
+  // Back to the first-load page after All reset (Req 8.1, 8.2): Levers OFF,
+  // house, meters, log, End_Card and notice cleared, phase idle.
+  function clientResetToFirstLoad() {
+    pendingAsk = null;
+    if (house && typeof house.reset === 'function') { house.reset(); }
+    setFirstLoadState();
+  }
+
   function confirmResetMemory() {
     closeResetConfirm();
     if (!api || typeof api.resetMemory !== 'function') { return; }
+    if (state.phase === 'starting' || state.phase === 'running') { return; }
     api.resetMemory().then(function (res) {
+      if (res && res.status === 409) {
+        // A run is in progress: say so and change nothing else (Req 8.4).
+        showNotice('All reset is available when no run is in progress. A stopped run is released within 5 minutes.');
+        return;
+      }
+      if (res && res.status === 200 && res.body) {
+        clientResetToFirstLoad();
+      }
       if (res && res.status === 200 && res.body && window.memoryUi && el.memoryStatus) {
         // Refresh the status line from the returned generation. After a reset
         // both robots start the new generation with zero active memories, so
@@ -1689,6 +1758,7 @@
     // confirm flow, and the missed-reflection catch-up, exposed so task 12.1
     // (the End_Card reflect-and-show) and a headless check can drive them.
     refreshMemoryStatus: refreshMemoryStatus,
+    clientResetToFirstLoad: clientResetToFirstLoad,
     catchUpLastReflection: catchUpLastReflection,
     // Seams task 9.4 replaces to show the End_Card and the slot/resume/lab-busy
     // UI. They are plain functions here so a 409 or an episode end never crashes
