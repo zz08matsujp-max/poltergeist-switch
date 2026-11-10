@@ -43,6 +43,10 @@
     "8.9 Write the property test that only starting is limited": {
       "status": "passed",
       "lastRunTimestamp": 1794286084787
+    },
+    "21.4 Write the property test for the attempt limit": {
+      "status": "passed",
+      "lastRunTimestamp": 1794318692680
     }
   },
   "executionHistory": {
@@ -711,6 +715,186 @@
         "executionId": "af1c7a4c-abda-4963-88ef-411eff92b9f3",
         "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
         "timestamp": 1794299803678
+      }
+    ],
+    "21.1 Add the Turn_Lock and reserve attempts before the provider call": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318183444
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318183653
+      }
+    ],
+    "21.2 Treat turn_busy as still thinking on Observe": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318183809
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318321945
+      }
+    ],
+    "21.3 Write the fake-repository tests for the lock and the reserve-first order": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318183953
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318497843
+      }
+    ],
+    "21.4 Write the property test for the attempt limit": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318184136
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318632866
+      }
+    ],
+    "21.5 Write the gated MySQL lock test": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318184293
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318813635
+      }
+    ],
+    "21.6 Write `observe-turn-busy.test.js`, then run everything and commit": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318184431
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318923231
+      }
+    ],
+    "22.1 Add the Origin check and the 60-second slot rule": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318184575
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794319232559
+      }
+    ],
+    "22.2 Write the slot-rule tests on the fake repository": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318184755
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794319818630
+      }
+    ],
+    "22.3 Write the Origin tests through `ps_dispatch`": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318184906
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794319931964
+      }
+    ],
+    "22.4 Write the property tests for the Origin check and the slot rule": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318185107
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794320033105
+      }
+    ],
+    "22.5 Write the gated PDO slot test, then run everything and commit": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318185263
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794320135317
+      }
+    ],
+    "23.1 Send the Security_Headers from the pages and the API": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318185405
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794320387966
+      }
+    ],
+    "23.2 Deny direct requests to api/ files other than index.php": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318185546
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794320470112
+      }
+    ],
+    "23.3 Write the header and inline-asset tests": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318185691
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794320500355
+      }
+    ],
+    "23.4 Write the .htaccess test, then run everything and commit": [
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794318185827
+      },
+      {
+        "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794320651392
       }
     ]
   }
