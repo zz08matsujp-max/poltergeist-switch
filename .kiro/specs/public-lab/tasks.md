@@ -19,28 +19,28 @@ Steering constraints that apply to every task:
 
 ## Tasks
 
-- [ ] 1. Capture the protection pins before any code change
-  - [ ] 1.1 Write `ProtectedVersionsTest`
+- [-] 1. Capture the protection pins before any code change
+  - [x] 1.1 Write `ProtectedVersionsTest`
     - Create `tests/ProtectedVersionsTest.php`. Read the current code and pin, as literal strings, `SituationTextGenerator::VERSION`, the reflection text version constants and the recorder prompt version, exactly as they are today.
     - Pin the `EpisodeConfig` default values (a literal SHA-256 of their canonical JSON, computed from the unmodified code).
     - Assert that `tests/fixtures/earthquake_golden_master.json` has a SHA-256 starting with `c2aba50f87c22fe6`.
     - Capture all literals on unmodified code. Never edit them afterwards.
     - _Requirements: 1.1, 1.2, 1.5_
-  - [ ] 1.2 Write `EpisodeViewBytesTest`
+  - [x] 1.2 Write `EpisodeViewBytesTest`
     - Create `tests/TurnLoop/EpisodeViewBytesTest.php`: build a seeded fake episode (earthquake) with the in-memory fake, run it through `ps_episode_view_to_array` and `json_encode` as the API does, and assert the exact bytes (stored as a literal or a literal SHA-256).
     - Capture the expected value from the unmodified code. Never edit it afterwards.
     - _Requirements: 1.3, 1.4, 1.5_
-  - [ ] 1.3 Add the JS test runner and the first helpers
+  - [x] 1.3 Add the JS test runner and the first helpers
     - Create `tests/js/run-all.js` (about 20 lines: spawn `node` on each `tests/js/*.test.js` in sorted order, exit non-zero on the first failure).
     - Create `tests/js/helpers/rng.js` (`mulberry32(seed)` and small generators) and `tests/js/helpers/fake-canvas.js` (a 2D context stub recording `fillStyle`, `globalAlpha`, `fillRect`, `arc`, `fill` and gradient calls; `Math.random` is stubbed by the test so the renderer's setup is deterministic).
     - Confirm `node tests/js/run-all.js` passes on the existing tests.
     - _Requirements: 1.8, 14.9_
-  - [ ] 1.4 Capture the earthquake render-call-log fixture and its test
+  - [x] 1.4 Capture the earthquake render-call-log fixture and its test
     - From the unmodified `public/js/house-renderer.js`, run a one-off capture script (delete it afterwards) that draws a fixed set of earthquake worlds with `fake-canvas.js` and writes `tests/fixtures/renderer_earthquake_calls.json`.
     - Create `tests/js/renderer-earthquake-calls.test.js` comparing the live call log with the fixture.
     - The fixture is committed once and never regenerated or edited by any later task.
     - _Requirements: 1.5, 12.5, 14.12_
-  - [ ] 1.5 Confirm the protected baseline
+  - [x] 1.5 Confirm the protected baseline
     - Run `php -l` on `tests/ProtectedVersionsTest.php` and `tests/TurnLoop/EpisodeViewBytesTest.php`, then the full PHPUnit suite and `node tests/js/run-all.js`.
     - Confirm `EarthquakeGoldenMasterTest` passes and `shasum -a 256 tests/fixtures/earthquake_golden_master.json` starts with `c2aba50f87c22fe6`. Report the result in the summary.
     - If anything fails, stop and report; do not change the code or any expected value.
