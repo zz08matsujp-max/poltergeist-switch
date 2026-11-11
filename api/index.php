@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use PoltergeistSwitch\TurnLoop\Config;
 use PoltergeistSwitch\TurnLoop\IpHasher;
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -92,6 +93,9 @@ try {
             $allowedOrigins = $configured;
         }
     }
+    // Judge pass (public-lab Requirement 21): null unless configured.
+    $judge = ps_build_judge_cookie($localConfig, new Config());
+    $body = (string) file_get_contents('php://input', false, null, 0, 513);
     $response = ps_dispatch(
         $service,
         (string) $method,
@@ -106,6 +110,8 @@ try {
         $hasher,
         $origin,
         $allowedOrigins,
+        $judge,
+        $body,
     );
 } catch (\Throwable) {
     // Any failure before/around dispatch (config, secrets, DB connection)

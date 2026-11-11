@@ -527,7 +527,7 @@ Steering constraints that apply to every task:
     - _Requirements: 21.28, 14.40_
 
 - [ ] 25. Add the judge-pass API route
-  - [~] 25.1 Implement `api/judge_pass.php`, the router branch and the index wiring
+  - [x] 25.1 Implement `api/judge_pass.php`, the router branch and the index wiring
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
     - Create `api/judge_pass.php` with `ps_build_judge_cookie(array $localConfig, Config $config): ?JudgeCookie` (null unless `judge_pass_sha256` is 64 lowercase hex and `ps_load_judge_key($localConfig['secrets_dir'])` returns a key), `ps_handle_judge_pass_get(?JudgeCookie, array $cookies, int $now)` and `ps_handle_judge_pass_post(?JudgeCookie, string $body, int $now)` in the order and with the answers of the design (404 `not_found`, 400 `bad_request` for a non-JSON body, a missing or non-string `pass` or a body over 512 bytes, 403 `judge_pass_invalid`, 403 `judge_pass_expired`, 200 with the cookie). Require it from `api/bootstrap.php`.
     - `api/bootstrap.php`: add the trailing `array $extraHeaders = []` to `ps_json_response()`, merged last, so the cookie header is set through it.
@@ -535,15 +535,15 @@ Steering constraints that apply to every task:
     - `api/index.php`: after `$localConfig` is loaded, build `$judge = ps_build_judge_cookie($localConfig, new Config())` and `$body = (string) file_get_contents('php://input', false, null, 0, 513)` and pass both to `ps_dispatch`.
     - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 25 in 25.4.
     - _Requirements: 21.2, 21.3, 21.8, 21.9, 21.10, 21.11, 21.12, 21.13, 21.19, 21.33_
-  - [~] 25.2 Write the route tests through `ps_dispatch`
+  - [x] 25.2 Write the route tests through `ps_dispatch`
     - Create `tests/TurnLoop/JudgePassRouteTest.php` with a generated hash, a generated key (temp directory) and an injected `$now`: judge mode off (null cookie object, and a missing or malformed hash through `ps_build_judge_cookie`) gives POST 404 and GET `{"judge":false,"until":null}`; a foreign `Origin` gives 403 `cross_site` and no cookie; the right pass before Judging_End gives 200 `{"judge":true,"until":"2027-01-29T21:00:00Z"}` with exactly one `Set-Cookie` carrying `ps_judge=<expiry>.<64 hex>`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/` and `Expires`; a wrong pass gives 403 `judge_pass_invalid`; the right pass at Judging_End gives 403 `judge_pass_expired`; a body that is not JSON, a JSON body without `pass`, a numeric `pass`, and a body of 513 bytes give 400; every response carries `Cache-Control: no-store` and the four Security_Headers; no response body or header (other than the cookie value) contains the pass or the hash; GET with the issued cookie gives `judge:true`, and with a tampered cookie, an expired cookie or no cookie gives `judge:false`.
     - _Requirements: 21.3, 21.8, 21.9, 21.10, 21.11, 21.12, 21.13, 21.19, 21.32, 14.35_
-  - [~] 25.3 Write the property test for the pass check
+  - [x] 25.3 Write the property test for the pass check
     - **Property 28: Any pass other than the configured one is refused, and judge mode off is a 404**
     - **Validates: Requirements 21.3, 21.9, 21.11, 21.12, 21.19**
     - Create `tests/TurnLoop/Properties/JudgePassRoutePropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 28: Any pass other than the configured one is refused, and judge mode off is a 404`): random strings (empty, other lengths, case changes, the hash, trailing whitespace) always give 403 `judge_pass_invalid` with no cookie; the configured pass gives 200 and a cookie that `isValid` accepts before Judging_End and 403 `judge_pass_expired` at or after it; random non-hash configuration values give POST 404 and GET `judge:false`.
     - _Requirements: 21.3, 21.9, 21.11, 21.12, 21.19, 14.35_
-  - [~] 25.4 Run everything and commit
+  - [x] 25.4 Run everything and commit
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included; `CrossSiteRouteTest`, `SecurityHeadersTest` and `ApiHtaccessTest` must still pass unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 25. Commit only the files of task 25 with `task 25: Add the judge-pass API route`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 

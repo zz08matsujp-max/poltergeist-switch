@@ -29,6 +29,7 @@ use PoltergeistSwitch\TurnLoop\EpisodeListService;
 use PoltergeistSwitch\TurnLoop\EpisodeStarter;
 use PoltergeistSwitch\TurnLoop\IpHasher;
 use PoltergeistSwitch\TurnLoop\Http\ApiError;
+use PoltergeistSwitch\TurnLoop\Judge\JudgeCookie;
 use PoltergeistSwitch\TurnLoop\TurnService;
 
 require_once __DIR__ . '/episodes_create.php';
@@ -89,6 +90,9 @@ function ps_dispatch(
     ?IpHasher $hasher = null,
     ?string $origin = null,
     array $allowedOrigins = [],
+    ?JudgeCookie $judge = null,
+    string $body = '',
+    ?int $now = null,
 ): PsApiResponse {
     $method = strtoupper($method);
     $route = trim($route, '/');
@@ -103,6 +107,17 @@ function ps_dispatch(
 
     try {
         $segments = $route === '' ? [] : explode('/', $route);
+
+        // Judge pass (public-lab Requirement 21): GET reports the cookie
+        // state, POST checks the pass and issues the Judge_Cookie.
+        if ($segments === ['judge-pass']) {
+            if ($method === 'GET') {
+                return ps_handle_judge_pass_get($judge, $cookies, $now ?? time());
+            }
+            if ($method === 'POST') {
+                return ps_handle_judge_pass_post($judge, $body, $now ?? time());
+            }
+        }
 
         // GET /api/episodes?ended=1 — the ended-episode list. Recognised by the
         // `ended=1` query on the bare episodes collection, which distinguishes

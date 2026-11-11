@@ -375,8 +375,9 @@ function ps_device_cookie_header(string $deviceId): string
  *
  * @param array<string,mixed> $body
  * @param string|null         $setDeviceId when non-null, a Set-Cookie for this id is added
+ * @param array<string,string> $extraHeaders headers merged last (e.g. the Judge_Cookie)
  */
-function ps_json_response(int $status, array $body, ?string $setDeviceId = null): PsApiResponse
+function ps_json_response(int $status, array $body, ?string $setDeviceId = null, array $extraHeaders = []): PsApiResponse
 {
     // Security_Headers (public-lab Requirement 20.2) on every response.
     $headers = [
@@ -386,6 +387,7 @@ function ps_json_response(int $status, array $body, ?string $setDeviceId = null)
     if ($setDeviceId !== null) {
         $headers['Set-Cookie'] = ps_device_cookie_header($setDeviceId);
     }
+    $headers = array_merge($headers, $extraHeaders);
 
     $json = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     if ($json === false) {
@@ -500,4 +502,5 @@ function ps_robot_layers_to_array(RobotFourLayers $layers): array
 require_once __DIR__ . '/client_ip.php';
 require_once __DIR__ . '/ip_salt.php';
 require_once __DIR__ . '/judge_key.php';
+require_once __DIR__ . '/judge_pass.php';
 require_once __DIR__ . '/router.php';
