@@ -13,6 +13,16 @@ A behavior lab for future home robots, built for **Kiroween 2026** (category: Fr
 
 Live app: https://kiro.pyol.net/ (coming soon)
 
+## Judge pass (maintainer)
+
+1. Run `php tools/make_judge_pass.php <output-file>` with a path outside the repository. It refuses to overwrite and writes the link line (mode 0600) to that file.
+2. Copy the printed `judge_pass_sha256: ...` hash into the server's `api/config.local.php` as `judge_pass_sha256`.
+3. Paste the link line from the file into Devpost "Testing instructions".
+4. The judge key file appears on the server by itself on first use.
+5. To revoke, change the hash in `config.local.php` (or remove it to turn judge mode off).
+
+Never commit the link, the pass or the hash.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).

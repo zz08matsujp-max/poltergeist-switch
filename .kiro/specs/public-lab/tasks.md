@@ -587,19 +587,19 @@ Steering constraints that apply to every task:
     - _Requirements: 21.28, 14.40_
 
 - [ ] 28. Add the judge pass tool, the maintainer note and the secret scan
-  - [~] 28.1 Implement `tools/make_judge_pass.php`, the README note and the config placeholder
+  - [x] 28.1 Implement `tools/make_judge_pass.php`, the README note and the config placeholder
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
     - Create `tools/make_judge_pass.php` (CLI only, exit 2 otherwise): exactly one argument `<output-file>`; refuses, with exit 1 and a fixed message that contains no secret, when the file exists, when the argument count is wrong, or when the file's directory resolves inside the repository root; creates the file with `fopen($path, 'x')` under `umask(0177)` plus `chmod 0600`; writes the single line `https://kiro.pyol.net/#judge=<pass>` plus a newline; prints only `judge_pass_sha256: <hex>` plus a newline to stdout, nothing to stderr on success, and never the pass. It uses `JudgePass::generate()` and `JudgePass::hash()` and the autoloader-free `require` of the two `src/TurnLoop/Judge/` files.
     - `api/config.example.php`: add a commented placeholder line `// 'judge_pass_sha256' => '<64 lowercase hex characters printed by tools/make_judge_pass.php>',` with a short comment that judge mode is off while it is missing. `README.md`: add a short "Judge pass (maintainer)" note with the five steps of the design (run the tool outside the repository, copy the printed hash to the server's `config.local.php`, paste the link line into Devpost "Testing instructions", the key file appears by itself, revoke by changing the hash). No real value anywhere.
     - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 28 in 28.4.
     - _Requirements: 21.1, 21.2, 21.5, 21.30, 21.31, 21.32, 21.33_
-  - [~] 28.2 Write the tool tests
+  - [x] 28.2 Write the tool tests
     - Create `tests/Tools/MakeJudgePassTest.php`, running the tool as a child process (`PHP_BINARY`) into a temporary directory outside the repository: stdout is exactly `judge_pass_sha256: ` plus 64 lowercase hex characters and a newline and stderr is empty; the file holds one line matching `\Ahttps://kiro\.pyol\.net/#judge=[A-Za-z0-9_-]{43}\n\z` and has mode 0600; the printed hash equals the SHA-256 of the pass read back from the file; neither stdout nor stderr contains the pass; a second run on the same path fails and leaves the file byte-identical; a run with no argument, with two arguments, and with a path inside the repository root fails and writes no file; two runs on different paths give different passes. Every value comes from the tool's own output.
     - _Requirements: 21.30, 21.31, 21.32, 14.38_
-  - [~] 28.3 Write the repository-wide secret scan
+  - [x] 28.3 Write the repository-wide secret scan
     - Create `tests/Tools/NoJudgeSecretsInRepoTest.php`: list files with `git ls-files` plus `git ls-files --others --exclude-standard` (skip the test with a message if `git` is unavailable), never read `api/config.local.php`, `pilot/config.local.php` or any `*.key` file, and assert that no listed text file contains `#judge=` followed by 43 base64url characters, nor a `judge_pass_sha256` assignment (`=>`, `=` or `:`) to a quoted 64-hex literal. Add a self-check inside the test that its own detector flags a generated sample string, so the scan cannot silently stop working. The test file builds its sample from `JudgePass::generate()` at run time and contains no literal pass or hash.
     - _Requirements: 21.32, 14.39_
-  - [~] 28.4 Run everything and commit
+  - [x] 28.4 Run everything and commit
     - Run `php -l` on every changed PHP file (including `tools/make_judge_pass.php`), the full PHPUnit suite and `node tests/js/run-all.js`. Tick every finished sub-task of task 28. Commit only the files of task 28 with `task 28: Add the judge pass tool, the maintainer note and the secret scan`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 

@@ -27,6 +27,10 @@ return [
     // checked. Exact match (scheme + host + port, no trailing slash). An empty
     // or missing list refuses every Origin. Placeholder only.
     'allowed_origins' => ['https://kiro.pyol.net'],
+
+    // OPTIONAL. Judge mode is off while this line is missing. The value is the
+    // hash printed by tools/make_judge_pass.php (never the pass itself).
+    // 'judge_pass_sha256' => '<64 lowercase hex characters printed by tools/make_judge_pass.php>',
 ];
 
 // The IP salt is NOT configured here: api/ip_salt.php creates
