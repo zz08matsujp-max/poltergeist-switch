@@ -16,10 +16,13 @@
 // answers { status: 200, body: null }.
 //
 // `calls` records every call as { method, args, index } in order; `count(m)`
-// gives the number of calls of one method.
+// gives the number of calls of one method. `judgePass` and `judgeStatus` exist
+// on the fake only when the script names them.
 
 const METHODS = ['createEpisode', 'flipDisaster', 'getEpisode', 'ask', 'apply', 'reflect',
   'memoryStatus', 'resetMemory', 'listEnded'];
+
+const OPTIONAL_METHODS = ['judgePass', 'judgeStatus'];
 
 function createFakeApi(script) {
   const scripts = script || {};
@@ -53,6 +56,13 @@ function createFakeApi(script) {
   };
   METHODS.forEach(function (m) {
     api[m] = function () { return respond(m, Array.prototype.slice.call(arguments)); };
+  });
+  // Optional calls (judge pass): present only when scripted, so a fake without
+  // them behaves exactly as before and Observe's typeof guards stay untouched.
+  OPTIONAL_METHODS.forEach(function (m) {
+    if (scripts[m] !== undefined) {
+      api[m] = function () { return respond(m, Array.prototype.slice.call(arguments)); };
+    }
   });
   return api;
 }

@@ -1288,9 +1288,14 @@
   // Levers OFF and the stage untouched, and a plain notice for the limit.
   function handleDailyLimit(body) {
     var code = body && body.error;
-    var text = (code === 'daily_site_limit')
-      ? 'The lab has had a busy day. It opens again tomorrow (UTC).'
-      : 'You have run the lab many times today. It opens again tomorrow (UTC).';
+    var text;
+    if (code === 'daily_site_limit') {
+      text = 'The lab has had a busy day. It opens again tomorrow (UTC).';
+    } else if (code === 'daily_judge_limit') {
+      text = 'The judge pass has been used many times today. It opens again tomorrow (UTC).';
+    } else {
+      text = 'You have run the lab many times today. It opens again tomorrow (UTC).';
+    }
     state.phase = 'idle';
     setEarthquakeLever(false);
     setHeatLever(false);
@@ -1755,11 +1760,61 @@
     el.btnStart = document.getElementById('btn-start');
     el.btnVoices = document.getElementById('btn-voices');
     el.notice = document.getElementById('notice');
+    el.judgeNote = document.getElementById('judge-note');
     el.endcardHost = document.getElementById('endcard-host');
     // Memory bar (robot-memory task 11.1).
     el.memoryStatus = document.getElementById('memory-status');
     el.btnResetMemory = document.getElementById('btn-reset-memory');
     el.resetConfirmHost = document.getElementById('reset-confirm-host');
+  }
+
+  // Judge pass (public-lab Req 21). The pass lives only in a local variable:
+  // the fragment is removed from the address bar BEFORE any request, and the
+  // value goes to no query string, storage or console call.
+  function initJudge() {
+    if (!api) { return; }
+    var pass = null;
+    try {
+      var m = /^#judge=([A-Za-z0-9_-]{1,128})$/.exec(String(location.hash || ''));
+      if (m) { pass = m[1]; }
+    } catch (e) { pass = null; }
+
+    var canSend = true;
+    if (pass !== null) {
+      if (typeof history !== 'undefined' && history && typeof history.replaceState === 'function') {
+        try { history.replaceState(null, '', location.pathname + location.search); }
+        catch (e2) { canSend = false; }
+      } else {
+        canSend = false;
+      }
+    }
+
+    var showStatus = function () {
+      if (typeof api.judgeStatus !== 'function') { return; }
+      var p;
+      try { p = api.judgeStatus(); } catch (e3) { return; }
+      if (!p || typeof p.then !== 'function') { return; }
+      p.then(function (res) {
+        if (res && res.status === 200 && res.body && res.body.judge === true && el.judgeNote) {
+          el.judgeNote.textContent = 'Judge pass active until January 29, 2027, 1:00 PM PT.';
+          el.judgeNote.hidden = false;
+        }
+      }, function () { /* show nothing */ });
+    };
+
+    if (pass !== null) {
+      if (!canSend || typeof api.judgePass !== 'function') { pass = null; return; }
+      var sent;
+      try { sent = api.judgePass(pass); } catch (e4) { sent = null; }
+      pass = null;
+      if (sent && typeof sent.then === 'function') {
+        sent.then(showStatus, showStatus);
+      } else {
+        showStatus();
+      }
+      return;
+    }
+    showStatus();
   }
 
   function init() {
@@ -1791,6 +1846,9 @@
     wireControls();
     wireResetMemory();
     setFirstLoadState();
+
+    // Judge pass first: strip the fragment before any other request.
+    initJudge();
 
     // Robot memory (task 11.1): fill the status line from GET /api/memory on
     // load, then catch up the device's last episode reflection if it ended but

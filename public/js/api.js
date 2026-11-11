@@ -20,6 +20,8 @@
  *   POST  episodes/{id}/reflect            — reflect an end  reflect(id)
  *   GET   memory                           — memory status   memoryStatus()
  *   POST  memory/reset                     — new generation  resetMemory()
+ *   POST  judge-pass  (JSON body {pass})   — judge pass      judgePass(pass)
+ *   GET   judge-pass                       — judge status    judgeStatus()
  *
  * Every method returns { status, body } where status is the HTTP status code
  * (the controllers need to see 409/404/400/500) and body is the parsed JSON
@@ -68,13 +70,20 @@
   // when the response carries any text; a non-JSON or empty body yields null so
   // the caller still gets the status. Network failures surface as a rejected
   // promise for the caller to handle (e.g. the Replay list 10 s timeout).
-  function request(method, url) {
-    return fetch(url, {
+  function request(method, url, jsonBody) {
+    var headers = { 'Accept': 'application/json' };
+    var init = {
       method: method,
       // Carry the device cookie so the server can match this device's slot.
       credentials: 'same-origin',
-      headers: { 'Accept': 'application/json' }
-    }).then(function (res) {
+      headers: headers
+    };
+    // A JSON body (and its Content-Type) only when one is given.
+    if (jsonBody !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      init.body = JSON.stringify(jsonBody);
+    }
+    return fetch(url, init).then(function (res) {
       return res.text().then(function (text) {
         var body = null;
         if (text) {
@@ -167,6 +176,19 @@
        */
       resetMemory: function () {
         return request('POST', buildUrl('memory/reset'));
+      },
+
+      /**
+       * POST judge-pass — send the judge pass in the JSON body (never in the
+       * URL) so the server can set the judge cookie.
+       */
+      judgePass: function (pass) {
+        return request('POST', buildUrl('judge-pass'), { pass: pass });
+      },
+
+      /** GET judge-pass — whether this device holds an active judge pass. */
+      judgeStatus: function () {
+        return request('GET', buildUrl('judge-pass'));
       },
 
       /** Exposed for tests/controllers that need the raw relative base. */

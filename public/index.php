@@ -104,6 +104,7 @@ ps_send_security_headers();
         <!-- Notice area: 409 / resume / busy / 429 / Start hint messages appear
              here, directly under the levers. Hidden while empty. -->
         <div class="message" id="notice" aria-live="polite" hidden></div>
+        <p class="judge-note" id="judge-note" hidden></p>
       </section>
 
       <!-- Resident meters: temperature, water, injury, fear. injury and fear

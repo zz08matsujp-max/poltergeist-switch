@@ -573,16 +573,16 @@ Steering constraints that apply to every task:
     - _Requirements: 21.28, 14.40_
 
 - [ ] 27. Add the judge-pass flow to Observe
-  - [~] 27.1 Implement the client flow in `api.js`, `observe.js`, `index.php` and `screens.css`
+  - [x] 27.1 Implement the client flow in `api.js`, `observe.js`, `index.php` and `screens.css`
     - Browser files only; change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read. Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; the real pass and its hash never appear in the repository.
     - `public/js/api.js`: `request(method, url, jsonBody)` sends `Content-Type: application/json` and a JSON body only when `jsonBody` is given; add `judgePass(pass)` (`POST` route `judge-pass`, body `{pass: pass}`) and `judgeStatus()` (`GET` route `judge-pass`). Update the header comment's route list.
     - `public/index.php`: add `<p class="judge-note" id="judge-note" hidden></p>` directly after `#notice` inside the Switches_Panel. `public/css/screens.css`: add a `.judge-note` rule (small, muted text, no inline style anywhere).
     - `public/js/observe.js`: `lookupDom()` finds `#judge-note`; new `initJudge()` runs first in `init()` before `refreshMemoryStatus()` and `catchUpLastReflection()`: read `location.hash` against `/^#judge=([A-Za-z0-9_-]{1,128})$/`, keep the value in a local variable only, call `history.replaceState(null, '', location.pathname + location.search)` before any request (if `replaceState` is missing, send nothing), then `api.judgePass(pass)`, then `api.judgeStatus()`; with no fragment call `judgeStatus()` only; `judge === true` shows the Judge_Note "Judge pass active until January 29, 2027, 1:00 PM PT." and anything else keeps it hidden; failures show nothing. Guard each call with `typeof api.judgePass === 'function'` / `judgeStatus`. In `handleDailyLimit`, add the `daily_judge_limit` text "The judge pass has been used many times today. It opens again tomorrow (UTC)." with the Levers OFF. The pass goes to no query string, `localStorage`, `sessionStorage` or console call.
     - _Requirements: 21.5, 21.6, 21.7, 21.19, 21.20, 21.25, 21.33_
-  - [~] 27.2 Write `observe-judge.test.js` and update the shared fake API
+  - [x] 27.2 Write `observe-judge.test.js` and update the shared fake API
     - Add `judgePass` and `judgeStatus` to `tests/js/helpers/fake-api.js` as optional scripted calls (a fake without them keeps every existing test unchanged). Create `tests/js/observe-judge.test.js` (DOM shim with a fake `location`, `history.replaceState`, `localStorage`, `sessionStorage` and `console`, all recording; pass values generated in the test): `#judge=` is removed by `replaceState` before the first request of any kind; exactly one `POST` with `{pass}`; the pass appears in no URL, storage write or console call; the Judge_Note shows only while `judgeStatus` answers `judge:true` and shows the fixed text; a 403, a 404 and a network failure show nothing and Observe still loads; a page with no fragment sends `judgeStatus` only and behaves as before; `daily_judge_limit` shows the judge message with both Levers OFF and the stage untouched while `daily_site_limit` and `daily_device_limit` keep their texts; `observe-notice-placement.test.js`, `observe-static.test.js` and `no-stale-references.test.js` pass unchanged.
     - _Requirements: 21.6, 21.7, 21.19, 21.20, 21.25, 14.37_
-  - [~] 27.3 Run everything and commit
+  - [x] 27.3 Run everything and commit
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`NoInlineAssetsTest` and `PageSecurityHeadersTest` included, unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 27. Commit only the files of task 27 with `task 27: Add the judge-pass flow to Observe`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 
