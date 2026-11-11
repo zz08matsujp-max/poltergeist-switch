@@ -506,7 +506,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 23. Commit only the files of task 23 with `task 23: Add response headers and block direct access to api/ files`. Never push, amend, rebase or reset.
     - _Requirements: 20.5, 20.6, 14.31, 14.32_
 
-- [ ] 24. Add the judge-pass configuration, the pure Judge classes and the judge key file
+- [x] 24. Add the judge-pass configuration, the pure Judge classes and the judge key file
   - [x] 24.1 Implement `Config` additions, `JudgePass`, `JudgeCookie` and `api/judge_key.php`
     - Protection (applies to every sub-task of this task): the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository (tests generate their own values). PHP 8.2 only.
     - `src/TurnLoop/Config.php`: add `public string $judgeUntilUtc = '2027-01-29T21:00:00Z'` and `public int $judgeDailyLimit = 100` at the end of the promoted parameters; `assertInvariants()` refuses a `judgeUntilUtc` that does not round-trip through `DateTimeImmutable::createFromFormat('Y-m-d\TH:i:s\Z', ..., UTC)` and a `judgeDailyLimit` below 1; add `judgeUntilUnix(): int`.
@@ -526,7 +526,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 24. Commit only the files of task 24 with `task 24: Add the judge-pass configuration, the pure Judge classes and the judge key file`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 
-- [ ] 25. Add the judge-pass API route
+- [x] 25. Add the judge-pass API route
   - [x] 25.1 Implement `api/judge_pass.php`, the router branch and the index wiring
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
     - Create `api/judge_pass.php` with `ps_build_judge_cookie(array $localConfig, Config $config): ?JudgeCookie` (null unless `judge_pass_sha256` is 64 lowercase hex and `ps_load_judge_key($localConfig['secrets_dir'])` returns a key), `ps_handle_judge_pass_get(?JudgeCookie, array $cookies, int $now)` and `ps_handle_judge_pass_post(?JudgeCookie, string $body, int $now)` in the order and with the answers of the design (404 `not_found`, 400 `bad_request` for a non-JSON body, a missing or non-string `pass` or a body over 512 bytes, 403 `judge_pass_invalid`, 403 `judge_pass_expired`, 200 with the cookie). Require it from `api/bootstrap.php`.
@@ -547,7 +547,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included; `CrossSiteRouteTest`, `SecurityHeadersTest` and `ApiHtaccessTest` must still pass unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 25. Commit only the files of task 25 with `task 25: Add the judge-pass API route`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 
-- [ ] 26. Add the judge start branch and the judge usage scope
+- [x] 26. Add the judge start branch and the judge usage scope
   - [x] 26.1 Implement the judge branch in `EpisodeStarter`, `TurnService`, the usage repositories and the create route
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; no SQL file is added (the `judge` scope fits `daily_usage.scope VARCHAR(8)`); `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
     - `src/TurnLoop/TurnService.php`: `assertCanStart(string $deviceId, bool $ignoreSiteCap = false)` skips only the `too_many_running` check when true; `createEpisode(string $deviceId, ?int $seed = null, string $disaster = 'earthquake', bool $ignoreSiteCap = false)` forwards the flag to its internal `assertCanStart`. Defaults keep every existing call identical; no engine call or its order changes.
@@ -572,7 +572,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest`, `EpisodeStarterTest`, `CreateRouteLimitsTest`, `RunningSlotTest` and every Daily_Limit property test included, unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 26. Commit only the files of task 26 with `task 26: Add the judge start branch and the judge usage scope`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 
-- [ ] 27. Add the judge-pass flow to Observe
+- [x] 27. Add the judge-pass flow to Observe
   - [x] 27.1 Implement the client flow in `api.js`, `observe.js`, `index.php` and `screens.css`
     - Browser files only; change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read. Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; the real pass and its hash never appear in the repository.
     - `public/js/api.js`: `request(method, url, jsonBody)` sends `Content-Type: application/json` and a JSON body only when `jsonBody` is given; add `judgePass(pass)` (`POST` route `judge-pass`, body `{pass: pass}`) and `judgeStatus()` (`GET` route `judge-pass`). Update the header comment's route list.
@@ -586,7 +586,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`NoInlineAssetsTest` and `PageSecurityHeadersTest` included, unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 27. Commit only the files of task 27 with `task 27: Add the judge-pass flow to Observe`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 
-- [ ] 28. Add the judge pass tool, the maintainer note and the secret scan
+- [x] 28. Add the judge pass tool, the maintainer note and the secret scan
   - [x] 28.1 Implement `tools/make_judge_pass.php`, the README note and the config placeholder
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
     - Create `tools/make_judge_pass.php` (CLI only, exit 2 otherwise): exactly one argument `<output-file>`; refuses, with exit 1 and a fixed message that contains no secret, when the file exists, when the argument count is wrong, or when the file's directory resolves inside the repository root; creates the file with `fopen($path, 'x')` under `umask(0177)` plus `chmod 0600`; writes the single line `https://kiro.pyol.net/#judge=<pass>` plus a newline; prints only `judge_pass_sha256: <hex>` plus a newline to stdout, nothing to stderr on success, and never the pass. It uses `JudgePass::generate()` and `JudgePass::hash()` and the autoloader-free `require` of the two `src/TurnLoop/Judge/` files.
@@ -603,7 +603,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file (including `tools/make_judge_pass.php`), the full PHPUnit suite and `node tests/js/run-all.js`. Tick every finished sub-task of task 28. Commit only the files of task 28 with `task 28: Add the judge pass tool, the maintainer note and the secret scan`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 
-- [ ] 29. Final checkpoint for the judge pass - Ensure all tests pass
+- [x] 29. Final checkpoint for the judge pass - Ensure all tests pass
   - [x] 29.1 Run the full verification
     - Run `php -l` on every PHP file changed by tasks 24 to 28, the full PHPUnit suite (including `EarthquakeGoldenMasterTest`, whose fixture SHA-256 still starts with `c2aba50f87c22fe6`, `ProtectedVersionsTest` and `EpisodeViewBytesTest`) and `node tests/js/run-all.js`. Confirm with `git diff` that no file in `src/Engine/`, no robot-facing text, no file in `sql/`, `api/config.local.php` and `pilot/config.local.php` changed; grep the changed files for a 43-character pass-like string after `#judge=` and for a 64-hex literal next to `judge_pass_sha256` (none may appear, apart from generated values at test run time); list the gated PDO tests that were skipped (`JudgeUsagePdoTest` and the earlier ones) so the maintainer can run them with `PS_TEST_MYSQL_DSN`. Report the maintainer steps from the design section "Judge Pass". Ask the user if questions arise.
     - _Requirements: 21.28, 21.29, 21.32, 21.33, 1.1, 1.7, 14.13, 14.40_

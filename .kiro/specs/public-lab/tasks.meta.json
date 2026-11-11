@@ -47,6 +47,14 @@
     "21.4 Write the property test for the attempt limit": {
       "status": "passed",
       "lastRunTimestamp": 1794318692680
+    },
+    "24.3 Write the property test for the Judge_Cookie": {
+      "status": "passed",
+      "lastRunTimestamp": 1794370596526
+    },
+    "25.3 Write the property test for the pass check": {
+      "status": "passed",
+      "lastRunTimestamp": 1794370915852
     }
   },
   "executionHistory": {
@@ -895,6 +903,258 @@
         "executionId": "7df459dc-cee1-499b-b772-7fefe0beb70f",
         "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
         "timestamp": 1794320651392
+      }
+    ],
+    "24.1 Implement `Config` additions, `JudgePass`, `JudgeCookie` and `api/judge_key.php`": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370370266
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370370757
+      }
+    ],
+    "24.2 Write the unit tests for the Judge classes, Config and the key file": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370372187
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370467732
+      }
+    ],
+    "24.3 Write the property test for the Judge_Cookie": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370372977
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370550121
+      }
+    ],
+    "24.4 Run everything and commit": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370373609
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370608797
+      }
+    ],
+    "25.1 Implement `api/judge_pass.php`, the router branch and the index wiring": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370374155
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370675560
+      }
+    ],
+    "25.2 Write the route tests through `ps_dispatch`": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370374621
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370768892
+      }
+    ],
+    "25.3 Write the property test for the pass check": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370375263
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370852013
+      }
+    ],
+    "25.4 Run everything and commit": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370375764
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370944539
+      }
+    ],
+    "26.1 Implement the judge branch in `EpisodeStarter`, `TurnService`, the usage repositories and the create route": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370376092
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371008589
+      }
+    ],
+    "26.2 Write the judge-start tests on the fakes and the scope-width guard": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370376604
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371212087
+      }
+    ],
+    "26.3 Write the property test for the create flow": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370377128
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371368040
+      }
+    ],
+    "26.4 Write the gated MySQL judge usage test": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370377591
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371494688
+      }
+    ],
+    "26.5 Run everything and commit": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370377893
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371559256
+      }
+    ],
+    "27.1 Implement the client flow in `api.js`, `observe.js`, `index.php` and `screens.css`": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370378095
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371627989
+      }
+    ],
+    "27.2 Write `observe-judge.test.js` and update the shared fake API": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370378305
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371732740
+      }
+    ],
+    "27.3 Run everything and commit": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370378512
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794371928381
+      }
+    ],
+    "28.1 Implement `tools/make_judge_pass.php`, the README note and the config placeholder": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370378714
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794372049278
+      }
+    ],
+    "28.2 Write the tool tests": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370378912
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794372130618
+      }
+    ],
+    "28.3 Write the repository-wide secret scan": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370379110
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794372197972
+      }
+    ],
+    "28.4 Run everything and commit": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370379306
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794372260856
+      }
+    ],
+    "29.1 Run the full verification": [
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794370379518
+      },
+      {
+        "executionId": "23b17bdb-bc12-422e-bc2d-590687be0cae",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794372325334
       }
     ]
   }
