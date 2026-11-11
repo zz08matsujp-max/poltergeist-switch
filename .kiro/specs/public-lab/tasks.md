@@ -6,6 +6,8 @@ This plan makes PoltergeistSwitch ready for a public audience: memory and "All r
 
 Tasks 18 to 20 were added after task 17 (front end only, no change to `src/`, `api/`, `sql/`, the engine or any robot text): 18 Levers choose the disaster and Start starts the run, 19 notices beside the levers, 20 keeping Chrome's speech going. They sit after the final checkpoint on purpose and add no new checkpoint.
 
+Tasks 24 to 29 add the judge pass (Requirement 21): 24 the pure Judge classes, `Config` values and the judge key file, 25 the `judge-pass` API route, 26 the judge start branch and its usage scope, 27 the Observe client flow, 28 the pass tool, the maintainer note and the secret scan, 29 the final checkpoint.
+
 Order of work: (1) capture the protection pins on unmodified code, (2) the additive SQL file, (3) `Config` and pure classes, (4-5) Device-scoped memory with its tests and properties, (6-7) daily limits, `EpisodeStarter` and the API layer, (8-9) the episode list groups and direct replay links, (10) Voices, the speech sequencer and act-out, (11-13) Observe, (14) Replay, (15) the heat sky, (16) an audit of existing tests, (17) the final checkpoint.
 
 Tasks 4 and 5 are split by purpose, not by safety: task 4 changes the repository interface and every caller in one commit so the suite stays green; task 5 adds the new tests and properties.
@@ -504,6 +506,108 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 23. Commit only the files of task 23 with `task 23: Add response headers and block direct access to api/ files`. Never push, amend, rebase or reset.
     - _Requirements: 20.5, 20.6, 14.31, 14.32_
 
+- [ ] 24. Add the judge-pass configuration, the pure Judge classes and the judge key file
+  - [x] 24.1 Implement `Config` additions, `JudgePass`, `JudgeCookie` and `api/judge_key.php`
+    - Protection (applies to every sub-task of this task): the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository (tests generate their own values). PHP 8.2 only.
+    - `src/TurnLoop/Config.php`: add `public string $judgeUntilUtc = '2027-01-29T21:00:00Z'` and `public int $judgeDailyLimit = 100` at the end of the promoted parameters; `assertInvariants()` refuses a `judgeUntilUtc` that does not round-trip through `DateTimeImmutable::createFromFormat('Y-m-d\TH:i:s\Z', ..., UTC)` and a `judgeDailyLimit` below 1; add `judgeUntilUnix(): int`.
+    - Create `src/TurnLoop/Judge/JudgePass.php` (`generate`, `isWellFormedPass`, `isWellFormedHash`, `hash`, `matches` with `hash_equals`) and `src/TurnLoop/Judge/JudgeCookie.php` (`NAME = 'ps_judge'`, `untilIso`, `passMatches`, `sign`, `issue`, `setCookieHeader`, `isValid`) exactly as in the design section "Judge Pass". No I/O in either class.
+    - Create `api/judge_key.php` with `ps_load_judge_key(string $secretsDir): ?string` (file `judge_key.key`, 64 hex characters, race-safe `link()` creation, never overwrites, `error_log('judge_key_unavailable')` and `null` on failure), modelled on `api/ip_salt.php`; add `require_once __DIR__ . '/judge_key.php';` next to the `ip_salt.php` require at the end of `api/bootstrap.php`.
+    - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 24 in 24.4.
+    - _Requirements: 21.1, 21.2, 21.4, 21.14, 21.15, 21.16, 21.17, 21.18, 21.33_
+  - [x] 24.2 Write the unit tests for the Judge classes, Config and the key file
+    - Create `tests/TurnLoop/Judge/JudgePassTest.php` (a generated pass has 43 characters from the base64url set and decodes to 32 bytes; two passes differ; `hash` is 64 lowercase hex; `matches` is true only for the generating pass; a hash passed as a pass does not match), `tests/TurnLoop/Judge/JudgeCookieTest.php` (issue/verify round trip; changed expiry, changed signature, other hash, other key, expiry in the past, time at Judging_End, malformed values and `null` are each refused; `setCookieHeader` carries `ps_judge=`, `Expires=`, `Path=/`, `HttpOnly`, `Secure`, `SameSite=Strict`), `tests/TurnLoop/ConfigJudgeTest.php` (defaults `2027-01-29T21:00:00Z` and 100, `judgeUntilUnix()` equals 1801256400, a malformed date and a limit of 0 throw `InvalidArgumentException`) and `tests/TurnLoop/JudgeKeyFileTest.php` (temp directory as in `IpSaltFileTest`: created once with 64 hex characters and mode 0600, reused on the second call, an existing invalid file is not overwritten and gives `null` with `judge_key_unavailable` logged, an unwritable directory gives `null`). Every value is generated inside the test.
+    - _Requirements: 21.1, 21.4, 21.10, 21.14, 21.15, 21.16, 21.17, 21.18, 14.33, 14.34_
+  - [x] 24.3 Write the property test for the Judge_Cookie
+    - **Property 27: A Judge_Cookie is accepted only with the right signature and before both expiries**
+    - **Validates: Requirements 21.14, 21.16, 21.17, 21.18**
+    - Create `tests/TurnLoop/Properties/JudgeCookiePropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 27: A Judge_Cookie is accepted only with the right signature and before both expiries`): random generated hash, key, Judging_End, time and mutations of the issued value; `isValid` is true exactly when the signature is right, the expiry is later than now and now is before Judging_End; it never throws.
+    - _Requirements: 21.14, 21.16, 21.17, 21.18, 14.33_
+  - [x] 24.4 Run everything and commit
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included) and `node tests/js/run-all.js`. Tick every finished sub-task of task 24. Commit only the files of task 24 with `task 24: Add the judge-pass configuration, the pure Judge classes and the judge key file`. Never push, amend, rebase or reset.
+    - _Requirements: 21.28, 14.40_
+
+- [ ] 25. Add the judge-pass API route
+  - [~] 25.1 Implement `api/judge_pass.php`, the router branch and the index wiring
+    - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
+    - Create `api/judge_pass.php` with `ps_build_judge_cookie(array $localConfig, Config $config): ?JudgeCookie` (null unless `judge_pass_sha256` is 64 lowercase hex and `ps_load_judge_key($localConfig['secrets_dir'])` returns a key), `ps_handle_judge_pass_get(?JudgeCookie, array $cookies, int $now)` and `ps_handle_judge_pass_post(?JudgeCookie, string $body, int $now)` in the order and with the answers of the design (404 `not_found`, 400 `bad_request` for a non-JSON body, a missing or non-string `pass` or a body over 512 bytes, 403 `judge_pass_invalid`, 403 `judge_pass_expired`, 200 with the cookie). Require it from `api/bootstrap.php`.
+    - `api/bootstrap.php`: add the trailing `array $extraHeaders = []` to `ps_json_response()`, merged last, so the cookie header is set through it.
+    - `api/router.php`: `ps_dispatch()` gets trailing parameters `?JudgeCookie $judge = null`, `string $body = ''`, `?int $now = null` (null means `time()`); after the existing Origin check and inside the existing `try`, route `GET judge-pass` and `POST judge-pass` to the two handlers. Do not change any other route; the create route is wired in task 26.
+    - `api/index.php`: after `$localConfig` is loaded, build `$judge = ps_build_judge_cookie($localConfig, new Config())` and `$body = (string) file_get_contents('php://input', false, null, 0, 513)` and pass both to `ps_dispatch`.
+    - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 25 in 25.4.
+    - _Requirements: 21.2, 21.3, 21.8, 21.9, 21.10, 21.11, 21.12, 21.13, 21.19, 21.33_
+  - [~] 25.2 Write the route tests through `ps_dispatch`
+    - Create `tests/TurnLoop/JudgePassRouteTest.php` with a generated hash, a generated key (temp directory) and an injected `$now`: judge mode off (null cookie object, and a missing or malformed hash through `ps_build_judge_cookie`) gives POST 404 and GET `{"judge":false,"until":null}`; a foreign `Origin` gives 403 `cross_site` and no cookie; the right pass before Judging_End gives 200 `{"judge":true,"until":"2027-01-29T21:00:00Z"}` with exactly one `Set-Cookie` carrying `ps_judge=<expiry>.<64 hex>`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/` and `Expires`; a wrong pass gives 403 `judge_pass_invalid`; the right pass at Judging_End gives 403 `judge_pass_expired`; a body that is not JSON, a JSON body without `pass`, a numeric `pass`, and a body of 513 bytes give 400; every response carries `Cache-Control: no-store` and the four Security_Headers; no response body or header (other than the cookie value) contains the pass or the hash; GET with the issued cookie gives `judge:true`, and with a tampered cookie, an expired cookie or no cookie gives `judge:false`.
+    - _Requirements: 21.3, 21.8, 21.9, 21.10, 21.11, 21.12, 21.13, 21.19, 21.32, 14.35_
+  - [~] 25.3 Write the property test for the pass check
+    - **Property 28: Any pass other than the configured one is refused, and judge mode off is a 404**
+    - **Validates: Requirements 21.3, 21.9, 21.11, 21.12, 21.19**
+    - Create `tests/TurnLoop/Properties/JudgePassRoutePropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 28: Any pass other than the configured one is refused, and judge mode off is a 404`): random strings (empty, other lengths, case changes, the hash, trailing whitespace) always give 403 `judge_pass_invalid` with no cookie; the configured pass gives 200 and a cookie that `isValid` accepts before Judging_End and 403 `judge_pass_expired` at or after it; random non-hash configuration values give POST 404 and GET `judge:false`.
+    - _Requirements: 21.3, 21.9, 21.11, 21.12, 21.19, 14.35_
+  - [~] 25.4 Run everything and commit
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest` included; `CrossSiteRouteTest`, `SecurityHeadersTest` and `ApiHtaccessTest` must still pass unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 25. Commit only the files of task 25 with `task 25: Add the judge-pass API route`. Never push, amend, rebase or reset.
+    - _Requirements: 21.28, 14.40_
+
+- [ ] 26. Add the judge start branch and the judge usage scope
+  - [~] 26.1 Implement the judge branch in `EpisodeStarter`, `TurnService`, the usage repositories and the create route
+    - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; no SQL file is added (the `judge` scope fits `daily_usage.scope VARCHAR(8)`); `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
+    - `src/TurnLoop/TurnService.php`: `assertCanStart(string $deviceId, bool $ignoreSiteCap = false)` skips only the `too_many_running` check when true; `createEpisode(string $deviceId, ?int $seed = null, string $disaster = 'earthquake', bool $ignoreSiteCap = false)` forwards the flag to its internal `assertCanStart`. Defaults keep every existing call identical; no engine call or its order changes.
+    - `src/TurnLoop/DailyLimitPolicy.php`: fourth constructor parameter `public readonly int $judge = 100`, `fromConfig` passes `$c->judgeDailyLimit`, new `judgeDenial(int $count): ?string` (`'daily_judge_limit'` when `$count >= $this->judge`).
+    - `src/TurnLoop/Repository/UsageRepository.php`, `PdoUsageRepository.php` and `tests/TurnLoop/InMemoryUsageRepository.php`: add `tryReserveJudge(string $utcDay, DailyLimitPolicy $policy, string $nowUtc): ?string`, `releaseJudge(string $utcDay, string $nowUtc): void` and `judgeCount(string $utcDay): int`, on scope `judge` and key `UsageKeys::SITE_KEY`, with the same transaction shape as `tryReserve` in the PDO class.
+    - `src/TurnLoop/EpisodeStarter.php`: `start(string $deviceId, ?UsageKeys $keys, string $disaster = 'earthquake', bool $judge = false)`; with `$judge === false` the body is unchanged; with `true`: `assertCanStart($deviceId, true)`, then `tryReserveJudge` (denial becomes `ApiError::tooManyRequests('daily_judge_limit')`), then `createEpisode($deviceId, null, $disaster, true)` with `releaseJudge` on any throw, then `snapshotForNewEpisode`. The device, IP and site scopes are not touched.
+    - `api/episodes_create.php` and `api/router.php`: `ps_handle_create(..., bool $judge = false)` forwards the flag to `$starter->start`; in the create route compute `$isJudge = $judge !== null && $judge->isValid($cookies[JudgeCookie::NAME] ?? null, $now)` and pass it. An invalid or absent cookie leaves everything as today.
+    - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 26 in 26.5.
+    - _Requirements: 21.17, 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27, 21.28, 21.29, 21.33_
+  - [~] 26.2 Write the judge-start tests on the fakes and the scope-width guard
+    - Create `tests/TurnLoop/JudgeStartTest.php` with `EpisodeStarter` on the in-memory fakes and an injected clock: with the Device, IP and site Daily_Limits all reached, a judge start still creates an episode and those three counts do not change; five running episodes of other Devices do not stop a judge start; `device_already_running` comes first and carries the episode id; the 100th judge start of a UTC_Day succeeds and the 101st gives 429 `daily_judge_limit` with nothing created and the count unchanged; the judge count restarts at UTC midnight; a create that throws gives the judge count back; a non-judge start with the same fakes behaves exactly as in `EpisodeStarterTest`; and through `ps_dispatch` an invalid, expired or tampered `ps_judge` cookie gives the ordinary 429 `daily_device_limit` where a valid one does not. Add `tests/TurnLoop/JudgeMigrationScopeTest.php`: it reads `sql/2026-11-10_add_public_lab.sql`, extracts the width of the `daily_usage.scope` column and asserts it is at least `strlen('judge')`, and asserts that no file in `sql/` mentions `judge`. Update no existing expected value.
+    - _Requirements: 21.21, 21.22, 21.23, 21.24, 21.26, 21.27, 21.29, 14.36_
+  - [~] 26.3 Write the property test for the create flow
+    - **Property 29: Without a valid Judge_Cookie the create flow is identical to Requirement 13**
+    - **Validates: Requirements 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27**
+    - Create `tests/TurnLoop/Properties/JudgeStartPropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 29: Without a valid Judge_Cookie the create flow is identical to Requirement 13`) against the fakes: random request sequences with random Devices, IP hashes, disasters, clock values and running episodes, and cookies that are absent, tampered, expired, for another hash or key, or presented after Judging_End, give the same outcomes and counts as the same sequence with judge mode off; sequences where every request carries a valid cookie never read or change the device, IP and site counts, never raise `too_many_running`, still raise `device_already_running` first, and count judge starts up to `judgeDailyLimit`, after which every start gives 429 `daily_judge_limit` and creates nothing.
+    - _Requirements: 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27, 14.36_
+  - [~] 26.4 Write the gated MySQL judge usage test
+    - Create `tests/TurnLoop/Repository/JudgeUsagePdoTest.php`, skipped unless `PS_TEST_MYSQL_DSN` names a throwaway database (same gating and schema reset as `UsageRepositoryPdoTest`). Every case runs against the in-memory fake and the PDO repository with identical answers: the ceiling boundary (the `judgeDailyLimit`-th reserve passes, the next is denied with no change), release never goes below zero, a new UTC day starts from zero, and the `judge` row does not change the device, IP and site rows. With two PDO connections and separate PHP processes reserving at the boundary, exactly `limit - current` succeed (same technique as `UsageRepositoryPdoTest`). Without the variable every test skips and the summary says so.
+    - _Requirements: 21.23, 21.24, 21.26, 21.29, 14.36_
+  - [~] 26.5 Run everything and commit
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest`, `EpisodeStarterTest`, `CreateRouteLimitsTest`, `RunningSlotTest` and every Daily_Limit property test included, unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 26. Commit only the files of task 26 with `task 26: Add the judge start branch and the judge usage scope`. Never push, amend, rebase or reset.
+    - _Requirements: 21.28, 14.40_
+
+- [ ] 27. Add the judge-pass flow to Observe
+  - [~] 27.1 Implement the client flow in `api.js`, `observe.js`, `index.php` and `screens.css`
+    - Browser files only; change nothing in `src/`, `api/`, `sql/`, the engine, or any text the robots read. Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; the real pass and its hash never appear in the repository.
+    - `public/js/api.js`: `request(method, url, jsonBody)` sends `Content-Type: application/json` and a JSON body only when `jsonBody` is given; add `judgePass(pass)` (`POST` route `judge-pass`, body `{pass: pass}`) and `judgeStatus()` (`GET` route `judge-pass`). Update the header comment's route list.
+    - `public/index.php`: add `<p class="judge-note" id="judge-note" hidden></p>` directly after `#notice` inside the Switches_Panel. `public/css/screens.css`: add a `.judge-note` rule (small, muted text, no inline style anywhere).
+    - `public/js/observe.js`: `lookupDom()` finds `#judge-note`; new `initJudge()` runs first in `init()` before `refreshMemoryStatus()` and `catchUpLastReflection()`: read `location.hash` against `/^#judge=([A-Za-z0-9_-]{1,128})$/`, keep the value in a local variable only, call `history.replaceState(null, '', location.pathname + location.search)` before any request (if `replaceState` is missing, send nothing), then `api.judgePass(pass)`, then `api.judgeStatus()`; with no fragment call `judgeStatus()` only; `judge === true` shows the Judge_Note "Judge pass active until January 29, 2027, 1:00 PM PT." and anything else keeps it hidden; failures show nothing. Guard each call with `typeof api.judgePass === 'function'` / `judgeStatus`. In `handleDailyLimit`, add the `daily_judge_limit` text "The judge pass has been used many times today. It opens again tomorrow (UTC)." with the Levers OFF. The pass goes to no query string, `localStorage`, `sessionStorage` or console call.
+    - _Requirements: 21.5, 21.6, 21.7, 21.19, 21.20, 21.25, 21.33_
+  - [~] 27.2 Write `observe-judge.test.js` and update the shared fake API
+    - Add `judgePass` and `judgeStatus` to `tests/js/helpers/fake-api.js` as optional scripted calls (a fake without them keeps every existing test unchanged). Create `tests/js/observe-judge.test.js` (DOM shim with a fake `location`, `history.replaceState`, `localStorage`, `sessionStorage` and `console`, all recording; pass values generated in the test): `#judge=` is removed by `replaceState` before the first request of any kind; exactly one `POST` with `{pass}`; the pass appears in no URL, storage write or console call; the Judge_Note shows only while `judgeStatus` answers `judge:true` and shows the fixed text; a 403, a 404 and a network failure show nothing and Observe still loads; a page with no fragment sends `judgeStatus` only and behaves as before; `daily_judge_limit` shows the judge message with both Levers OFF and the stage untouched while `daily_site_limit` and `daily_device_limit` keep their texts; `observe-notice-placement.test.js`, `observe-static.test.js` and `no-stale-references.test.js` pass unchanged.
+    - _Requirements: 21.6, 21.7, 21.19, 21.20, 21.25, 14.37_
+  - [~] 27.3 Run everything and commit
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite (`NoInlineAssetsTest` and `PageSecurityHeadersTest` included, unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 27. Commit only the files of task 27 with `task 27: Add the judge-pass flow to Observe`. Never push, amend, rebase or reset.
+    - _Requirements: 21.28, 14.40_
+
+- [ ] 28. Add the judge pass tool, the maintainer note and the secret scan
+  - [~] 28.1 Implement `tools/make_judge_pass.php`, the README note and the config placeholder
+    - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
+    - Create `tools/make_judge_pass.php` (CLI only, exit 2 otherwise): exactly one argument `<output-file>`; refuses, with exit 1 and a fixed message that contains no secret, when the file exists, when the argument count is wrong, or when the file's directory resolves inside the repository root; creates the file with `fopen($path, 'x')` under `umask(0177)` plus `chmod 0600`; writes the single line `https://kiro.pyol.net/#judge=<pass>` plus a newline; prints only `judge_pass_sha256: <hex>` plus a newline to stdout, nothing to stderr on success, and never the pass. It uses `JudgePass::generate()` and `JudgePass::hash()` and the autoloader-free `require` of the two `src/TurnLoop/Judge/` files.
+    - `api/config.example.php`: add a commented placeholder line `// 'judge_pass_sha256' => '<64 lowercase hex characters printed by tools/make_judge_pass.php>',` with a short comment that judge mode is off while it is missing. `README.md`: add a short "Judge pass (maintainer)" note with the five steps of the design (run the tool outside the repository, copy the printed hash to the server's `config.local.php`, paste the link line into Devpost "Testing instructions", the key file appears by itself, revoke by changing the hash). No real value anywhere.
+    - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 28 in 28.4.
+    - _Requirements: 21.1, 21.2, 21.5, 21.30, 21.31, 21.32, 21.33_
+  - [~] 28.2 Write the tool tests
+    - Create `tests/Tools/MakeJudgePassTest.php`, running the tool as a child process (`PHP_BINARY`) into a temporary directory outside the repository: stdout is exactly `judge_pass_sha256: ` plus 64 lowercase hex characters and a newline and stderr is empty; the file holds one line matching `\Ahttps://kiro\.pyol\.net/#judge=[A-Za-z0-9_-]{43}\n\z` and has mode 0600; the printed hash equals the SHA-256 of the pass read back from the file; neither stdout nor stderr contains the pass; a second run on the same path fails and leaves the file byte-identical; a run with no argument, with two arguments, and with a path inside the repository root fails and writes no file; two runs on different paths give different passes. Every value comes from the tool's own output.
+    - _Requirements: 21.30, 21.31, 21.32, 14.38_
+  - [~] 28.3 Write the repository-wide secret scan
+    - Create `tests/Tools/NoJudgeSecretsInRepoTest.php`: list files with `git ls-files` plus `git ls-files --others --exclude-standard` (skip the test with a message if `git` is unavailable), never read `api/config.local.php`, `pilot/config.local.php` or any `*.key` file, and assert that no listed text file contains `#judge=` followed by 43 base64url characters, nor a `judge_pass_sha256` assignment (`=>`, `=` or `:`) to a quoted 64-hex literal. Add a self-check inside the test that its own detector flags a generated sample string, so the scan cannot silently stop working. The test file builds its sample from `JudgePass::generate()` at run time and contains no literal pass or hash.
+    - _Requirements: 21.32, 14.39_
+  - [~] 28.4 Run everything and commit
+    - Run `php -l` on every changed PHP file (including `tools/make_judge_pass.php`), the full PHPUnit suite and `node tests/js/run-all.js`. Tick every finished sub-task of task 28. Commit only the files of task 28 with `task 28: Add the judge pass tool, the maintainer note and the secret scan`. Never push, amend, rebase or reset.
+    - _Requirements: 21.28, 14.40_
+
+- [ ] 29. Final checkpoint for the judge pass - Ensure all tests pass
+  - [~] 29.1 Run the full verification
+    - Run `php -l` on every PHP file changed by tasks 24 to 28, the full PHPUnit suite (including `EarthquakeGoldenMasterTest`, whose fixture SHA-256 still starts with `c2aba50f87c22fe6`, `ProtectedVersionsTest` and `EpisodeViewBytesTest`) and `node tests/js/run-all.js`. Confirm with `git diff` that no file in `src/Engine/`, no robot-facing text, no file in `sql/`, `api/config.local.php` and `pilot/config.local.php` changed; grep the changed files for a 43-character pass-like string after `#judge=` and for a 64-hex literal next to `judge_pass_sha256` (none may appear, apart from generated values at test run time); list the gated PDO tests that were skipped (`JudgeUsagePdoTest` and the earlier ones) so the maintainer can run them with `PS_TEST_MYSQL_DSN`. Report the maintainer steps from the design section "Judge Pass". Ask the user if questions arise.
+    - _Requirements: 21.28, 21.29, 21.32, 21.33, 1.1, 1.7, 14.13, 14.40_
+
 ## Notes
 
 - Every sub-task, including every test sub-task, is REQUIRED. No sub-task is optional.
@@ -512,6 +616,7 @@ Steering constraints that apply to every task:
 - Task 8 includes the grouped list on Replay (sub-task 8.3) so Replay keeps working between commits; task 14 adds only Voices and cancel-on-control.
 - Commits follow tech.md: one per task, message `task N: <task title>`, only after `php -l`, the full PHPUnit suite and `node tests/js/run-all.js` pass. Tick each finished sub-task before the commit; the Post Task Execution hook ticks parent tasks. Never push, amend, rebase or reset.
 - Tasks 21 to 23 (security review 2026-11-10) intentionally touch `src/`, `api/` and `public/` as described in each task and add no table or column. They keep the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin unchanged, and change no robot-facing text, no engine code and nothing in `sql/`. Each is committed with `task N: <title>` after `php -l`, the full PHPUnit suite and `node tests/js/run-all.js` pass; never push. MySQL-only tests are gated by `PS_TEST_MYSQL_DSN`; no test makes a real AI call.
+- Tasks 24 to 29 (judge pass, Requirement 21) touch `src/`, `api/`, `tools/`, `public/index.php`, `public/css/screens.css`, `public/js/api.js`, `public/js/observe.js`, `README.md` and `api/config.example.php` as described in each task, add no table or column and no SQL file, and keep the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts and the engine unchanged. `api/config.local.php` and `pilot/config.local.php` are never touched. The real pass and its hash never appear in the repository, specs, steering, tests, commit messages or logs; tests generate their own values. Each is committed with `task N: <title>` after `php -l`, the full PHPUnit suite and `node tests/js/run-all.js` pass; never push. Eris properties use `limitTo(100)`; MySQL-only tests are gated by `PS_TEST_MYSQL_DSN`.
 - Never run the SQL file, deploy, or touch the server. After implementation the maintainer applies `sql/2026-11-10_add_public_lab.sql` over FTPS, confirms `ip_salt.key` appears in `secrets_dir`, and checks which address PHP sees for visitors.
 
 ## Task Dependency Graph
@@ -582,7 +687,23 @@ Steering constraints that apply to every task:
     { "id": 60, "tasks": ["22.2", "22.3", "22.4"] },
     { "id": 61, "tasks": ["22.5"] },
     { "id": 62, "tasks": ["23.1", "23.2"] },
-    { "id": 63, "tasks": ["23.3", "23.4"] }
+    { "id": 63, "tasks": ["23.3", "23.4"] },
+    { "id": 64, "tasks": ["24.1"] },
+    { "id": 65, "tasks": ["24.2", "24.3"] },
+    { "id": 66, "tasks": ["24.4"] },
+    { "id": 67, "tasks": ["25.1"] },
+    { "id": 68, "tasks": ["25.2", "25.3"] },
+    { "id": 69, "tasks": ["25.4"] },
+    { "id": 70, "tasks": ["26.1"] },
+    { "id": 71, "tasks": ["26.2", "26.3", "26.4"] },
+    { "id": 72, "tasks": ["26.5"] },
+    { "id": 73, "tasks": ["27.1"] },
+    { "id": 74, "tasks": ["27.2"] },
+    { "id": 75, "tasks": ["27.3"] },
+    { "id": 76, "tasks": ["28.1"] },
+    { "id": 77, "tasks": ["28.2", "28.3"] },
+    { "id": 78, "tasks": ["28.4"] },
+    { "id": 79, "tasks": ["29.1"] }
   ]
 }
 ```

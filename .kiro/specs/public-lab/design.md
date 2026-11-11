@@ -632,6 +632,136 @@ Behaviour around it:
   A request for `bootstrap.php` or `episodes_ask.php` gets 403. `index.php`, `index.php?route=...` and the rewrite of clean paths (which end in `index.php`) still work. The `require`s inside `index.php` are filesystem reads, not HTTP requests, so they are not blocked. A static PHPUnit test checks the `.htaccess` text (denies `.php` except `index.php`, keeps `RewriteRule` and `Cache-Control`).
 - **Does the host honour `.htaccess`?** The repository already depends on `api/.htaccess` for `Cache-Control` and the rewrite, and its comments treat the rewrite as best-effort. The repository cannot show whether the onamae.com RS host, which has nginx in front, passes `.htaccess` to an Apache behind it. This cannot be verified here; it is a maintainer check after deployment (request `/api/bootstrap.php` and expect 403). If the host ignores `.htaccess`, the helper files stay reachable by URL; this is defense in depth, and the Origin check and the Turn_Lock do not depend on it.
 
+### Judge Pass (Requirement 21; added after task 23)
+
+One shared, private Judge_Link lets a judge's browser start runs without the public limits until Judging_End (2027-01-29T21:00:00Z). Everything else (ask, apply, reflection, replays, memory, the episode records, the engine, the robots' input texts and every existing table) is untouched. The earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stay unchanged. `api/config.local.php` and `pilot/config.local.php` are never touched by a task.
+
+#### Findings from reading the current code
+
+- `EpisodeStarter::start()` calls `$this->turns->assertCanStart($deviceId)` and then `$this->turns->createEpisode($deviceId, null, $disaster)`. **`TurnService::createEpisode()` calls `assertCanStart()` again** (the race guard of the create path), and `assertCanStart()` throws `too_many_running` when `countRunningEpisodes() >= maxRunningEpisodes`. So an `EpisodeStarter`-only change cannot lift the cap of 5: the second check inside `createEpisode` would still refuse a judge. The design therefore adds an optional flag to the two `TurnService` methods (default `false`, so every existing caller is unchanged). This is a `src/TurnLoop/TurnService.php` edit outside `EpisodeStarter`; it does not touch the engine, the order of the engine calls or the quiet turn 0.
+- `daily_usage.scope` is `VARCHAR(8)` in `sql/2026-11-10_add_public_lab.sql`, and the primary key is `(usage_date, scope, key_hash)`. The value `judge` is 5 characters, so it fits; **no SQL file is needed** (Requirement 21.29). The judge row uses `UsageKeys::SITE_KEY` (64 zeros) as its `key_hash`, so it can never collide with a device or IP hash. A test reads the SQL file and fails if the column width ever drops below 5.
+- `ps_dispatch()` has no request body parameter and no clock. `POST /api/judge-pass` needs the body, and the cookie check needs "now", so trailing parameters are added (below). `ps_json_response()` can set only the device cookie; it gets a trailing `array $extraHeaders = []` merged last.
+- `ps_dispatch()` already refuses a foreign `Origin` on every POST before routing (Requirement 19), so `POST /api/judge-pass` gets the Origin check with no new code. `GET` is not checked.
+- `api/.htaccess` denies direct requests for every `api/*.php` except `index.php`, so the new `api/judge_key.php` and `api/judge_pass.php` helper files are not reachable by URL and are loaded by `bootstrap.php` like `ip_salt.php`.
+- `observe.js` `init()` ends with `refreshMemoryStatus()` and `catchUpLastReflection()`, which send requests. The fragment must be removed and the pass sent before those run. `showNotice()` and `clearNotice()` rewrite `#notice`, so a permanent line cannot live inside it; the Judge_Note is a separate element placed directly after `#notice` inside the Switches_Panel (Requirement 16.1 still holds: the Notice_Area stays directly after the Levers).
+- `*.key` and `config.local.php` are already in `.gitignore`.
+
+#### Components
+
+**`src/TurnLoop/Judge/JudgePass.php`** (`final class`, static methods):
+- `generate(): string`: `rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=')`, 43 characters.
+- `isWellFormedPass(string): bool`: `/\A[A-Za-z0-9_-]{43}\z/`. `isWellFormedHash(string): bool`: `/\A[0-9a-f]{64}\z/`.
+- `hash(string $pass): string`: `hash('sha256', $pass)`.
+- `matches(string $pass, string $expectedHash): bool`: `hash_equals($expectedHash, hash('sha256', $pass))`. It does not require the pass to be well formed; any other string simply does not match.
+
+**`src/TurnLoop/Judge/JudgeCookie.php`** (`final class`, no I/O). Constructed with `string $passHash`, `string $key` (64 hex), `int $untilUnix`:
+- `const NAME = 'ps_judge'`.
+- `untilIso(): string`: `gmdate('Y-m-d\TH:i:s\Z', $untilUnix)`.
+- `passMatches(string $pass): bool`: `JudgePass::matches($pass, $passHash)`.
+- `sign(int $expiry): string`: `hash_hmac('sha256', $expiry . '.' . $passHash, hex2bin($key))`. The signature covers `judge_pass_sha256`, so changing the hash invalidates every cookie (Requirement 21.16).
+- `issue(int $now): ?string`: `null` when `$now >= $untilUnix`, otherwise `"<untilUnix>.<sign(untilUnix)>"`.
+- `setCookieHeader(string $value): string`: `ps_judge=<value>; Expires=<untilUnix as an HTTP date>; Path=/; HttpOnly; Secure; SameSite=Strict`. `Secure` is written by the code, not derived from `$_SERVER['HTTPS']`, so it does not depend on how nginx forwards the scheme (see the note below).
+- `isValid(?string $cookie, int $now): bool`: `false` for `null`, a value that is not `/\A[0-9]{1,12}\.[0-9a-f]{64}\z/`, a signature that fails `hash_equals`, an expiry `<= $now`, or `$now >= $untilUnix`. The expiry in the cookie must also equal `$untilUnix`, so a cookie issued under an earlier, longer `judgeUntilUtc` is not honoured after the date is shortened. It never throws.
+
+**`Config`** gets `public string $judgeUntilUtc = '2027-01-29T21:00:00Z'` and `public int $judgeDailyLimit = 100` (at the end of the parameter list, after `featuredEpisodeIds`). `assertInvariants()` refuses a `judgeUntilUtc` that does not parse with `DateTimeImmutable::createFromFormat('Y-m-d\TH:i:s\Z', ..., new DateTimeZone('UTC'))` and format back to the same string, and a `judgeDailyLimit` below 1. A method `judgeUntilUnix(): int` returns the Unix seconds. `new Config()` callers are unaffected.
+
+**`DailyLimitPolicy`** gets a fourth constructor parameter `public readonly int $judge = 100` (existing three-argument calls are unchanged). `fromConfig` passes `$c->judgeDailyLimit`, and `judgeDenial(int $count): ?string` returns `'daily_judge_limit'` when `$count >= $this->judge`. `denial()` is unchanged.
+
+**`UsageRepository`** gets three methods, all on scope `judge` with key `UsageKeys::SITE_KEY`:
+- `tryReserveJudge(string $utcDay, DailyLimitPolicy $policy, string $nowUtc): ?string`: atomic; `null` and +1, or `'daily_judge_limit'` and no change.
+- `releaseJudge(string $utcDay, string $nowUtc): void`: -1, never below zero.
+- `judgeCount(string $utcDay): int`.
+
+`PdoUsageRepository` implements them with the same transaction shape as `tryReserve` (upsert the row with `starts = 0`, `SELECT ... FOR UPDATE`, compare, `UPDATE starts = starts + 1`, commit; rollback on denial or error). Only one row is locked, so there is no lock-ordering problem. `tests/TurnLoop/InMemoryUsageRepository.php` gets the same three methods.
+
+**`TurnService`**: `assertCanStart(string $deviceId, bool $ignoreSiteCap = false)` skips the `too_many_running` check when the flag is true (the `device_already_running` check always runs). `createEpisode(string $deviceId, ?int $seed = null, string $disaster = 'earthquake', bool $ignoreSiteCap = false)` passes the flag to its internal `assertCanStart`. The defaults keep every existing call identical.
+
+**`EpisodeStarter::start(string $deviceId, ?UsageKeys $keys, string $disaster = 'earthquake', bool $judge = false)`**. With `$judge === false` the method body is the one of Requirement 13, unchanged. With `$judge === true`:
+1. `assertCanStart($deviceId, true)`: 409 `device_already_running` still comes first, so Resume works; the site cap is skipped.
+2. `tryReserveJudge(utcDay, policy, nowUtc)`: `'daily_judge_limit'` becomes `ApiError::tooManyRequests('daily_judge_limit')`. The device, IP and site scopes are never read or written (`$keys` is ignored).
+3. `createEpisode($deviceId, null, $disaster, true)`; any failure calls `releaseJudge` and rethrows.
+4. `snapshotForNewEpisode`; a failure here keeps the count (the episode exists), as before.
+
+The UTC day, clock and `Y-m-d H:i:s` strings come from the same injected clock as today.
+
+**`api/judge_key.php`**: `ps_load_judge_key(string $secretsDir): ?string`, the `ip_salt.php` pattern with the file `judge_key.key` and the temp-file prefix `.judge_key.`. If the file does not exist, create 32 random bytes as 64 hex characters in a temp file in the same directory, `chmod 0600`, `link()` it to the target (race-safe, never overwrites), and fall back to `rename()` only when the target does not exist. Read, trim, and accept only `/\A[0-9a-f]{64}\z/`; otherwise `error_log('judge_key_unavailable')` and return `null`. An existing invalid file is never overwritten. It is called only when `judge_pass_sha256` is configured and well formed, so a site without a judge pass never creates the file.
+
+**`api/judge_pass.php`**:
+- `ps_build_judge_cookie(array $localConfig, Config $config): ?JudgeCookie`: `null` unless `$localConfig['judge_pass_sha256']` is a string passing `JudgePass::isWellFormedHash` and `ps_load_judge_key($localConfig['secrets_dir'])` returns a key. This is the single place where judge mode is switched on or off.
+- `ps_handle_judge_pass_get(?JudgeCookie $judge, array $cookies, int $now): PsApiResponse`: 200 `{"judge": bool, "until": string|null}`.
+- `ps_handle_judge_pass_post(?JudgeCookie $judge, string $body, int $now): PsApiResponse`, in this order: `$judge === null` gives 404 `not_found`; a body longer than 512 bytes, not JSON, or without a string `pass` gives 400 `bad_request`; a pass that does not match gives 403 `judge_pass_invalid`; `issue($now) === null` gives 403 `judge_pass_expired`; otherwise 200 `{"judge": true, "until": "<Judging_End>"}` with the `Set-Cookie` header passed as an extra header. A wrong pass is `invalid` whatever the time; `expired` is only for the right pass. No body, header or log line ever contains the pass or the hash.
+
+**`api/router.php`**: `ps_dispatch()` gets three trailing parameters: `?JudgeCookie $judge = null`, `string $body = ''`, `?int $now = null` (null means `time()`). After the Origin check and inside the existing `try`, `GET judge-pass` and `POST judge-pass` call the two handlers. In the create route, `$isJudge = $judge !== null && $judge->isValid($cookies[JudgeCookie::NAME] ?? null, $now)` is passed to `ps_handle_create(..., bool $judge = false)`, which forwards it to `$starter->start(..., $judge)`. With `$judge === null` or an invalid cookie, `$isJudge` is `false` and nothing else in the dispatch differs. A request without a starter (tests that wire none) is unchanged.
+
+**`api/index.php`**: inside the existing `try`, after `$localConfig` is loaded: `$judge = ps_build_judge_cookie($localConfig, new Config());` and `$body = (string) file_get_contents('php://input', false, null, 0, 513);`, then both go to `ps_dispatch`. `judge_pass_sha256` is read only there.
+
+**`api/bootstrap.php`**: `require_once __DIR__ . '/judge_key.php'; require_once __DIR__ . '/judge_pass.php';` next to `ip_salt.php`; `ps_json_response()` gets the trailing `array $extraHeaders = []`. The autoloader already maps the `PoltergeistSwitch\TurnLoop\` prefix, so `Judge\JudgePass` loads from `src/TurnLoop/Judge/`.
+
+**`tools/make_judge_pass.php`** (CLI only; exits 2 if `PHP_SAPI !== 'cli'`): exactly one argument `<output-file>`. It refuses (exit 1, a fixed message on stderr that contains no secret) when the file exists, when the argument count is wrong, or when the target's directory resolves inside the repository root. It creates the file with `fopen($path, 'x')` under `umask(0177)` plus `chmod 0600`, writes `https://kiro.pyol.net/#judge=<pass>\n`, and prints only `judge_pass_sha256: <hex>\n` to stdout. It uses `JudgePass::generate()` and `JudgePass::hash()`. The tool prints the hash because the maintainer must put it in `api/config.local.php`; it never prints the pass.
+
+**`api/config.example.php`** gets a commented placeholder only: `// 'judge_pass_sha256' => '<64 lowercase hex characters printed by tools/make_judge_pass.php>',`. **`README.md`** gets a short maintainer note. Neither contains a real value.
+
+**Observe client.**
+- `public/js/api.js`: `request(method, url, jsonBody)` sends `Content-Type: application/json` and `JSON.stringify(jsonBody)` only when a body is given (every existing call is unchanged). New methods `judgePass(pass)` (`POST` route `judge-pass`, body `{pass: pass}`) and `judgeStatus()` (`GET` route `judge-pass`).
+- `public/js/observe.js`: a new `initJudge()` runs first in `init()`, before `refreshMemoryStatus()` and `catchUpLastReflection()`:
+  1. Read `window.location.hash`. If it matches `/^#judge=([A-Za-z0-9_-]{1,128})$/`, keep the value in a local variable only.
+  2. Immediately call `history.replaceState(null, '', location.pathname + location.search)` (no fragment), before any request. If `replaceState` is missing, nothing is sent and the fragment is left alone.
+  3. `api.judgePass(pass)`, then drop the variable. Whatever the result, continue with `judgeStatus()`; a 403, 404, 400 or network failure shows nothing and the visitor is a normal visitor.
+  4. With no fragment: `judgeStatus()` only. `body.judge === true` shows the Judge_Note with the fixed text "Judge pass active until January 29, 2027, 1:00 PM PT." (not formatted from the server value). Anything else keeps the note hidden.
+  5. Then the existing `refreshMemoryStatus()` and `catchUpLastReflection()` run. Each judge call is guarded with `typeof api.judgePass === 'function'` (or `judgeStatus`), so existing tests whose fake API lacks the methods are unchanged.
+  The pass is never passed to `console.*`, `localStorage`, `sessionStorage` or a query string, and the code that holds it is a few lines in one function.
+- `handleDailyLimit(body)` gets one more branch: `daily_judge_limit` shows "The judge pass has been used many times today. It opens again tomorrow (UTC)." with the Levers OFF and the stage untouched, as for the other 429s.
+- `public/index.php` gets `<p class="judge-note" id="judge-note" hidden></p>` directly after `#notice` inside the Switches_Panel; `public/css/screens.css` gets a `.judge-note` rule (small, muted text) with no inline style. `lookupDom()` finds `#judge-note`. The CSP is not loosened and nothing inline is added.
+
+#### Flow
+
+```mermaid
+sequenceDiagram
+    participant J as Judge browser
+    participant O as observe.js
+    participant A as api (PHP)
+    J->>O: open https://kiro.pyol.net/#judge=PASS
+    O->>O: history.replaceState (fragment removed)
+    O->>A: POST /api/judge-pass {"pass": PASS}
+    A->>A: Origin check, SHA-256, hash_equals, before Judging_End
+    A-->>O: 200 {"judge": true, "until": ...} + Set-Cookie ps_judge
+    O->>A: GET /api/judge-pass
+    A-->>O: {"judge": true, "until": ...}
+    O->>O: show Judge_Note
+    O->>A: POST /api/episodes (cookie ps_judge)
+    A->>A: 409 check, judge counter, create (no Daily_Limits, no cap of 5)
+```
+
+#### Errors
+
+| Situation | Where | Result |
+|---|---|---|
+| `judge_pass_sha256` missing or malformed, or no Judge_Key | `ps_build_judge_cookie` | Judge mode off: `POST /api/judge-pass` 404 `not_found`; `GET` gives `{"judge": false, "until": null}`; cookies ignored; the rest as today. |
+| Foreign `Origin` on `POST /api/judge-pass` | `ps_dispatch` | 403 `cross_site` (Requirement 19), before the handler. |
+| Body not JSON, no string `pass`, or over 512 bytes | `ps_handle_judge_pass_post` | 400 `bad_request`, no cookie. |
+| Wrong pass | handler | 403 `judge_pass_invalid`, no cookie. |
+| Right pass at or after Judging_End | handler | 403 `judge_pass_expired`, no cookie. |
+| Cookie unsigned, tampered, expired, for another hash or key, or after Judging_End | `JudgeCookie::isValid` | Ignored silently; normal visitor. |
+| Judge start while the Device already runs an episode | `EpisodeStarter` | 409 `device_already_running` with the episode id, as today. |
+| Judge ceiling reached | `tryReserveJudge` | 429 `daily_judge_limit`, nothing created or counted. Observe: Levers OFF and the judge message. |
+| Judge create fails after counting | `EpisodeStarter` | `releaseJudge`, error mapped as today. |
+| Judge usage SQL error | `PdoUsageRepository` | Rollback, 500 `internal_error`, nothing created (fail closed, as for the other scopes). |
+| `judge_key.key` cannot be read or created | `ps_load_judge_key` | `error_log('judge_key_unavailable')`, judge mode off. |
+
+#### Notes on cookie `Secure`, nginx and local runs
+
+- `Secure` is written into the header by `JudgeCookie::setCookieHeader`; it does not read `$_SERVER['HTTPS']`, so how nginx forwards the scheme does not matter for setting it. On `https://kiro.pyol.net/` the browser stores and returns it. The existing device cookie is `Secure` too.
+- Under `php -S` on `http://localhost`, Chrome and Firefox accept `Secure` cookies for `localhost`; Safari does not, so a manual judge-mode check on a Mac should use Chrome or Firefox. PHPUnit never needs a browser: it reads the `Set-Cookie` string from the `PsApiResponse`.
+- `Cache-Control: no-store` is on every response through `ps_json_response`, so the nginx cache cannot store the `Set-Cookie` or the `GET` answer. The Judge_Link is a fragment, so nginx and PHP never see the pass in a request line, and browsers never put a fragment in `Referer`. The pass does appear in the POST body, which nginx does not log by default; the maintainer should confirm that the host does not log request bodies.
+
+#### Maintainer steps (not tasks for the agent)
+
+1. On the Mac, run `php tools/make_judge_pass.php ~/judge_link.txt` (outside the repository). Copy the printed `judge_pass_sha256: <hex>` into the server's `api/config.local.php` as `'judge_pass_sha256' => '<hex>'`. Do not commit that file.
+2. Put the one line from `~/judge_link.txt` into the Devpost "Testing instructions" field. Keep the file out of the repository and delete it after judging.
+3. Confirm `judge_key.key` appears in `secrets_dir` after the first judge request. Do not edit it. To revoke every judge cookie at once, change `judge_pass_sha256` (run the tool again).
+4. After judging ends nothing needs to be done: the pass and the cookies stop working at Judging_End. Remove `judge_pass_sha256` from `config.local.php` to switch judge mode off earlier.
+5. Check once with a browser on the live site: the link shows the Judge_Note, an eleventh start of the day still works, and the address bar no longer shows `#judge=`.
+
 ## Correctness Properties
 
 Each item below states a characteristic that should hold true across all valid executions of the system: a formal statement of what the system should do. These statements are the bridge between the human-readable requirements and machine-verifiable correctness guarantees.
@@ -806,6 +936,24 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 
 **Validates: Requirements 19.8, 19.9, 19.10, 19.11, 19.12, 19.13**
 
+### Property 27: A Judge_Cookie is accepted only with the right signature and before both expiries
+
+*For any* `judge_pass_sha256`, Judge_Key, Judging_End and time `now`, the cookie that `issue(now)` returns is accepted by `isValid` at every time before Judging_End, and *for any* cookie value (the issued one with its expiry or its signature changed, a cookie signed with another hash or another key, an expiry at or before `now`, an expiry different from Judging_End, a value of the wrong shape, an empty string or `null`) and *for any* time at or after Judging_End, `isValid` returns false without throwing; `isValid` is true exactly when the signature equals the HMAC-SHA-256 of the expiry and `judge_pass_sha256` under the Judge_Key, the expiry is later than `now`, and `now` is before Judging_End.
+
+**Validates: Requirements 21.14, 21.16, 21.17, 21.18**
+
+### Property 28: Any pass other than the configured one is refused, and judge mode off is a 404
+
+*For any* string `p` other than the configured Judge_Pass (including the empty string, strings of other lengths, strings with a different case, the hash itself and strings with trailing whitespace) and *for any* time, `POST /api/judge-pass` with `{"pass": p}` answers 403 `judge_pass_invalid` and sets no cookie; *for any* time before Judging_End the configured pass answers 200 with one `Set-Cookie` that `isValid` accepts, and at or after Judging_End it answers 403 `judge_pass_expired`; and *for any* `judge_pass_sha256` that is missing or not 64 lowercase hex characters, `POST /api/judge-pass` answers 404 `not_found` and `GET /api/judge-pass` answers `{"judge": false, "until": null}`, whatever cookie is sent.
+
+**Validates: Requirements 21.3, 21.9, 21.11, 21.12, 21.19**
+
+### Property 29: Without a valid Judge_Cookie the create flow is identical to Requirement 13
+
+*For any* sequence of create requests (with random Devices, IP hashes, disasters, clock values, usage counts and running episodes) and *for any* cookie that is absent, unsigned, tampered, expired, signed for another hash or key, or presented after Judging_End, the sequence of outcomes (status, error code, episode created or not, and the device, IP, site and judge counts afterwards) equals the sequence produced with judge mode off; and *for any* sequence in which every request carries a valid Judge_Cookie, the device, IP and site counts are never read or changed, `too_many_running` is never raised, `device_already_running` is still raised first for a Device that already runs an episode, and the judge count equals the number of created episodes of that UTC_Day up to `judgeDailyLimit`, after which every start answers 429 `daily_judge_limit` and creates nothing.
+
+**Validates: Requirements 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27**
+
 ## Error Handling
 
 | Situation | Where | Result |
@@ -839,7 +987,9 @@ PHP properties use Eris (`giorgiosironi/eris ^1.3`, `limitTo(100)`) against the 
 | Stale reflection result after a new run began | `finishClosing` guard | ignored (episode id mismatch). |
 | `localStorage` unavailable | `rememberLastEpisode` / `readLastEpisode` | ignored; Notice_Resume still works from the 409 body. |
 
-Nothing in any error body or log line contains a Device_Id, raw IP, IP hash, key, path, or provider name.
+The judge-pass errors (404, 400, 403 `judge_pass_invalid` and `judge_pass_expired`, 429 `daily_judge_limit`, `judge_key_unavailable`) are listed in the table under "Judge Pass (Requirement 21)".
+
+Nothing in any error body or log line contains a Device_Id, raw IP, IP hash, key, path, provider name, Judge_Pass or `judge_pass_sha256`.
 
 ## Testing Strategy
 
@@ -867,6 +1017,7 @@ Each property test carries a tag comment: `Feature: public-lab, Property N: <tex
 | Turn_Lock (task 21) | `tests/TurnLoop/Properties/AttemptLimitPropertyTest.php` (Property 24); `TurnLockTest.php`; update `TurnServiceAskTest`, `TurnServiceApplyTest` (only for the reserve-first order and the lock calls, never an expected value); gated `tests/TurnLoop/Repository/TurnLockPdoTest.php` | 14.25, 14.26, 14.27; fake `holdTurnLock` makes the lock busy; a fake client records the attempt count at call time; two PDO connections for the gated test, name length for long ids, release on `releaseTurnLock` and on connection close |
 | Origin check and slot release (task 22) | `tests/TurnLoop/Properties/CrossSitePropertyTest.php` (Property 25), `RunningSlotPropertyTest.php` (Property 26); `CrossSiteRouteTest.php`; update `ConfigPublicLabTest`; gated `RunningSlotPdoTest.php` | 14.29, 14.30; every POST route with the fake service; boundaries 59/61 s and 299/301 s with the injected clock; PDO and fake give the same answers |
 | Headers and direct access (task 23) | `tests/TurnLoop/SecurityHeadersTest.php`, `PageSecurityHeadersTest.php`, `NoInlineAssetsTest.php`, `ApiHtaccessTest.php` | 14.31; API headers on 200/403/404/409/429/500 responses via `ps_dispatch`; each page is run with `php` as a child process from the project folder (`php-cgi` or the CLI, whichever the project's tests already use) and its emitted headers are read, or, if the CLI cannot report headers, the test checks that the page source calls `ps_send_security_headers()` before any output and that the function emits the expected strings; the two definitions are equal; source scan for inline script/style; `.htaccess` text checks |
+| Judge pass (tasks 24 to 28) | `tests/TurnLoop/Judge/JudgePassTest.php`, `JudgeCookieTest.php`, `tests/TurnLoop/ConfigJudgeTest.php`, `tests/TurnLoop/JudgeKeyFileTest.php` (temp dir), `JudgePassRouteTest.php`, `JudgeStartTest.php`, `JudgeMigrationScopeTest.php`, `tests/TurnLoop/Properties/JudgeCookiePropertyTest.php` (Property 27), `JudgePassRoutePropertyTest.php` (Property 28), `JudgeStartPropertyTest.php` (Property 29); gated `tests/TurnLoop/Repository/JudgeUsagePdoTest.php`; `tests/Tools/MakeJudgePassTest.php`, `tests/Tools/NoJudgeSecretsInRepoTest.php` | 14.33 to 14.40; every value is generated inside the test; no real pass or hash; the Eris properties use `limitTo(100)`; the PDO test is gated by `PS_TEST_MYSQL_DSN` and uses the fake for the same cases |
 | No-store and leaks | extend `NoStorePropertyTest`, `NoLeakPropertyTest` | 3.4, 4.9, 6.10, 13.18, 13.19: all new routes and the 429/409 bodies |
 
 Fakes: `InMemoryEpisodeRepository` gains the device methods with the same semantics as the SQL (including `ORDER BY id DESC OFFSET 6` retirement). `InMemoryUsageRepository` implements `tryReserve/release/counts` with the same all-or-nothing rule. Both take an injectable clock.
@@ -895,6 +1046,7 @@ New or changed JS tests:
 | `voices-chunks.test.js`, `voices-keepalive.test.js` (task 20) | P23, 14.23: splitting rules, chunk order, `resume` rules, 150 ms gap, watchdog, with a fake `speechSynthesis` and `fake-clock.js` |
 | `observe-flow.test.js` | P21, 14.9, 14.15, 14.16, 14.20: random event sequences against `fake-api.js`, plus fixed examples for each exact notice text ("A turn could not be completed." with a Try again button, the two 429 messages, the Device_Busy_Notice with Notice_Resume and its `episodeId` and `localStorage` fallback, the All reset 409 message) |
 | `observe-turn-busy.test.js` (task 21) | 14.28: `fake-api.js` returns 409 `turn_busy` for ask and for apply; `observeWait` shows exactly 2000 ms, one `getEpisode`, continuation by stored state, no notice, no failed try; the 16th consecutive Turn_Busy counts one failed try; `ask-apply-recovery.test.js` stays unchanged |
+| `observe-judge.test.js` (task 27) | 14.37: `#judge=` removed by `history.replaceState` before the first request; one `POST` with `{"pass": ...}`; the pass in no query string, `localStorage`, `sessionStorage` or console call; the Judge_Note only while `judgeStatus` answers true; `daily_judge_limit` message with Levers OFF; no fragment means the old behaviour; a fake API without the judge methods leaves every existing test unchanged |
 | `observe-static.test.js` | 14.10: `index.php` and `observe.js` contain no `btn-pause`, `btn-step`, `btn-resume`, `sw-rain`, `Heavy rain`, `coming later`, `paused`, `stepOnce`; Start and Voices exist; two levers only |
 | `heat-sky.test.js` | P22, 14.12; the earthquake call log is compared with `tests/fixtures/renderer_earthquake_calls.json`, **generated from the current renderer in task 1 before the renderer is edited** and never regenerated |
 | `replay-groups.test.js` | 6.9: headings "Featured" and "Your runs", empty-state line, object (not array) response |
@@ -931,4 +1083,4 @@ The Observe flow property is the hardest to write against the existing IIFE. Two
 
 ### Maintainer steps after implementation (not tasks for the agent)
 
-Apply `sql/2026-11-10_add_public_lab.sql` over FTPS before deploying the code, confirm `ip_salt.key` appears in `secrets_dir`. For tasks 21 to 23: add `'allowed_origins' => ['https://kiro.pyol.net']` to the server's `config.local.php` before deploying the code (without it every POST that carries an `Origin` header is refused), upload `public/security_headers.php` with the pages, then check `/api/bootstrap.php` answers 403 and both pages show no CSP errors in the browser console.
+Apply `sql/2026-11-10_add_public_lab.sql` over FTPS before deploying the code, confirm `ip_salt.key` appears in `secrets_dir`. For the judge pass (tasks 24 to 28) follow the steps under "Judge Pass (Requirement 21)"; it needs no new SQL file. For tasks 21 to 23: add `'allowed_origins' => ['https://kiro.pyol.net']` to the server's `config.local.php` before deploying the code (without it every POST that carries an `Origin` header is refused), upload `public/security_headers.php` with the pages, then check `/api/bootstrap.php` answers 403 and both pages show no CSP errors in the browser console.

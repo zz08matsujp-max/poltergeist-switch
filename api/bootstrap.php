@@ -499,4 +499,5 @@ function ps_robot_layers_to_array(RobotFourLayers $layers): array
 
 require_once __DIR__ . '/client_ip.php';
 require_once __DIR__ . '/ip_salt.php';
+require_once __DIR__ . '/judge_key.php';
 require_once __DIR__ . '/router.php';

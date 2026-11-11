@@ -56,8 +56,29 @@ readonly class Config
             '36e82c3e-03bc-4396-bfdc-e3fc33ffe671',
             '186823c0-3ff4-4289-ad30-ca98ef97708e',
         ],
+
+        // --- Judge pass (Requirement 21) ---
+        public string $judgeUntilUtc = '2027-01-29T21:00:00Z',
+        public int $judgeDailyLimit = 100,
     ) {
         $this->assertInvariants();
+    }
+
+    /** Judging_End as Unix seconds. */
+    public function judgeUntilUnix(): int
+    {
+        return $this->parseJudgeUntil($this->judgeUntilUtc)
+            ?? throw new \InvalidArgumentException('judgeUntilUtc must be Y-m-dTH:i:sZ in UTC');
+    }
+
+    private function parseJudgeUntil(string $value): ?int
+    {
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i:s\Z', $value, new \DateTimeZone('UTC'));
+        if ($dt === false || $dt->format('Y-m-d\TH:i:s\Z') !== $value) {
+            return null;
+        }
+
+        return $dt->getTimestamp();
     }
 
     /**
@@ -76,6 +97,12 @@ readonly class Config
             if ($limit < 1) {
                 throw new \InvalidArgumentException('daily limits must be at least 1');
             }
+        }
+        if ($this->parseJudgeUntil($this->judgeUntilUtc) === null) {
+            throw new \InvalidArgumentException('judgeUntilUtc must be Y-m-dTH:i:sZ in UTC');
+        }
+        if ($this->judgeDailyLimit < 1) {
+            throw new \InvalidArgumentException('judgeDailyLimit must be at least 1');
         }
         foreach ($this->featuredEpisodeIds as $id) {
             if (!is_string($id) || preg_match(
