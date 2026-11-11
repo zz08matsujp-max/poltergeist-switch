@@ -48,6 +48,30 @@ final class InMemoryUsageRepository implements UsageRepository
         }
     }
 
+    public function tryReserveJudge(string $utcDay, DailyLimitPolicy $policy, string $nowUtc): ?string
+    {
+        $k = "$utcDay|judge|" . UsageKeys::SITE_KEY;
+        $denial = $policy->judgeDenial($this->rows[$k]['starts'] ?? 0);
+        if ($denial !== null) {
+            return $denial;
+        }
+        $this->rows[$k] = ['starts' => ($this->rows[$k]['starts'] ?? 0) + 1, 'updatedAt' => $this->now($nowUtc)];
+        return null;
+    }
+
+    public function releaseJudge(string $utcDay, string $nowUtc): void
+    {
+        $k = "$utcDay|judge|" . UsageKeys::SITE_KEY;
+        if (isset($this->rows[$k]) && $this->rows[$k]['starts'] > 0) {
+            $this->rows[$k] = ['starts' => $this->rows[$k]['starts'] - 1, 'updatedAt' => $this->now($nowUtc)];
+        }
+    }
+
+    public function judgeCount(string $utcDay): int
+    {
+        return $this->rows["$utcDay|judge|" . UsageKeys::SITE_KEY]['starts'] ?? 0;
+    }
+
     public function counts(string $utcDay, UsageKeys $keys): array
     {
         $out = ['device' => 0, 'ip' => null, 'site' => 0];

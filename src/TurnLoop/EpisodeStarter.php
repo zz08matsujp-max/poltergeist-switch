@@ -40,8 +40,16 @@ final class EpisodeStarter
      *                             keys were derived for this start)
      * @throws ApiError 409 from assertCanStart, 429 when a limit is reached
      */
-    public function start(string $deviceId, ?UsageKeys $keys, string $disaster = 'earthquake'): EpisodeView
-    {
+    public function start(
+        string $deviceId,
+        ?UsageKeys $keys,
+        string $disaster = 'earthquake',
+        bool $judge = false,
+    ): EpisodeView {
+        if ($judge) {
+            return $this->startAsJudge($deviceId, $disaster);
+        }
+
         // 1. Read-only 409 checks first, so a retry of a lost create reaches Resume (13.8).
         $this->turns->assertCanStart($deviceId);
 
@@ -73,6 +81,39 @@ final class EpisodeStarter
         }
 
         // 4. The episode exists: a failure here keeps the count.
+        $this->memory->snapshotForNewEpisode($view->episodeId, $deviceId);
+
+        return $view;
+    }
+
+    /**
+     * Start with a valid Judge_Cookie (public-lab 21.21 to 21.24): the same
+     * Device_Episode_Slot check (without the site-wide running cap), the judge
+     * daily ceiling instead of the Device, IP and site counts, then create.
+     * The Device, IP and site scopes are not read or changed.
+     */
+    private function startAsJudge(string $deviceId, string $disaster): EpisodeView
+    {
+        $this->turns->assertCanStart($deviceId, true);
+
+        $now = ($this->clock)();
+        $denial = $this->usage->tryReserveJudge(
+            DailyLimitPolicy::utcDay($now),
+            $this->policy,
+            gmdate('Y-m-d H:i:s', $now),
+        );
+        if ($denial !== null) {
+            throw ApiError::tooManyRequests($denial);
+        }
+
+        try {
+            $view = $this->turns->createEpisode($deviceId, null, $disaster, true);
+        } catch (\Throwable $e) {
+            $now = ($this->clock)();
+            $this->usage->releaseJudge(DailyLimitPolicy::utcDay($now), gmdate('Y-m-d H:i:s', $now));
+            throw $e;
+        }
+
         $this->memory->snapshotForNewEpisode($view->episodeId, $deviceId);
 
         return $view;

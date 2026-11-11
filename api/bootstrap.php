@@ -257,13 +257,13 @@ function ps_build_usage_repository(): PdoUsageRepository
  * TurnService, the MemoryService, the usage repository and the daily limits
  * from Config. Reads the API keys through ps_build_turn_service().
  */
-function ps_build_episode_starter(): EpisodeStarter
+function ps_build_episode_starter(?Config $config = null): EpisodeStarter
 {
     return new EpisodeStarter(
         ps_build_turn_service(),
         ps_build_memory_service(),
         ps_build_usage_repository(),
-        DailyLimitPolicy::fromConfig(new Config()),
+        DailyLimitPolicy::fromConfig($config ?? new Config()),
     );
 }
 

@@ -14,6 +14,8 @@ use Throwable;
  */
 final class PdoUsageRepository implements UsageRepository
 {
+    private const JUDGE_SCOPE = 'judge';
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -86,6 +88,80 @@ final class PdoUsageRepository implements UsageRepository
             }
             throw $e instanceof RuntimeException ? $e : new RuntimeException('usage release failed', 0, $e);
         }
+    }
+
+    public function tryReserveJudge(string $utcDay, DailyLimitPolicy $policy, string $nowUtc): ?string
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $upsert = $this->pdo->prepare(
+                'INSERT INTO daily_usage (usage_date, scope, key_hash, starts, updated_at) '
+                . 'VALUES (:d, :s, :k, 0, :n) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)'
+            );
+            $params = [':d' => $utcDay, ':s' => self::JUDGE_SCOPE, ':k' => UsageKeys::SITE_KEY];
+            $upsert->execute($params + [':n' => $nowUtc]);
+
+            $select = $this->pdo->prepare(
+                'SELECT starts FROM daily_usage WHERE usage_date = :d AND scope = :s AND key_hash = :k FOR UPDATE'
+            );
+            $select->execute($params);
+            $value = $select->fetchColumn();
+            if ($value === false) {
+                throw new RuntimeException('daily_usage row missing after upsert');
+            }
+
+            $denial = $policy->judgeDenial((int) $value);
+            if ($denial !== null) {
+                $this->pdo->rollBack();
+                return $denial;
+            }
+
+            $bump = $this->pdo->prepare(
+                'UPDATE daily_usage SET starts = starts + 1, updated_at = :n '
+                . 'WHERE usage_date = :d AND scope = :s AND key_hash = :k'
+            );
+            $bump->execute($params + [':n' => $nowUtc]);
+            $this->pdo->commit();
+            return null;
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e instanceof RuntimeException ? $e : new RuntimeException('usage reserve failed', 0, $e);
+        }
+    }
+
+    public function releaseJudge(string $utcDay, string $nowUtc): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                'UPDATE daily_usage SET starts = starts - 1, updated_at = :n '
+                . 'WHERE usage_date = :d AND scope = :s AND key_hash = :k AND starts > 0'
+            );
+            $stmt->execute([
+                ':n' => $nowUtc,
+                ':d' => $utcDay,
+                ':s' => self::JUDGE_SCOPE,
+                ':k' => UsageKeys::SITE_KEY,
+            ]);
+            $this->pdo->commit();
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e instanceof RuntimeException ? $e : new RuntimeException('usage release failed', 0, $e);
+        }
+    }
+
+    public function judgeCount(string $utcDay): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT starts FROM daily_usage WHERE usage_date = :d AND scope = :s AND key_hash = :k'
+        );
+        $stmt->execute([':d' => $utcDay, ':s' => self::JUDGE_SCOPE, ':k' => UsageKeys::SITE_KEY]);
+        $value = $stmt->fetchColumn();
+        return $value === false ? 0 : (int) $value;
     }
 
     public function counts(string $utcDay, UsageKeys $keys): array

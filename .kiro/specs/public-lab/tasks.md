@@ -548,7 +548,7 @@ Steering constraints that apply to every task:
     - _Requirements: 21.28, 14.40_
 
 - [ ] 26. Add the judge start branch and the judge usage scope
-  - [~] 26.1 Implement the judge branch in `EpisodeStarter`, `TurnService`, the usage repositories and the create route
+  - [x] 26.1 Implement the judge branch in `EpisodeStarter`, `TurnService`, the usage repositories and the create route
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine and every existing table stay unchanged; no SQL file is added (the `judge` scope fits `daily_usage.scope VARCHAR(8)`); `api/config.local.php` and `pilot/config.local.php` are never touched; the real pass and its hash never appear in the repository. PHP 8.2 only.
     - `src/TurnLoop/TurnService.php`: `assertCanStart(string $deviceId, bool $ignoreSiteCap = false)` skips only the `too_many_running` check when true; `createEpisode(string $deviceId, ?int $seed = null, string $disaster = 'earthquake', bool $ignoreSiteCap = false)` forwards the flag to its internal `assertCanStart`. Defaults keep every existing call identical; no engine call or its order changes.
     - `src/TurnLoop/DailyLimitPolicy.php`: fourth constructor parameter `public readonly int $judge = 100`, `fromConfig` passes `$c->judgeDailyLimit`, new `judgeDenial(int $count): ?string` (`'daily_judge_limit'` when `$count >= $this->judge`).
@@ -557,18 +557,18 @@ Steering constraints that apply to every task:
     - `api/episodes_create.php` and `api/router.php`: `ps_handle_create(..., bool $judge = false)` forwards the flag to `$starter->start`; in the create route compute `$isJudge = $judge !== null && $judge->isValid($cookies[JudgeCookie::NAME] ?? null, $now)` and pass it. An invalid or absent cookie leaves everything as today.
     - Run `php -l` on each changed PHP file. This sub-task is committed with the rest of task 26 in 26.5.
     - _Requirements: 21.17, 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27, 21.28, 21.29, 21.33_
-  - [~] 26.2 Write the judge-start tests on the fakes and the scope-width guard
+  - [x] 26.2 Write the judge-start tests on the fakes and the scope-width guard
     - Create `tests/TurnLoop/JudgeStartTest.php` with `EpisodeStarter` on the in-memory fakes and an injected clock: with the Device, IP and site Daily_Limits all reached, a judge start still creates an episode and those three counts do not change; five running episodes of other Devices do not stop a judge start; `device_already_running` comes first and carries the episode id; the 100th judge start of a UTC_Day succeeds and the 101st gives 429 `daily_judge_limit` with nothing created and the count unchanged; the judge count restarts at UTC midnight; a create that throws gives the judge count back; a non-judge start with the same fakes behaves exactly as in `EpisodeStarterTest`; and through `ps_dispatch` an invalid, expired or tampered `ps_judge` cookie gives the ordinary 429 `daily_device_limit` where a valid one does not. Add `tests/TurnLoop/JudgeMigrationScopeTest.php`: it reads `sql/2026-11-10_add_public_lab.sql`, extracts the width of the `daily_usage.scope` column and asserts it is at least `strlen('judge')`, and asserts that no file in `sql/` mentions `judge`. Update no existing expected value.
     - _Requirements: 21.21, 21.22, 21.23, 21.24, 21.26, 21.27, 21.29, 14.36_
-  - [~] 26.3 Write the property test for the create flow
+  - [x] 26.3 Write the property test for the create flow
     - **Property 29: Without a valid Judge_Cookie the create flow is identical to Requirement 13**
     - **Validates: Requirements 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27**
     - Create `tests/TurnLoop/Properties/JudgeStartPropertyTest.php` (Eris, `limitTo(100)`, tag `Feature: public-lab, Property 29: Without a valid Judge_Cookie the create flow is identical to Requirement 13`) against the fakes: random request sequences with random Devices, IP hashes, disasters, clock values and running episodes, and cookies that are absent, tampered, expired, for another hash or key, or presented after Judging_End, give the same outcomes and counts as the same sequence with judge mode off; sequences where every request carries a valid cookie never read or change the device, IP and site counts, never raise `too_many_running`, still raise `device_already_running` first, and count judge starts up to `judgeDailyLimit`, after which every start gives 429 `daily_judge_limit` and creates nothing.
     - _Requirements: 21.18, 21.21, 21.22, 21.23, 21.24, 21.26, 21.27, 14.36_
-  - [~] 26.4 Write the gated MySQL judge usage test
+  - [x] 26.4 Write the gated MySQL judge usage test
     - Create `tests/TurnLoop/Repository/JudgeUsagePdoTest.php`, skipped unless `PS_TEST_MYSQL_DSN` names a throwaway database (same gating and schema reset as `UsageRepositoryPdoTest`). Every case runs against the in-memory fake and the PDO repository with identical answers: the ceiling boundary (the `judgeDailyLimit`-th reserve passes, the next is denied with no change), release never goes below zero, a new UTC day starts from zero, and the `judge` row does not change the device, IP and site rows. With two PDO connections and separate PHP processes reserving at the boundary, exactly `limit - current` succeed (same technique as `UsageRepositoryPdoTest`). Without the variable every test skips and the summary says so.
     - _Requirements: 21.23, 21.24, 21.26, 21.29, 14.36_
-  - [~] 26.5 Run everything and commit
+  - [x] 26.5 Run everything and commit
     - Run `php -l` on every changed PHP file, the full PHPUnit suite (`EarthquakeGoldenMasterTest`, `ProtectedVersionsTest`, `EpisodeViewBytesTest`, `EpisodeStarterTest`, `CreateRouteLimitsTest`, `RunningSlotTest` and every Daily_Limit property test included, unchanged) and `node tests/js/run-all.js`. Tick every finished sub-task of task 26. Commit only the files of task 26 with `task 26: Add the judge start branch and the judge usage scope`. Never push, amend, rebase or reset.
     - _Requirements: 21.28, 14.40_
 

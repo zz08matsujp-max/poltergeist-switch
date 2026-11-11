@@ -13,12 +13,19 @@ final class DailyLimitPolicy
         public readonly int $device,
         public readonly int $ip,
         public readonly int $site,
+        public readonly int $judge = 100,
     ) {
     }
 
     public static function fromConfig(Config $c): self
     {
-        return new self($c->dailyDeviceLimit, $c->dailyIpLimit, $c->dailySiteLimit);
+        return new self($c->dailyDeviceLimit, $c->dailyIpLimit, $c->dailySiteLimit, $c->judgeDailyLimit);
+    }
+
+    /** @return 'daily_judge_limit'|null the Judge_Cookie ceiling (public-lab 21.23) */
+    public function judgeDenial(int $count): ?string
+    {
+        return $count >= $this->judge ? 'daily_judge_limit' : null;
     }
 
     /**

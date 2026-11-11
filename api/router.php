@@ -139,7 +139,11 @@ function ps_dispatch(
         if ($method === 'POST' && $segments === ['episodes']) {
             $disaster = ps_disaster_from_query($query);
 
-            return ps_handle_create($service, $cookies, $memoryService, $disaster, $starter, $clientIp, $hasher);
+            // A valid Judge_Cookie switches the start to the judge branch
+            // (public-lab Requirement 21); anything else is the ordinary start.
+            $isJudge = $judge !== null && $judge->isValid($cookies[JudgeCookie::NAME] ?? null, $now ?? time());
+
+            return ps_handle_create($service, $cookies, $memoryService, $disaster, $starter, $clientIp, $hasher, $isJudge);
         }
 
         // GET /api/memory — the current generation and per-robot active-memory

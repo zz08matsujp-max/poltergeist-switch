@@ -41,6 +41,7 @@ function ps_handle_create(
     ?EpisodeStarter $starter = null,
     ?string $clientIp = null,
     ?IpHasher $hasher = null,
+    bool $judge = false,
 ): PsApiResponse {
     $deviceId = ps_device_id_from_cookies($cookies);
     $setDeviceId = null;
@@ -57,7 +58,7 @@ function ps_handle_create(
     // refused start mints nothing. The usage keys are hashes: neither the
     // Device_Id nor the raw IP reaches the usage table or a response.
     if ($starter !== null) {
-        $view = $starter->start($deviceId, ps_usage_keys($deviceId, $clientIp, $hasher), $disaster);
+        $view = $starter->start($deviceId, ps_usage_keys($deviceId, $clientIp, $hasher), $disaster, $judge);
 
         return ps_json_response(200, ps_episode_view_to_array($view), $setDeviceId);
     }

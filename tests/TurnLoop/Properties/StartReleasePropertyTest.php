@@ -24,14 +24,14 @@ final class ScriptedTurnService extends TurnService
 {
     public string $mode = 'ok';
 
-    public function assertCanStart(string $deviceId): void
+    public function assertCanStart(string $deviceId, bool $ignoreSiteCap = false): void
     {
         if ($this->mode === 'conflict') {
             throw ApiError::conflict('device_already_running');
         }
     }
 
-    public function createEpisode(string $deviceId, ?int $seed = null, string $disaster = 'earthquake'): EpisodeView
+    public function createEpisode(string $deviceId, ?int $seed = null, string $disaster = 'earthquake', bool $ignoreSiteCap = false): EpisodeView
     {
         if ($this->mode === 'create_fail') {
             throw new \RuntimeException('createEpisode failed');

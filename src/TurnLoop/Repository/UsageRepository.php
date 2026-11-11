@@ -23,6 +23,19 @@ interface UsageRepository
     /** Gives back one reservation on every tracked scope; never goes below zero. */
     public function release(string $utcDay, UsageKeys $keys, string $nowUtc): void;
 
+    /**
+     * Judge scope (scope 'judge', key UsageKeys::SITE_KEY): null and +1, or
+     * 'daily_judge_limit' and no change. The other scopes are never touched.
+     *
+     * @return 'daily_judge_limit'|null
+     */
+    public function tryReserveJudge(string $utcDay, DailyLimitPolicy $policy, string $nowUtc): ?string;
+
+    /** Gives back one judge reservation; never goes below zero. */
+    public function releaseJudge(string $utcDay, string $nowUtc): void;
+
+    public function judgeCount(string $utcDay): int;
+
     /** @return array{device:int, ip:?int, site:int} ip is null when the IP scope is not tracked */
     public function counts(string $utcDay, UsageKeys $keys): array;
 }

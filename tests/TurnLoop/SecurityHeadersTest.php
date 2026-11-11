@@ -173,6 +173,20 @@ class SecurityHeadersTest extends TestCase
             {
             }
 
+            public function tryReserveJudge(string $utcDay, DailyLimitPolicy $policy, string $nowUtc): ?string
+            {
+                throw new \RuntimeException('boom');
+            }
+
+            public function releaseJudge(string $utcDay, string $nowUtc): void
+            {
+            }
+
+            public function judgeCount(string $utcDay): int
+            {
+                throw new \RuntimeException('boom');
+            }
+
             public function counts(string $utcDay, UsageKeys $keys): array
             {
                 throw new \RuntimeException('boom');

@@ -70,7 +70,9 @@ try {
     // the salted hasher. No salt means the IP scope is skipped and the Device
     // key falls back to a plain hash (see ps_usage_keys).
     $localConfig = ps_load_local_config();
-    $starter = ps_build_episode_starter();
+    // One Config for the starter's limits and the Judge_Cookie's Judging_End.
+    $config = new Config();
+    $starter = ps_build_episode_starter($config);
     $clientIp = ps_client_ip($_SERVER, $localConfig);
     $salt = ps_load_ip_salt($localConfig['secrets_dir']);
     $hasher = $salt !== null ? new IpHasher($salt) : null;
@@ -94,7 +96,7 @@ try {
         }
     }
     // Judge pass (public-lab Requirement 21): null unless configured.
-    $judge = ps_build_judge_cookie($localConfig, new Config());
+    $judge = ps_build_judge_cookie($localConfig, $config);
     $body = (string) file_get_contents('php://input', false, null, 0, 513);
     $response = ps_dispatch(
         $service,

@@ -101,13 +101,14 @@ class TurnService
      *
      * @throws ApiError
      */
-    public function assertCanStart(string $deviceId): void
+    public function assertCanStart(string $deviceId, bool $ignoreSiteCap = false): void
     {
         $running = $this->repo->findRunningEpisodeForDevice($deviceId);
         if ($running !== null) {
             throw ApiError::conflict('device_already_running', null, null, $running->id);
         }
-        if ($this->repo->countRunningEpisodes() >= $this->config->maxRunningEpisodes) {
+        // A Judge_Cookie start skips only this site-wide cap (public-lab 21.22).
+        if (!$ignoreSiteCap && $this->repo->countRunningEpisodes() >= $this->config->maxRunningEpisodes) {
             throw ApiError::conflict('too_many_running');
         }
     }
@@ -162,11 +163,12 @@ class TurnService
         string $deviceId,
         ?int $seed = null,
         string $disaster = 'earthquake',
+        bool $ignoreSiteCap = false,
     ): EpisodeView {
         $deviceId = $deviceId !== '' ? $deviceId : $this->assignDeviceId();
 
         // Device_Episode_Slot rules first (Requirements 9.7–9.9).
-        $this->assertCanStart($deviceId);
+        $this->assertCanStart($deviceId, $ignoreSiteCap);
 
         $seedValue = $seed ?? $this->drawSeed();
         $now = $this->now();
