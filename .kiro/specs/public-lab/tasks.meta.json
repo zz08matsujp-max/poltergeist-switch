@@ -1156,6 +1156,42 @@
         "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
         "timestamp": 1794372325334
       }
+    ],
+    "30.1 Change `Config::$featuredEpisodeIds`": [
+      {
+        "executionId": "cf99fda1-454a-45d7-a2ac-be4b3f0dd78f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794448338830
+      },
+      {
+        "executionId": "cf99fda1-454a-45d7-a2ac-be4b3f0dd78f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794448343216
+      }
+    ],
+    "30.2 Update the tests that pin the list": [
+      {
+        "executionId": "cf99fda1-454a-45d7-a2ac-be4b3f0dd78f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794448339128
+      },
+      {
+        "executionId": "cf99fda1-454a-45d7-a2ac-be4b3f0dd78f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794448381066
+      }
+    ],
+    "30.3 Run everything and commit": [
+      {
+        "executionId": "cf99fda1-454a-45d7-a2ac-be4b3f0dd78f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794448339432
+      },
+      {
+        "executionId": "cf99fda1-454a-45d7-a2ac-be4b3f0dd78f",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794448455040
+      }
     ]
   }
 }
