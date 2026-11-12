@@ -608,7 +608,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every PHP file changed by tasks 24 to 28, the full PHPUnit suite (including `EarthquakeGoldenMasterTest`, whose fixture SHA-256 still starts with `c2aba50f87c22fe6`, `ProtectedVersionsTest` and `EpisodeViewBytesTest`) and `node tests/js/run-all.js`. Confirm with `git diff` that no file in `src/Engine/`, no robot-facing text, no file in `sql/`, `api/config.local.php` and `pilot/config.local.php` changed; grep the changed files for a 43-character pass-like string after `#judge=` and for a 64-hex literal next to `judge_pass_sha256` (none may appear, apart from generated values at test run time); list the gated PDO tests that were skipped (`JudgeUsagePdoTest` and the earlier ones) so the maintainer can run them with `PS_TEST_MYSQL_DSN`. Report the maintainer steps from the design section "Judge Pass". Ask the user if questions arise.
     - _Requirements: 21.28, 21.29, 21.32, 21.33, 1.1, 1.7, 14.13, 14.40_
 
-- [ ] 30. Put the heat-wave run 16fe8bdc first in Featured
+- [x] 30. Put the heat-wave run 16fe8bdc first in Featured
   - [x] 30.1 Change `Config::$featuredEpisodeIds`
     - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine, the API response shape, the replay page, the judge pass and `sql/` stay unchanged. PHP 8.2 only.
     - In `src/TurnLoop/Config.php` change only the default of `featuredEpisodeIds` to the nine ids in this order: `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843`, `b9931223-fc11-4162-8a4d-a8cf55886e1e`, `450e9249-94db-4744-987d-ec6774bf5057`, `4113e82c-2f09-49e4-b647-a1481d794807`, `2a3800d5-4029-448c-8152-fd622693a775`, `3ef560a5-c35c-4632-869f-d01fb2dd2e2b`, `bae88cfc-7eea-4cb6-a742-a49c0ccc401c`, `36e82c3e-03bc-4396-bfdc-e3fc33ffe671`, `186823c0-3ff4-4289-ad30-ca98ef97708e`. Nothing else in `Config`.
@@ -620,7 +620,7 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite and `node tests/js/run-all.js`. Confirm that `shasum -a 256 tests/fixtures/earthquake_golden_master.json` starts with `c2aba50f87c22fe6`. Confirm with `git diff` that nothing else changed (no episode records, no rules engine, no API response shape, no replay page, no judge pass, nothing in `sql/`). Tick every finished sub-task of task 30. Commit only the files of task 30 with `task 30: Put the heat-wave run 16fe8bdc first in Featured`. Never push, amend, rebase or reset.
     - _Requirements: 6.1, 6.2, 1.1, 14.13_
 
-- [ ] 31. Count heat-wave memories on the Replay page
+- [x] 31. Count heat-wave memories on the Replay page
   - [x] 31.1 Recognise both memories headings in `public/js/replay.js`
     - Protection: change `public/js/replay.js` only. No `src/`, `api/` or `sql/` change; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the API response shape, the episode records and the judge pass stay unchanged.
     - Replace the single `MEMORIES_HEADING` with `MEMORIES_HEADING_EARTHQUAKE` and `MEMORIES_HEADING_HEAT`, each copied exactly from `MEMORIES_HEADING` and `MEMORIES_HEADING_HEAT` in `src/Engine/SituationTextGenerator.php`. Make `countSnapshotFor` find whichever heading occurs in the first non-empty situation text and count with `countMemoryBlocks` from the end of that heading; return 0 when neither occurs. Keep every public name.
