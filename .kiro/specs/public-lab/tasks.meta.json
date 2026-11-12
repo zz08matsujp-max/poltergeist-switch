@@ -1192,6 +1192,27 @@
         "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
         "timestamp": 1794448455040
       }
+    ],
+    "31.1 Recognise both memories headings in `public/js/replay.js`": [
+      {
+        "executionId": "a6beaca8-6c90-4d0a-90e7-93d89122ab49",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794449760012
+      }
+    ],
+    "31.2 Extend the JavaScript test, add the fixture and add the PHP drift test": [
+      {
+        "executionId": "a6beaca8-6c90-4d0a-90e7-93d89122ab49",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794449820239
+      }
+    ],
+    "31.3 Run everything and commit": [
+      {
+        "executionId": "a6beaca8-6c90-4d0a-90e7-93d89122ab49",
+        "chatSessionId": "sess_68f45ec9-071b-4ce7-b763-f7a5c28f48f3",
+        "timestamp": 1794449936909
+      }
     ]
   }
 }
