@@ -47,6 +47,7 @@ readonly class Config
         // --- Public lab: Featured replay ids, in display order (Req 6.1) ---
         /** @var list<string> */
         public array $featuredEpisodeIds = [
+            '16fe8bdc-4e6c-4c14-ba34-58a80c9f1843',
             'b9931223-fc11-4162-8a4d-a8cf55886e1e',
             '450e9249-94db-4744-987d-ec6774bf5057',
             '4113e82c-2f09-49e4-b647-a1481d794807',

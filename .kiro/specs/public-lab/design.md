@@ -262,6 +262,7 @@ public int $dailyIpLimit = 30,
 public int $dailySiteLimit = 100,
 /** @var list<string> */
 public array $featuredEpisodeIds = [
+    '16fe8bdc-4e6c-4c14-ba34-58a80c9f1843', // heat wave, first since 2026-11-12 (task 30)
     'b9931223-fc11-4162-8a4d-a8cf55886e1e',
     '450e9249-94db-4744-987d-ec6774bf5057',
     '4113e82c-2f09-49e4-b647-a1481d794807',
@@ -1012,7 +1013,7 @@ Each property test carries a tag comment: `Feature: public-lab, Property N: <tex
 | IP and salt | `IpPrivacyPropertyTest`, `ClientIpTest`, `IpSaltFileTest` (temp dir) | P15; 14.19; salt created once and reused; invalid file not overwritten; fallback when the directory is not writable |
 | Protected items | `ProtectedVersionsTest`, `EpisodeViewBytesTest`, existing `EarthquakeGoldenMasterTest` | 1.1-1.4 |
 | Migration file | `PublicLabMigrationFileTest` (same style as `MigrationFileTest`) | 1.6, 5.1, 5.3, 13.17: file exists, header says apply before deploying, only `CREATE TABLE` / `ADD COLUMN ... NULL` / `ADD KEY`, no `DROP`/`UPDATE`/`DELETE`/`TRUNCATE`, utf8mb4 |
-| Config | `ConfigPublicLabTest` | 6.1 order and ids, 13.3 defaults, invariants |
+| Config | `ConfigPublicLabTest` | 6.1 the exact nine ids in order (first is `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843`), 13.3 defaults, invariants |
 | PDO (gated) | `tests/Memory/Repository/DeviceRepositoryPdoTest.php`, `UsageRepositoryPdoTest.php` | same cases as the fake; **retire-oldest regression for C1**; two-connection reserve at the boundary admits exactly `limit - current` |
 | Turn_Lock (task 21) | `tests/TurnLoop/Properties/AttemptLimitPropertyTest.php` (Property 24); `TurnLockTest.php`; update `TurnServiceAskTest`, `TurnServiceApplyTest` (only for the reserve-first order and the lock calls, never an expected value); gated `tests/TurnLoop/Repository/TurnLockPdoTest.php` | 14.25, 14.26, 14.27; fake `holdTurnLock` makes the lock busy; a fake client records the attempt count at call time; two PDO connections for the gated test, name length for long ids, release on `releaseTurnLock` and on connection close |
 | Origin check and slot release (task 22) | `tests/TurnLoop/Properties/CrossSitePropertyTest.php` (Property 25), `RunningSlotPropertyTest.php` (Property 26); `CrossSiteRouteTest.php`; update `ConfigPublicLabTest`; gated `RunningSlotPdoTest.php` | 14.29, 14.30; every POST route with the fake service; boundaries 59/61 s and 299/301 s with the injected clock; PDO and fake give the same answers |

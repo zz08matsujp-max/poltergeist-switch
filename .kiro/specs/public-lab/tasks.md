@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan makes PoltergeistSwitch ready for a public audience: memory and "All reset" belong to a Device, the replay list has a Featured group and a "Your runs" group, new episodes are limited per UTC day, Observe gets its fixes (speech sequencing, levers after the end, Try again, removed controls), and the heat-wave sky is redrawn. The engine, the house rules, the robots' input texts and every recorded episode stay byte-identical (Requirement 1).
+This plan makes PoltergeistSwitch ready for a public audience: memory and "All reset" belong to a Device, the replay list has a Featured group and a "Your runs" group, new episodes are limited per UTC day, Observe gets its fixes (speech sequencing, levers after the end, Try again, removed controls), and the heat-wave sky is redrawn. The engine, the house rules, the robots' input texts and every recorded episode stay byte-identical (Requirement 1). Task 30 (2026-11-12) puts the heat-wave run `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843` first in the Featured list, making it nine ids.
 
 Tasks 18 to 20 were added after task 17 (front end only, no change to `src/`, `api/`, `sql/`, the engine or any robot text): 18 Levers choose the disaster and Start starts the run, 19 notices beside the levers, 20 keeping Chrome's speech going. They sit after the final checkpoint on purpose and add no new checkpoint.
 
@@ -62,11 +62,11 @@ Steering constraints that apply to every task:
 
 - [x] 3. Add Config values and the pure limit and IP classes
   - [x] 3.1 Add the public-lab parameters to `Config`
-    - In `src/TurnLoop/Config.php` append promoted parameters with defaults: `dailyDeviceLimit` 10, `dailyIpLimit` 30, `dailySiteLimit` 100, and `featuredEpisodeIds` (the eight ids of Requirement 6.1, in that order).
+    - In `src/TurnLoop/Config.php` append promoted parameters with defaults: `dailyDeviceLimit` 10, `dailyIpLimit` 30, `dailySiteLimit` 100, and `featuredEpisodeIds` (the ids of Requirement 6.1, in that order; eight when written, nine since task 30).
     - Extend `assertInvariants()`: each limit is at least 1 and each featured id matches the UUID pattern. Existing `new Config()` callers are unaffected.
     - _Requirements: 6.1, 13.3_
   - [x] 3.2 Write `ConfigPublicLabTest`
-    - Create `tests/TurnLoop/ConfigPublicLabTest.php`: the exact eight ids in order, the three default limits, and the invariants (limit below 1 and a malformed id are rejected).
+    - Create `tests/TurnLoop/ConfigPublicLabTest.php`: the exact ids in order (nine since task 30), the three default limits, and the invariants (limit below 1 and a malformed id are rejected).
     - _Requirements: 6.1, 13.3_
   - [x] 3.3 Create `DailyLimitPolicy` and `UsageKeys`
     - Create `src/TurnLoop/DailyLimitPolicy.php` (`fromConfig`, `denial(array $counts): ?string` returning the first reached of `daily_device_limit`, `daily_ip_limit`, `daily_site_limit` in that order, `utcDay(int): string` using `gmdate('Y-m-d')`; an untracked IP count of null is skipped) and `src/TurnLoop/UsageKeys.php` (`deviceKey`, `?ipKey`, `SITE_KEY` of 64 zeros).
@@ -608,6 +608,18 @@ Steering constraints that apply to every task:
     - Run `php -l` on every PHP file changed by tasks 24 to 28, the full PHPUnit suite (including `EarthquakeGoldenMasterTest`, whose fixture SHA-256 still starts with `c2aba50f87c22fe6`, `ProtectedVersionsTest` and `EpisodeViewBytesTest`) and `node tests/js/run-all.js`. Confirm with `git diff` that no file in `src/Engine/`, no robot-facing text, no file in `sql/`, `api/config.local.php` and `pilot/config.local.php` changed; grep the changed files for a 43-character pass-like string after `#judge=` and for a 64-hex literal next to `judge_pass_sha256` (none may appear, apart from generated values at test run time); list the gated PDO tests that were skipped (`JudgeUsagePdoTest` and the earlier ones) so the maintainer can run them with `PS_TEST_MYSQL_DSN`. Report the maintainer steps from the design section "Judge Pass". Ask the user if questions arise.
     - _Requirements: 21.28, 21.29, 21.32, 21.33, 1.1, 1.7, 14.13, 14.40_
 
+- [ ] 30. Put the heat-wave run 16fe8bdc first in Featured
+  - [x] 30.1 Change `Config::$featuredEpisodeIds`
+    - Protection: the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the engine, the API response shape, the replay page, the judge pass and `sql/` stay unchanged. PHP 8.2 only.
+    - In `src/TurnLoop/Config.php` change only the default of `featuredEpisodeIds` to the nine ids in this order: `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843`, `b9931223-fc11-4162-8a4d-a8cf55886e1e`, `450e9249-94db-4744-987d-ec6774bf5057`, `4113e82c-2f09-49e4-b647-a1481d794807`, `2a3800d5-4029-448c-8152-fd622693a775`, `3ef560a5-c35c-4632-869f-d01fb2dd2e2b`, `bae88cfc-7eea-4cb6-a742-a49c0ccc401c`, `36e82c3e-03bc-4396-bfdc-e3fc33ffe671`, `186823c0-3ff4-4289-ad30-ca98ef97708e`. Nothing else in `Config`.
+    - _Requirements: 6.1, 6.2, 1.1, 14.13_
+  - [x] 30.2 Update the tests that pin the list
+    - Update `tests/TurnLoop/ConfigPublicLabTest.php` (the exact nine ids in order; the first is `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843`). Find every other test that pins the list or its length with grep (for example the `EpisodeListService` tests, `EpisodeListGroupsPropertyTest`, `replay-groups.test.js`, `DirectAccessTest`) and update only the pinned list or length, never any other expected value.
+    - _Requirements: 6.1, 6.2, 1.1, 14.13_
+  - [x] 30.3 Run everything and commit
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite and `node tests/js/run-all.js`. Confirm that `shasum -a 256 tests/fixtures/earthquake_golden_master.json` starts with `c2aba50f87c22fe6`. Confirm with `git diff` that nothing else changed (no episode records, no rules engine, no API response shape, no replay page, no judge pass, nothing in `sql/`). Tick every finished sub-task of task 30. Commit only the files of task 30 with `task 30: Put the heat-wave run 16fe8bdc first in Featured`. Never push, amend, rebase or reset.
+    - _Requirements: 6.1, 6.2, 1.1, 14.13_
+
 ## Notes
 
 - Every sub-task, including every test sub-task, is REQUIRED. No sub-task is optional.
@@ -703,7 +715,10 @@ Steering constraints that apply to every task:
     { "id": 76, "tasks": ["28.1"] },
     { "id": 77, "tasks": ["28.2", "28.3"] },
     { "id": 78, "tasks": ["28.4"] },
-    { "id": 79, "tasks": ["29.1"] }
+    { "id": 79, "tasks": ["29.1"] },
+    { "id": 80, "tasks": ["30.1"] },
+    { "id": 81, "tasks": ["30.2"] },
+    { "id": 82, "tasks": ["30.3"] }
   ]
 }
 ```
