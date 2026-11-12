@@ -84,6 +84,9 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 - **Judging_End**: The moment judge mode stops working: `Config` value `judgeUntilUtc`, default `2027-01-29T21:00:00Z`.
 - **Judge_Start**: A `POST /api/episodes` request that carries a valid Judge_Cookie.
 - **Judge_Note**: The quiet line "Judge pass active until January 29, 2027, 1:00 PM PT." that Observe shows beside the Notice_Area while judge mode is on.
+- **Memories_Heading_Earthquake**: The fixed line `Your memories (what you wrote down after an earlier disaster in this house):` that `SituationTextGenerator` (constant `MEMORIES_HEADING`) writes above a robot's memory blocks in an earthquake situation text.
+- **Memories_Heading_Heat**: The fixed line `Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):` that `SituationTextGenerator` (constant `MEMORIES_HEADING_HEAT`) writes above a robot's memory blocks in a heat-wave situation text.
+- **Started_With_Count**: The number shown on the Replay page as "Started this episode with N memories." for Amber or Jade (robot-memory Requirement 7.6). `countSnapshotFor` in `public/js/replay.js` derives it from the robot's stored situation text.
 
 ## Requirements
 
@@ -364,6 +367,9 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 38. THE Public_Lab SHALL test `tools/make_judge_pass.php` as a child process writing into a temporary directory outside the repository: stdout is exactly `judge_pass_sha256: <64 hex>` and a newline, stdout and stderr never contain the pass, the output file holds one line `https://kiro.pyol.net/#judge=<43 characters>` with mode 0600, the printed hash equals the SHA-256 of the pass in the file, a second run on the same file fails and leaves it unchanged, and a missing argument or an output path inside the repository fails with no file written (Requirement 21, criteria 30 and 31).
 39. THE Public_Lab SHALL test that no tracked or unignored file of the repository contains `#judge=` followed by 43 base64url characters or a `judge_pass_sha256` assignment of 64 hex characters, while never reading `api/config.local.php`, `pilot/config.local.php` or any `*.key` file (Requirement 21, criterion 32).
 40. THE Public_Lab SHALL keep the Golden_Master, `ProtectedVersionsTest`, `EpisodeViewBytesTest` and `renderer_earthquake_calls.json` unchanged by Requirement 21, SHALL leave `api/config.local.php` and `pilot/config.local.php` untouched, and SHALL run `php -l` on every changed PHP file, the full PHPUnit suite and `node tests/js/run-all.js` before each commit of tasks 24 to 28.
+41. THE Public_Lab SHALL test in JavaScript that `countSnapshotFor` returns 2 for a heat-wave situation text with 2 memory blocks, 2 for an earthquake situation text with 2 memory blocks, and 0 for a text with no memories block, and that the turn-1 situation texts of the live heat-wave replay `186823c0-3ff4-4289-ad30-ca98ef97708e`, kept as a trimmed fixture in `tests/fixtures/`, give 2 for Amber and 2 for Jade (Requirement 22).
+42. THE Public_Lab SHALL test in PHPUnit that the string value of each `SituationTextGenerator` memories-heading constant occurs exactly as a quoted string in `public/js/replay.js`, so that the test fails when the two sources differ (Requirement 22).
+43. THE Public_Lab SHALL keep the Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), `ProtectedVersionsTest`, `EpisodeViewBytesTest` and `renderer_earthquake_calls.json` unchanged by Requirement 22, and SHALL run `php -l` on every changed PHP file, the full PHPUnit suite and `node tests/js/run-all.js` before the commit of task 31.
 
 ---
 
@@ -524,3 +530,20 @@ This spec builds on the `house-rules-engine`, `turn-loop`, `screens`, `robot-mem
 31. THE tool SHALL print nothing else to standard output or standard error, SHALL never print the Judge_Pass, and SHALL refuse to overwrite an existing file, to run without exactly one argument, and to write inside the repository.
 32. THE Public_Lab SHALL keep the real Judge_Pass and its hash out of the repository, the specs, the steering files, the tests, the commit messages and the logs, and every test SHALL generate its own values.
 33. THE Public_Lab SHALL implement this requirement in `src/`, `api/`, `tools/`, `public/index.php`, `public/css/screens.css`, `public/js/api.js`, `public/js/observe.js`, `README.md` and `api/config.example.php` only, SHALL touch neither `api/config.local.php` nor `pilot/config.local.php`, and SHALL leave the engine, the robots' input texts and every existing table unchanged.
+
+---
+
+### Requirement 22: Replay Counts Memories Under Both Headings
+
+Decided by the maintainer on 2026-11-12. Evidence: in the live heat-wave replay `186823c0-3ff4-4289-ad30-ca98ef97708e`, "What it was told this turn" shows a "Your memories" block with 2 memories for Amber and for Jade at turn 1, but both reply panels say "Started this episode with 0 memories." Since the heat-wave memory-heading fix (commit 259ff3d) a heat-wave situation text uses Memories_Heading_Heat, and `countSnapshotFor` in `public/js/replay.js` looks only for Memories_Heading_Earthquake.
+
+**User Story:** As a visitor watching a replay, I want the "Started this episode with N memories" line to be right for heat-wave and earthquake episodes alike, so that I can trust what the Replay page says about each robot's memory.
+
+#### Acceptance Criteria
+
+1. THE Replay page SHALL recognise both Memories_Heading_Earthquake and Memories_Heading_Heat, each copied character for character from `SituationTextGenerator`, when it derives the Started_With_Count (robot-memory Requirement 7.6).
+2. WHEN a robot's stored situation text carries a memories block under either heading, THE Replay page SHALL show the number of `"""`-delimited memory blocks under that heading as the Started_With_Count, for heat-wave and earthquake episodes alike.
+3. WHEN a robot's stored situation text carries no memories block, THE Replay page SHALL show a Started_With_Count of 0 for that robot.
+4. WHEN the heading constants in `SituationTextGenerator` and the heading strings in `public/js/replay.js` differ, THE PHP drift test of Requirement 14, criterion 42 SHALL fail.
+5. THE Public_Lab SHALL implement this requirement in `public/js/replay.js` only, apart from the tests and the fixture, changing no PHP behavior, no API response, no episode record and nothing in the judge pass.
+6. THE Public_Lab SHALL keep Requirement 1 true: the earthquake Golden_Master stays byte-identical (SHA-256 starts with `c2aba50f87c22fe6`) and every protection pin stays unchanged.

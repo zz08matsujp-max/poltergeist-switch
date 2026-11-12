@@ -430,11 +430,14 @@
 
   // ── started-with memory counts (robot-memory Req 7.6) ───────────────────────
 
-  // The Appendix A Memories_Block heading, inserted into each turn's situation
-  // text when the robot's Memory_Snapshot for the episode is non-empty. It is
-  // the fixed line SituationTextGenerator::MEMORIES_HEADING renders verbatim.
-  var MEMORIES_HEADING =
+  // The Memories_Block headings, inserted into each turn's situation text when
+  // the robot's Memory_Snapshot for the episode is non-empty. They are the fixed
+  // lines SituationTextGenerator::MEMORIES_HEADING (earthquake) and
+  // SituationTextGenerator::MEMORIES_HEADING_HEAT (heat wave) render verbatim.
+  var MEMORIES_HEADING_EARTHQUAKE =
     'Your memories (what you wrote down after an earlier disaster in this house):';
+  var MEMORIES_HEADING_HEAT =
+    'Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):';
 
   /**
    * renderStartedWith(view) — show, for each robot, how many memories it
@@ -480,14 +483,19 @@
       var layers = turn && turn.robots && turn.robots[robotId];
       var text = layers && layers.situationText;
       if (typeof text !== 'string' || text === '') { continue; }
-      var headingAt = text.indexOf(MEMORIES_HEADING);
+      var heading = MEMORIES_HEADING_EARTHQUAKE;
+      var headingAt = text.indexOf(heading);
+      if (headingAt < 0) {
+        heading = MEMORIES_HEADING_HEAT;
+        headingAt = text.indexOf(heading);
+      }
       if (headingAt < 0) {
         // This turn carried no Memories_Block. The snapshot is frozen for the
         // whole episode, so no later turn can carry one either; the robot
         // started with no memories.
         return 0;
       }
-      return countMemoryBlocks(text, headingAt + MEMORIES_HEADING.length);
+      return countMemoryBlocks(text, headingAt + heading.length);
     }
     return 0;
   }

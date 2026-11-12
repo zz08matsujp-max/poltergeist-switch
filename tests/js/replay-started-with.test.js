@@ -27,6 +27,7 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 
 const controller = require(path.join(__dirname, '..', '..', 'public', 'js', 'replay.js'));
@@ -148,6 +149,47 @@ check('per-robot counts are independent', function () {
   const view = buildView(snapA, snapB, 1);
   assert.strictEqual(controller.countSnapshotFor(view.turns, 'robot_a'), 4);
   assert.strictEqual(controller.countSnapshotFor(view.turns, 'robot_b'), 1);
+});
+
+// Heat-wave episodes use a different heading (Requirement 22). The heading is
+// copied from SituationTextGenerator::MEMORIES_HEADING_HEAT.
+const MEMORIES_HEADING_HEAT =
+  'Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):';
+
+function turnsWithText(text) {
+  return [{ turnNumber: 1, robots: { robot_a: { situationText: text } } }];
+}
+
+check('heat-wave text with 2 memories counts 2', function () {
+  const text = 'You are a robot.\n\n' + MEMORIES_HEADING_HEAT +
+    '\n\n"""\nfirst\n"""\n\n"""\nsecond\n"""\n\nRight now: It is afternoon.';
+  assert.strictEqual(controller.countSnapshotFor(turnsWithText(text), 'robot_a'), 2);
+});
+
+check('earthquake text with 2 memories counts 2', function () {
+  const text = 'You are a robot.\n\n' + MEMORIES_HEADING +
+    '\n\n"""\nfirst\n"""\n\n"""\nsecond\n"""\n\nRight now: It is afternoon.';
+  assert.strictEqual(controller.countSnapshotFor(turnsWithText(text), 'robot_a'), 2);
+});
+
+check('text with no memories block counts 0', function () {
+  const text = 'You are a robot.\n\nRight now: It is afternoon.\n\nWhat are you thinking right now, and what do you do?';
+  assert.strictEqual(controller.countSnapshotFor(turnsWithText(text), 'robot_a'), 0);
+});
+
+// Fixture: the two turn-1 situation texts of heat-wave episode 186823c0.
+check('real heat-wave fixture counts 2 for Amber and 2 for Jade', function () {
+  const fixture = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', 'fixtures', 'heat_wave_186823c0_turn1_situation_texts.json'), 'utf8'));
+  const turns = [{
+    turnNumber: 1,
+    robots: {
+      robot_a: { situationText: fixture.robot_a },
+      robot_b: { situationText: fixture.robot_b }
+    }
+  }];
+  assert.strictEqual(controller.countSnapshotFor(turns, 'robot_a'), 2);
+  assert.strictEqual(controller.countSnapshotFor(turns, 'robot_b'), 2);
 });
 
 console.log(passed + ' checks passed.');

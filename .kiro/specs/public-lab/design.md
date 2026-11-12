@@ -477,6 +477,36 @@ An earthquake world has `S.heat === null`, so every new branch is skipped and th
 
 **`public/replay.php`**: add `<button type="button" class="btn" id="btn-voices" aria-pressed="true">Voices: on</button>` in the header (outside the `hidden` controls, so it exists in list and playback modes); add `js/speech-sequencer.js` to the script list before `act-out.js`. `index.php` loads it in the same position.
 
+### Replay memory headings (Requirement 22)
+
+Decided by the maintainer on 2026-11-12. `SituationTextGenerator` has two private constants: `MEMORIES_HEADING` (earthquake) and `MEMORIES_HEADING_HEAT` (heat wave, since commit 259ff3d). `public/js/replay.js` knows only the first, so `countSnapshotFor` returns 0 for a heat-wave text.
+
+**Change (`public/js/replay.js` only).** Replace the single `MEMORIES_HEADING` variable with two, copied exactly from the PHP constants:
+
+```js
+var MEMORIES_HEADING_EARTHQUAKE =
+  'Your memories (what you wrote down after an earlier disaster in this house):';
+var MEMORIES_HEADING_HEAT =
+  'Your memories (what you wrote down on an earlier day, after an earlier disaster in this house):';
+```
+
+`countSnapshotFor(turns, robotId)` keeps its loop and its public name. For the first turn with a non-empty `situationText` it finds whichever heading occurs in the text (`indexOf` for each; a text carries at most one), and calls `countMemoryBlocks(text, headingAt + heading.length)` as before. If neither heading occurs it returns 0. `countMemoryBlocks`, `renderStartedWith` and `fillStartedWith` are unchanged. The counting rule is unchanged: the number of `"""` fence pairs in the block, which equals the stored Memory_Snapshot length.
+
+**Drift test (PHP).** `tests/Engine/ReplayHeadingsTest.php` reads `MEMORIES_HEADING` and `MEMORIES_HEADING_HEAT` with `ReflectionClassConstant` (private constants are readable by reflection on PHP 8.2), reads the source of `public/js/replay.js`, and asserts each value occurs in it as a single-quoted JS string (`'` . value . `'`). The test names the constant in its failure message. It also asserts the two values differ, so a copy-paste of one into the other fails.
+
+**Fixture test (JS).** The turn-1 situation texts of the live record `186823c0-3ff4-4289-ad30-ca98ef97708e` are read through the MCP `fetch` server under `.kiro/steering/live-records.md` (GET only, `episodes/{id}`, slices of at most 12000 characters, raw). Only `turns[0].robots.robot_a.situationText` and `turns[0].robots.robot_b.situationText` are kept, in `tests/fixtures/heat_wave_186823c0_turn1_situation_texts.json` as `{ "robot_a": "...", "robot_b": "..." }`. Nothing else from the record is copied, and the file holds no key, cookie or secret. The test wraps each text as `{ robots: { robot_x: { situationText } } }` and expects 2 for Amber and 2 for Jade.
+
+**Example list** (in `tests/js/replay-started-with.test.js`):
+
+| Input | `countSnapshotFor` |
+|---|---|
+| Heat-wave text, heat heading, 2 memories | 2 |
+| Earthquake text, earthquake heading, 2 memories | 2 |
+| Text with no memories block | 0 |
+| Fixture, `robot_a` and `robot_b` of `186823c0` | 2 and 2 |
+
+The existing property loop (count equals snapshot length for the earthquake heading) stays as it is.
+
 ## Data Models
 
 ### The additive SQL file `sql/2026-11-10_add_public_lab.sql`
@@ -1019,6 +1049,7 @@ Each property test carries a tag comment: `Feature: public-lab, Property N: <tex
 | Origin check and slot release (task 22) | `tests/TurnLoop/Properties/CrossSitePropertyTest.php` (Property 25), `RunningSlotPropertyTest.php` (Property 26); `CrossSiteRouteTest.php`; update `ConfigPublicLabTest`; gated `RunningSlotPdoTest.php` | 14.29, 14.30; every POST route with the fake service; boundaries 59/61 s and 299/301 s with the injected clock; PDO and fake give the same answers |
 | Headers and direct access (task 23) | `tests/TurnLoop/SecurityHeadersTest.php`, `PageSecurityHeadersTest.php`, `NoInlineAssetsTest.php`, `ApiHtaccessTest.php` | 14.31; API headers on 200/403/404/409/429/500 responses via `ps_dispatch`; each page is run with `php` as a child process from the project folder (`php-cgi` or the CLI, whichever the project's tests already use) and its emitted headers are read, or, if the CLI cannot report headers, the test checks that the page source calls `ps_send_security_headers()` before any output and that the function emits the expected strings; the two definitions are equal; source scan for inline script/style; `.htaccess` text checks |
 | Judge pass (tasks 24 to 28) | `tests/TurnLoop/Judge/JudgePassTest.php`, `JudgeCookieTest.php`, `tests/TurnLoop/ConfigJudgeTest.php`, `tests/TurnLoop/JudgeKeyFileTest.php` (temp dir), `JudgePassRouteTest.php`, `JudgeStartTest.php`, `JudgeMigrationScopeTest.php`, `tests/TurnLoop/Properties/JudgeCookiePropertyTest.php` (Property 27), `JudgePassRoutePropertyTest.php` (Property 28), `JudgeStartPropertyTest.php` (Property 29); gated `tests/TurnLoop/Repository/JudgeUsagePdoTest.php`; `tests/Tools/MakeJudgePassTest.php`, `tests/Tools/NoJudgeSecretsInRepoTest.php` | 14.33 to 14.40; every value is generated inside the test; no real pass or hash; the Eris properties use `limitTo(100)`; the PDO test is gated by `PS_TEST_MYSQL_DSN` and uses the fake for the same cases |
+| Replay headings (task 31) | `tests/Engine/ReplayHeadingsTest.php` | 14.42, 22.4: both `SituationTextGenerator` heading constants (by reflection) occur as quoted strings in `public/js/replay.js`; the two values differ |
 | No-store and leaks | extend `NoStorePropertyTest`, `NoLeakPropertyTest` | 3.4, 4.9, 6.10, 13.18, 13.19: all new routes and the 429/409 bodies |
 
 Fakes: `InMemoryEpisodeRepository` gains the device methods with the same semantics as the SQL (including `ORDER BY id DESC OFFSET 6` retirement). `InMemoryUsageRepository` implements `tryReserve/release/counts` with the same all-or-nothing rule. Both take an injectable clock.
@@ -1050,6 +1081,7 @@ New or changed JS tests:
 | `observe-judge.test.js` (task 27) | 14.37: `#judge=` removed by `history.replaceState` before the first request; one `POST` with `{"pass": ...}`; the pass in no query string, `localStorage`, `sessionStorage` or console call; the Judge_Note only while `judgeStatus` answers true; `daily_judge_limit` message with Levers OFF; no fragment means the old behaviour; a fake API without the judge methods leaves every existing test unchanged |
 | `observe-static.test.js` | 14.10: `index.php` and `observe.js` contain no `btn-pause`, `btn-step`, `btn-resume`, `sw-rain`, `Heavy rain`, `coming later`, `paused`, `stepOnce`; Start and Voices exist; two levers only |
 | `heat-sky.test.js` | P22, 14.12; the earthquake call log is compared with `tests/fixtures/renderer_earthquake_calls.json`, **generated from the current renderer in task 1 before the renderer is edited** and never regenerated |
+| `replay-started-with.test.js` (extended, task 31) | 14.41, 22.1 to 22.3: heat-wave text with 2 memories gives 2; earthquake text with 2 gives 2; no block gives 0; fixture `tests/fixtures/heat_wave_186823c0_turn1_situation_texts.json` gives 2 for Amber and 2 for Jade; the earlier tests stay unchanged |
 | `replay-groups.test.js` | 6.9: headings "Featured" and "Your runs", empty-state line, object (not array) response |
 | updated | `ask-apply-recovery.test.js` (the notice assertions only; the call/wait logs stay), `heat-wave-screens.test.js` (Heavy rain assertions removed; everything else stays), `end-card-reflection.test.js` and `memory-ui.test.js` (only if they reference removed controls) |
 

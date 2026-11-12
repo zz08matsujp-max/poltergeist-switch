@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan makes PoltergeistSwitch ready for a public audience: memory and "All reset" belong to a Device, the replay list has a Featured group and a "Your runs" group, new episodes are limited per UTC day, Observe gets its fixes (speech sequencing, levers after the end, Try again, removed controls), and the heat-wave sky is redrawn. The engine, the house rules, the robots' input texts and every recorded episode stay byte-identical (Requirement 1). Task 30 (2026-11-12) puts the heat-wave run `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843` first in the Featured list, making it nine ids.
+This plan makes PoltergeistSwitch ready for a public audience: memory and "All reset" belong to a Device, the replay list has a Featured group and a "Your runs" group, new episodes are limited per UTC day, Observe gets its fixes (speech sequencing, levers after the end, Try again, removed controls), and the heat-wave sky is redrawn. The engine, the house rules, the robots' input texts and every recorded episode stay byte-identical (Requirement 1). Task 30 (2026-11-12) puts the heat-wave run `16fe8bdc-4e6c-4c14-ba34-58a80c9f1843` first in the Featured list, making it nine ids. Task 31 (2026-11-12) makes the Replay page count memories under both the earthquake and the heat-wave heading, changing `public/js/replay.js` only (Requirement 22).
 
 Tasks 18 to 20 were added after task 17 (front end only, no change to `src/`, `api/`, `sql/`, the engine or any robot text): 18 Levers choose the disaster and Start starts the run, 19 notices beside the levers, 20 keeping Chrome's speech going. They sit after the final checkpoint on purpose and add no new checkpoint.
 
@@ -620,6 +620,20 @@ Steering constraints that apply to every task:
     - Run `php -l` on every changed PHP file, the full PHPUnit suite and `node tests/js/run-all.js`. Confirm that `shasum -a 256 tests/fixtures/earthquake_golden_master.json` starts with `c2aba50f87c22fe6`. Confirm with `git diff` that nothing else changed (no episode records, no rules engine, no API response shape, no replay page, no judge pass, nothing in `sql/`). Tick every finished sub-task of task 30. Commit only the files of task 30 with `task 30: Put the heat-wave run 16fe8bdc first in Featured`. Never push, amend, rebase or reset.
     - _Requirements: 6.1, 6.2, 1.1, 14.13_
 
+- [ ] 31. Count heat-wave memories on the Replay page
+  - [x] 31.1 Recognise both memories headings in `public/js/replay.js`
+    - Protection: change `public/js/replay.js` only. No `src/`, `api/` or `sql/` change; the earthquake Golden_Master (SHA-256 starts with `c2aba50f87c22fe6`), every protection pin, the robots' input texts, the API response shape, the episode records and the judge pass stay unchanged.
+    - Replace the single `MEMORIES_HEADING` with `MEMORIES_HEADING_EARTHQUAKE` and `MEMORIES_HEADING_HEAT`, each copied exactly from `MEMORIES_HEADING` and `MEMORIES_HEADING_HEAT` in `src/Engine/SituationTextGenerator.php`. Make `countSnapshotFor` find whichever heading occurs in the first non-empty situation text and count with `countMemoryBlocks` from the end of that heading; return 0 when neither occurs. Keep every public name.
+    - _Requirements: 22.1, 22.2, 22.3, 22.5, 22.6, 1.1_
+  - [x] 31.2 Extend the JavaScript test, add the fixture and add the PHP drift test
+    - In `tests/js/replay-started-with.test.js` add: heat-wave text with 2 memories gives 2; earthquake text with 2 memories gives 2; a text with no memories block gives 0; the fixture gives 2 for Amber and 2 for Jade. Keep the existing tests unchanged.
+    - Create `tests/fixtures/heat_wave_186823c0_turn1_situation_texts.json` as `{ "robot_a": "...", "robot_b": "..." }` from `turns[0].robots.robot_a.situationText` and `turns[0].robots.robot_b.situationText` of episode `186823c0-3ff4-4289-ad30-ca98ef97708e`, read through the MCP `fetch` server under `.kiro/steering/live-records.md` (GET only, slices of at most 12000 characters). Keep nothing else from the record.
+    - Create `tests/Engine/ReplayHeadingsTest.php`: read both heading constants of `SituationTextGenerator` by reflection, read the source of `public/js/replay.js`, assert each value occurs as a single-quoted string, and assert the two values differ. PHP 8.2 only.
+    - _Requirements: 14.41, 14.42, 22.1, 22.2, 22.3, 22.4_
+  - [x] 31.3 Run everything and commit
+    - Run `php -l` on every changed PHP file, the full PHPUnit suite and `node tests/js/run-all.js`. Confirm that `shasum -a 256 tests/fixtures/earthquake_golden_master.json` starts with `c2aba50f87c22fe6`. Confirm with `git diff` that nothing else changed (no `src/`, no `api/`, no `sql/`, no episode records). Tick every finished sub-task of task 31. Commit only the files of task 31 with `task 31: Count heat-wave memories on the Replay page`. Never push, amend, rebase or reset.
+    - _Requirements: 14.43, 22.5, 22.6, 1.1_
+
 ## Notes
 
 - Every sub-task, including every test sub-task, is REQUIRED. No sub-task is optional.
@@ -718,7 +732,10 @@ Steering constraints that apply to every task:
     { "id": 79, "tasks": ["29.1"] },
     { "id": 80, "tasks": ["30.1"] },
     { "id": 81, "tasks": ["30.2"] },
-    { "id": 82, "tasks": ["30.3"] }
+    { "id": 82, "tasks": ["30.3"] },
+    { "id": 83, "tasks": ["31.1"] },
+    { "id": 84, "tasks": ["31.2"] },
+    { "id": 85, "tasks": ["31.3"] }
   ]
 }
 ```
